@@ -10,7 +10,7 @@ import {
   login, logout, watchAuth,
   addDailySales, addExpense,
   getSales, getExpenses, getFixedExpenses, setFixedExpense,
-  getUsers, createStaffUser,
+  getUsers, createStaffUser, uploadInvoiceImage,
 } from './firebase';
 
 // ==========================================
@@ -742,30 +742,66 @@ function ExpenseForm({ setView, branchId }) {
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [payMethod, setPayMethod] = useState('Cash');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  const fileInputRef = React.useRef(null);
 
   const requiresImage = EXPENSE_CATEGORIES.find((c) => c.id === category)?.requiresImage || false;
+
+  const handlePickImage = () => fileInputRef.current?.click();
+
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) {
+      setError('يجب أن يكون الملف صورة');
+      return;
+    }
+    if (f.size > 7 * 1024 * 1024) {
+      setError('حجم الصورة أكبر من 7 ميجا');
+      return;
+    }
+    setError('');
+    setImageFile(f);
+    setImagePreview(URL.createObjectURL(f));
+  };
 
   const handleSave = async () => {
     setError('');
     if (!category) { setError('اختر التصنيف'); return; }
     if (!(Number(amount) > 0)) { setError('أدخل مبلغاً صحيحاً'); return; }
+    if (requiresImage && !imageFile) { setError('صورة الفاتورة مطلوبة لهذا التصنيف'); return; }
+
     setSaving(true);
     try {
+      // ارفع الصورة أولاً (إن وُجدت)
+      let invoiceUrl = null, invoicePath = null;
+      if (imageFile) {
+        setUploading(true);
+        const up = await uploadInvoiceImage(imageFile);
+        invoiceUrl = up.invoiceUrl;
+        invoicePath = up.invoicePath;
+        setUploading(false);
+      }
       await addExpense({
         date,
         branchId,
         categoryId: category,
         amount,
         paymentMethodId: payMethod,
+        invoiceUrl,
+        invoicePath,
       });
       setDone(true);
       setTimeout(() => setView('employeeHome'), 1200);
     } catch (err) {
       setError(err?.message || 'تعذّر الحفظ');
       setSaving(false);
+      setUploading(false);
     }
   };
 
@@ -813,17 +849,36 @@ function ExpenseForm({ setView, branchId }) {
           </div>
         </div>
 
-        <div className={`p-6 rounded-2xl border-2 border-dashed ${requiresImage ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
-          <div className="text-center">
-            <Camera className={`mx-auto mb-3 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={32} />
-            <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-4`}>
-              {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
-            </p>
-            <button className="bg-white border border-gray-300 px-6 py-2.5 rounded-xl text-sm font-bold flex gap-2 mx-auto">
-              <UploadCloud size={16} /> إرفاق
-            </button>
-            <p className="text-[10px] text-gray-400 mt-3">رفع الصور إلى Cloudflare R2 يُفعّل لاحقاً</p>
-          </div>
+        <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+          onChange={handleFileChange} className="hidden" />
+
+        <div className={`p-6 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+          {imagePreview ? (
+            <div className="text-center">
+              <img src={imagePreview} alt="معاينة" className="max-h-40 mx-auto rounded-xl shadow mb-3 object-contain" />
+              <p className="text-xs text-gray-600 mb-3 font-bold truncate">{imageFile?.name}</p>
+              <div className="flex gap-2 justify-center">
+                <button onClick={handlePickImage} className="bg-white border border-gray-300 px-4 py-2 rounded-xl text-xs font-bold">
+                  تغيير
+                </button>
+                <button onClick={() => { setImageFile(null); setImagePreview(''); }}
+                  className="bg-white border border-red-200 text-red-600 px-4 py-2 rounded-xl text-xs font-bold">
+                  حذف
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <Camera className={`mx-auto mb-3 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={32} />
+              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-4`}>
+                {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
+              </p>
+              <button onClick={handlePickImage}
+                className="bg-white border border-gray-300 px-6 py-2.5 rounded-xl text-sm font-bold flex gap-2 mx-auto">
+                <UploadCloud size={16} /> اختيار صورة
+              </button>
+            </div>
+          )}
         </div>
 
         {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
@@ -835,8 +890,8 @@ function ExpenseForm({ setView, branchId }) {
 
         <button onClick={handleSave} disabled={saving || done}
           className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2">
-          {saving && <Loader2 size={18} className="animate-spin" />}
-          {saving ? 'جارٍ الحفظ...' : 'حفظ المصروف'}
+          {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
+          {uploading ? 'جارٍ رفع الصورة...' : saving ? 'جارٍ الحفظ...' : 'حفظ المصروف'}
         </button>
       </div>
     </div>
