@@ -1343,3 +1343,518 @@ function ManageCategories({ onBack }) {
     <div className="flex flex-col h-full bg-white pb-20">
       <div className="flex items-center p-4 border-b border-gray-100">
         <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+          <ChevronRight size={20} className="rotate-180" />
+        </button>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">التصنيفات</h2>
+      </div>
+
+      <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+        {!showForm && (
+          <button onClick={() => setShowForm(true)}
+            className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center gap-2">
+            <Plus size={18} /> إضافة تصنيف
+          </button>
+        )}
+
+        {showForm && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <h3 className="font-bold text-sm text-slate-800">تصنيف جديد</h3>
+            <input type="text" placeholder="اسم التصنيف (مثل: كهرباء)"
+              value={newName} onChange={(e) => setNewName(e.target.value)}
+              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+
+            <div>
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">نوع المصروف (لتقارير المدير)</label>
+              <select value={newType} onChange={(e) => setNewType(e.target.value)}
+                className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500">
+                <option value="general">عام</option>
+                <option value="flower">ورد</option>
+                <option value="delivery">توصيل</option>
+                <option value="marketing">تسويق</option>
+              </select>
+            </div>
+
+            <label className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3 cursor-pointer">
+              <span className="text-sm font-bold text-gray-700">صورة الفاتورة إجبارية</span>
+              <input type="checkbox" checked={newReq} onChange={(e) => setNewReq(e.target.checked)}
+                className="w-5 h-5 accent-blue-600" />
+            </label>
+
+            {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">{error}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setShowForm(false); setError(''); }}
+                className="flex-1 bg-white border border-gray-300 text-gray-600 font-bold py-2.5 rounded-xl text-sm">
+                إلغاء
+              </button>
+              <button onClick={handleAdd} disabled={saving}
+                className="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {saving ? 'جارٍ...' : 'حفظ'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!showForm && error && (
+          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
+        ) : (
+          <div className="space-y-2">
+            {cats.map((cat) => (
+              <div key={cat.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-gray-800">{cat.name}</p>
+                  <p className="text-[11px] text-gray-400">
+                    {cat.requiresImage ? '🔴 صورة إجبارية' : '⚪ صورة اختيارية'}
+                    {' · '}
+                    {cat.expenseType === 'flower' ? 'ورد' :
+                     cat.expenseType === 'delivery' ? 'توصيل' :
+                     cat.expenseType === 'marketing' ? 'تسويق' : 'عام'}
+                  </p>
+                </div>
+
+                {/* مفتاح تبديل "يتطلب صورة" */}
+                <button onClick={() => toggleRequires(cat)} disabled={busyId === cat.id}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${cat.requiresImage ? 'bg-blue-600' : 'bg-gray-300'} disabled:opacity-50`}>
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${cat.requiresImage ? 'translate-x-1' : 'translate-x-6'}`} />
+                </button>
+
+                <button onClick={() => handleDelete(cat)} disabled={busyId === cat.id}
+                  className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50">
+                  {busyId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <span className="text-xs font-bold">حذف</span>}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-[11px] text-gray-400 text-center pt-2">
+          اضغط المفتاح الأزرق لتبديل "صورة إجبارية" لأي تصنيف
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// شاشة تغيير رمز المدير لنفسه
+// ==========================================
+function ChangeMyPin({ onBack }) {
+  const [currentPin, setCurrentPin] = useState('');
+  const [newPin, setNewPin] = useState('');
+  const [confirmPin, setConfirmPin] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const handleSave = async () => {
+    setError(''); setDone(false);
+    if (!/^\d{4}$/.test(currentPin)) { setError('الرمز الحالي يجب أن يكون 4 أرقام'); return; }
+    if (!/^\d{4}$/.test(newPin)) { setError('الرمز الجديد يجب أن يكون 4 أرقام'); return; }
+    if (newPin !== confirmPin) { setError('الرمز الجديد لا يطابق التأكيد'); return; }
+    if (newPin === currentPin) { setError('الرمز الجديد يجب أن يختلف عن الحالي'); return; }
+    setSaving(true);
+    try {
+      await changeMyPin(currentPin, newPin);
+      setDone(true);
+      setCurrentPin(''); setNewPin(''); setConfirmPin('');
+    } catch (err) {
+      const code = err?.code || '';
+      if (code.includes('wrong-password') || code.includes('invalid-credential')) {
+        setError('الرمز الحالي غير صحيح');
+      } else if (code.includes('too-many-requests')) {
+        setError('محاولات كثيرة، حاول بعد قليل');
+      } else {
+        setError(err?.message || 'تعذّر تغيير الرمز');
+      }
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white pb-20">
+      <div className="flex items-center p-4 border-b border-gray-100">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+          <ChevronRight size={20} className="rotate-180" />
+        </button>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">تغيير رمزي السري</h2>
+      </div>
+
+      <div className="p-6 space-y-4 flex-1">
+        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
+          <Key size={20} className="text-blue-600 mx-auto mb-2" />
+          <p className="text-blue-800 font-bold text-sm">تحديث الرمز السري لحسابك</p>
+          <p className="text-blue-500 text-[11px] mt-1">سيتم التحقق من الرمز الحالي قبل التغيير</p>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">الرمز الحالي</label>
+          <input type="password" inputMode="numeric" maxLength={4} value={currentPin}
+            onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
+            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">الرمز الجديد</label>
+          <input type="password" inputMode="numeric" maxLength={4} value={newPin}
+            onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
+            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+        </div>
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">تأكيد الرمز الجديد</label>
+          <input type="password" inputMode="numeric" maxLength={4} value={confirmPin}
+            onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
+            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+        </div>
+
+        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {done && (
+          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+            <CheckCircle2 size={18} /> تم تغيير الرمز بنجاح
+          </p>
+        )}
+
+        <button onClick={handleSave} disabled={saving}
+          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          {saving && <Loader2 size={18} className="animate-spin" />}
+          {saving ? 'جارٍ التحديث...' : 'حفظ الرمز الجديد'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// شاشة تسجيل المبيعات/المصاريف للمدير (لأي فرع)
+// ==========================================
+function AdminDataEntry({ onBack }) {
+  const [step, setStep] = useState('menu'); // menu, sales, expense
+  const [chosenBranch, setChosenBranch] = useState('toia');
+
+  if (step === 'sales') {
+    return (
+      <AdminSalesForm onBack={() => setStep('menu')} branchId={chosenBranch}
+        branchName={chosenBranch === 'wardana' ? 'وردانة' : 'تويا'} />
+    );
+  }
+  if (step === 'expense') {
+    return (
+      <AdminExpenseForm onBack={() => setStep('menu')} branchId={chosenBranch} />
+    );
+  }
+
+  return (
+    <div className="flex flex-col h-full bg-white pb-20">
+      <div className="flex items-center p-4 border-b border-gray-100">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+          <ChevronRight size={20} className="rotate-180" />
+        </button>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">تسجيل بيانات (مدير)</h2>
+      </div>
+
+      <div className="p-6 space-y-4 flex-1">
+        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
+          <p className="text-indigo-800 font-bold text-sm">إدخال نيابة عن أي فرع</p>
+          <p className="text-indigo-500 text-[11px] mt-1">اختر الفرع، ثم نوع التسجيل</p>
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-2 block">اختر الفرع</label>
+          <div className="flex gap-2">
+            {[{ v: 'toia', t: 'تويا' }, { v: 'wardana', t: 'وردانة' }].map((b) => (
+              <button key={b.v} onClick={() => setChosenBranch(b.v)}
+                className={`flex-1 py-3 rounded-xl text-sm font-bold border ${chosenBranch === b.v ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-500 border-gray-200'}`}>
+                {b.t}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="pt-2 space-y-3">
+          <button onClick={() => setStep('sales')}
+            className="w-full bg-blue-600 text-white p-5 rounded-2xl shadow-md flex items-center gap-4 active:scale-95 transition-transform">
+            <div className="bg-white/20 p-3 rounded-xl"><TrendingUp size={24} /></div>
+            <div className="text-right">
+              <h3 className="font-bold text-base mb-0.5">تسجيل المبيعات</h3>
+              <p className="text-blue-100 text-xs">فرع {chosenBranch === 'wardana' ? 'وردانة' : 'تويا'}</p>
+            </div>
+          </button>
+          <button onClick={() => setStep('expense')}
+            className="w-full bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform">
+            <div className="bg-blue-50 text-blue-600 p-3 rounded-xl"><Receipt size={24} /></div>
+            <div className="text-right">
+              <h3 className="font-bold text-gray-800 text-base mb-0.5">تسجيل مصروف</h3>
+              <p className="text-gray-500 text-xs">فرع {chosenBranch === 'wardana' ? 'وردانة' : 'تويا'}</p>
+            </div>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// نسخة من SalesForm للمدير (الفرق: زر "رجوع" يرجع لشاشة الإدخال بدل الموظف)
+function AdminSalesForm({ onBack, branchId, branchName }) {
+  const [date, setDate] = useState(todayStr());
+  const [cash, setCash] = useState('');
+  const [mada, setMada] = useState('');
+  const [transfer, setTransfer] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+
+  const total = (Number(cash) || 0) + (Number(mada) || 0) + (Number(transfer) || 0);
+  const fields = [
+    { label: 'كاش', value: cash, set: setCash },
+    { label: 'مدى', value: mada, set: setMada },
+    { label: 'تحويل', value: transfer, set: setTransfer },
+  ];
+
+  const handleSave = async () => {
+    setError('');
+    if (total <= 0) { setError('أدخل مبلغاً واحداً على الأقل'); return; }
+    setSaving(true);
+    try {
+      await addDailySales({ date, branchId, cash, mada, transfer });
+      setDone(true);
+      setTimeout(onBack, 1200);
+    } catch (err) {
+      setError(err?.message || 'تعذّر الحفظ');
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white pb-20">
+      <div className="flex items-center p-4 border-b border-gray-100">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+          <ChevronRight size={20} className="rotate-180" />
+        </button>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">مبيعات — {branchName}</h2>
+      </div>
+      <div className="p-6 space-y-5 flex-1">
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">التاريخ</label>
+            <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+          </div>
+          <div>
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">الفرع</label>
+            <div className="w-full p-3 bg-slate-900 text-white rounded-xl text-sm font-bold text-center">{branchName}</div>
+          </div>
+        </div>
+
+        <div className="space-y-3">
+          {fields.map((f) => (
+            <div key={f.label} className="flex items-center">
+              <div className="w-1/3 text-gray-600 font-bold text-sm">{f.label}</div>
+              <input type="number" placeholder="0.00" value={f.value}
+                onChange={(e) => f.set(e.target.value)}
+                className="w-2/3 p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+            </div>
+          ))}
+        </div>
+
+        <div className="bg-blue-50 p-5 rounded-2xl text-center border border-blue-100">
+          <p className="text-blue-800 font-bold mb-1 text-sm">الإجمالي</p>
+          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} ريال</p>
+        </div>
+
+        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {done && (
+          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+            <CheckCircle2 size={18} /> تم الحفظ بنجاح
+          </p>
+        )}
+
+        <button onClick={handleSave} disabled={saving || done}
+          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          {saving && <Loader2 size={18} className="animate-spin" />}
+          {saving ? 'جارٍ الحفظ...' : 'حفظ المبيعات'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// نسخة من ExpenseForm للمدير
+function AdminExpenseForm({ onBack, branchId }) {
+  const [date, setDate] = useState(todayStr());
+  const [categories, setCategories] = useState([]);
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [categoryId, setCategoryId] = useState('');
+  const [amount, setAmount] = useState('');
+  const [payMethod, setPayMethod] = useState('Cash');
+  const [imageFile, setImageFile] = useState(null);
+  const [imagePreview, setImagePreview] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [done, setDone] = useState(false);
+  const [error, setError] = useState('');
+  const fileInputRef = React.useRef(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cats = await getCategories();
+        if (!cancelled) setCategories(cats);
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'تعذّر تحميل التصنيفات');
+      } finally {
+        if (!cancelled) setLoadingCats(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const requiresImage = selectedCategory?.requiresImage || false;
+  const branchName = branchId === 'wardana' ? 'وردانة' : 'تويا';
+
+  const handlePickImage = () => fileInputRef.current?.click();
+  const handleFileChange = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith('image/')) { setError('يجب أن يكون الملف صورة'); return; }
+    if (f.size > 7 * 1024 * 1024) { setError('حجم الصورة أكبر من 7 ميجا'); return; }
+    setError('');
+    setImageFile(f);
+    setImagePreview(URL.createObjectURL(f));
+  };
+
+  const handleSave = async () => {
+    setError('');
+    if (!categoryId) { setError('اختر التصنيف'); return; }
+    if (!(Number(amount) > 0)) { setError('أدخل مبلغاً صحيحاً'); return; }
+    if (requiresImage && !imageFile) { setError('صورة الفاتورة مطلوبة لهذا التصنيف'); return; }
+    setSaving(true);
+    try {
+      let invoiceUrl = null, invoicePath = null;
+      if (imageFile) {
+        setUploading(true);
+        const up = await uploadInvoiceImage(imageFile);
+        invoiceUrl = up.invoiceUrl;
+        invoicePath = up.invoicePath;
+        setUploading(false);
+      }
+      await addExpense({
+        date, branchId, categoryId,
+        categoryName: selectedCategory?.name,
+        expenseType: selectedCategory?.expenseType || 'general',
+        amount,
+        paymentMethodId: payMethod,
+        invoiceUrl, invoicePath,
+      });
+      setDone(true);
+      setTimeout(onBack, 1200);
+    } catch (err) {
+      setError(err?.message || 'تعذّر الحفظ');
+      setSaving(false);
+      setUploading(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white pb-20">
+      <div className="flex items-center p-4 border-b border-gray-100">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+          <ChevronRight size={20} className="rotate-180" />
+        </button>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">مصروف — {branchName}</h2>
+      </div>
+      <div className="p-6 space-y-4 flex-1">
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">التاريخ</label>
+          <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
+            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">التصنيف</label>
+          {loadingCats ? (
+            <div className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-400 flex items-center gap-2">
+              <Loader2 size={16} className="animate-spin" /> جارٍ التحميل...
+            </div>
+          ) : (
+            <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
+              className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-blue-500">
+              <option value="">اختر التصنيف...</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.requiresImage ? ' (صورة إجبارية)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">المبلغ</label>
+          <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
+            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+        </div>
+
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">طريقة الدفع</label>
+          <div className="flex gap-2">
+            {['Cash', 'Mada', 'Transfer'].map((p) => (
+              <button key={p} onClick={() => setPayMethod(p)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                {p}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+          onChange={handleFileChange} className="hidden" />
+
+        <div className={`p-5 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+          {imagePreview ? (
+            <div className="text-center">
+              <img src={imagePreview} alt="معاينة" className="max-h-32 mx-auto rounded-xl shadow mb-2 object-contain" />
+              <div className="flex gap-2 justify-center">
+                <button onClick={handlePickImage} className="bg-white border border-gray-300 px-4 py-1.5 rounded-lg text-xs font-bold">
+                  تغيير
+                </button>
+                <button onClick={() => { setImageFile(null); setImagePreview(''); }}
+                  className="bg-white border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-bold">
+                  حذف
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <Camera className={`mx-auto mb-2 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={28} />
+              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-3`}>
+                {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
+              </p>
+              <button onClick={handlePickImage}
+                className="bg-white border border-gray-300 px-5 py-2 rounded-xl text-xs font-bold flex gap-2 mx-auto">
+                <UploadCloud size={14} /> اختيار صورة
+              </button>
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {done && (
+          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+            <CheckCircle2 size={18} /> تم الحفظ
+          </p>
+        )}
+
+        <button onClick={handleSave} disabled={saving || done}
+          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
+          {uploading ? 'جارٍ رفع الصورة...' : saving ? 'جارٍ الحفظ...' : 'حفظ المصروف'}
+        </button>
+      </div>
+    </div>
+  );
+}
