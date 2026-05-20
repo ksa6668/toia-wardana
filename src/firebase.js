@@ -16,6 +16,9 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
+  updatePassword,
+  reauthenticateWithCredential,
+  EmailAuthProvider,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -81,7 +84,12 @@ export async function login(username, pin) {
   if (!userDoc.exists()) {
     throw new Error("لا يوجد ملف لهذا المستخدم في قاعدة البيانات");
   }
-  return { uid: cred.user.uid, ...userDoc.data() };
+  const data = userDoc.data();
+  if (data.active === false) {
+    await signOut(auth);
+    throw new Error("هذا الحساب معطّل. تواصل مع المدير.");
+  }
+  return { uid: cred.user.uid, ...data };
 }
 
 export async function logout() {
@@ -290,6 +298,69 @@ export async function addCategory({ name, requiresImage = false, expenseType = "
 // حذف تصنيف (نخفيه بدل حذف نهائي، حتى لا تتأثر سجلات قديمة)
 export async function deleteCategory(id) {
   await updateDoc(doc(db, "categories", id), { active: false });
+}
+
+// ========== إدارة المستخدمين (الرموز والتعطيل) ==========
+
+// تغيير رمز المستخدم الحالي (لنفسه) — يحتاج الرمز الحالي
+export async function changeMyPin(currentPin, newPin) {
+  if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
+  if (!/^\d{4}$/.test(String(currentPin || "").trim())) {
+    throw new Error("الرمز الحالي يجب أن يكون 4 أرقام");
+  }
+  if (!/^\d{4}$/.test(String(newPin || "").trim())) {
+    throw new Error("الرمز الجديد يجب أن يكون 4 أرقام");
+  }
+  // إعادة مصادقة بالرمز الحالي
+  const credOld = EmailAuthProvider.credential(
+    auth.currentUser.email,
+    pinToPassword(currentPin)
+  );
+  await reauthenticateWithCredential(auth.currentUser, credOld);
+  await updatePassword(auth.currentUser, pinToPassword(newPin));
+}
+
+// تعطيل/تفعيل مستخدم (soft) — لا يحذف من Auth، يضع active=false
+export async function setUserActive(uid, active) {
+  await updateDoc(doc(db, "users", uid), { active: !!active });
+}
+
+// طلب من Admin API: تغيير رمز مستخدم آخر (للمدير فقط)
+export async function adminChangeUserPin(targetUid, newPin) {
+  if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
+  const token = await auth.currentUser.getIdToken();
+  const res = await fetch("/api/admin", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ action: "changePassword", targetUid, newPin }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "تعذّر تغيير الرمز");
+  }
+  return res.json();
+}
+
+// حذف نهائي لمستخدم (Auth + Firestore) — للمدير فقط
+export async function adminDeleteUser(targetUid) {
+  if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
+  const token = await auth.currentUser.getIdToken();
+  const res = await fetch("/api/admin", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify({ action: "deleteUser", targetUid }),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw new Error(err.error || "تعذّر الحذف");
+  }
+  return res.json();
 }
 
 // ========== رفع صورة الفاتورة إلى R2 عبر /api/upload ==========

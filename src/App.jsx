@@ -4,7 +4,8 @@ import {
   Settings, Camera, ChevronRight, Building2,
   BarChart3, Wallet, UploadCloud,
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
-  ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2
+  ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
+  Key, UserX, UserCheck, Trash2, Edit3
 } from 'lucide-react';
 import {
   login, logout, watchAuth,
@@ -12,6 +13,7 @@ import {
   getSales, getExpenses, getFixedExpenses, setFixedExpense,
   getUsers, createStaffUser, uploadInvoiceImage,
   getCategories, setCategoryRequiresImage, addCategory, deleteCategory,
+  changeMyPin, setUserActive, adminChangeUserPin, adminDeleteUser,
 } from './firebase';
 
 // ==========================================
@@ -929,9 +931,13 @@ function AdminSettings() {
   if (screen === 'users') return <ManageUsers onBack={() => setScreen('menu')} />;
   if (screen === 'fixed') return <ManageFixedExpenses onBack={() => setScreen('menu')} />;
   if (screen === 'categories') return <ManageCategories onBack={() => setScreen('menu')} />;
+  if (screen === 'myPin') return <ChangeMyPin onBack={() => setScreen('menu')} />;
+  if (screen === 'adminEntry') return <AdminDataEntry onBack={() => setScreen('menu')} />;
 
   const items = [
-    { key: 'users', label: 'المستخدمون والصلاحيات', desc: 'إضافة موظفين ومديرين', enabled: true },
+    { key: 'adminEntry', label: 'تسجيل مبيعات/مصاريف', desc: 'إدخال لأي فرع كمدير', enabled: true },
+    { key: 'users', label: 'المستخدمون والصلاحيات', desc: 'إضافة، تعطيل، حذف، تغيير الرمز', enabled: true },
+    { key: 'myPin', label: 'تغيير رمزي السري', desc: 'تحديث رمزك أنت', enabled: true },
     { key: 'categories', label: 'التصنيفات والفواتير', desc: 'تحديد التصنيفات وإلزامية الصورة', enabled: true },
     { key: 'fixed', label: 'المصاريف الثابتة', desc: 'إيجار ورواتب — شهري لكل فرع', enabled: true },
     { key: 'branches', label: 'الفروع', desc: 'تويا، وردانة', enabled: false },
@@ -962,6 +968,10 @@ function ManageUsers({ onBack }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
+  const [editPinUid, setEditPinUid] = useState(null); // أي مستخدم نغيّر رمزه
+  const [busyUid, setBusyUid] = useState(null);
+
+  // حقول نموذج الإضافة
   const [username, setUsername] = useState('');
   const [pin, setPin] = useState('');
   const [displayName, setDisplayName] = useState('');
@@ -969,6 +979,9 @@ function ManageUsers({ onBack }) {
   const [branchId, setBranchId] = useState('toia');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+
+  // حقل تغيير الرمز
+  const [editPinValue, setEditPinValue] = useState('');
 
   const loadUsers = async () => {
     setLoading(true);
@@ -1000,6 +1013,48 @@ function ManageUsers({ onBack }) {
       else setError(err?.message || 'تعذّر إنشاء المستخدم');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleChangePin = async (uid) => {
+    setError('');
+    if (!/^\d{4}$/.test(editPinValue)) { setError('الرمز يجب أن يكون 4 أرقام'); return; }
+    setBusyUid(uid);
+    try {
+      await adminChangeUserPin(uid, editPinValue);
+      setEditPinUid(null);
+      setEditPinValue('');
+    } catch (err) {
+      setError(err?.message || 'تعذّر تغيير الرمز');
+    } finally {
+      setBusyUid(null);
+    }
+  };
+
+  const handleToggleActive = async (u) => {
+    setError('');
+    setBusyUid(u.uid);
+    try {
+      await setUserActive(u.uid, u.active === false ? true : false);
+      await loadUsers();
+    } catch (err) {
+      setError(err?.message || 'تعذّر التحديث');
+    } finally {
+      setBusyUid(null);
+    }
+  };
+
+  const handleDelete = async (u) => {
+    if (!confirm(`حذف نهائي لمستخدم "${u.displayName || u.username}"؟ لا يمكن التراجع.`)) return;
+    setError('');
+    setBusyUid(u.uid);
+    try {
+      await adminDeleteUser(u.uid);
+      await loadUsers();
+    } catch (err) {
+      setError(err?.message || 'تعذّر الحذف');
+    } finally {
+      setBusyUid(null);
     }
   };
 
@@ -1066,21 +1121,61 @@ function ManageUsers({ onBack }) {
           </div>
         )}
 
+        {!showForm && error && (
+          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
+        )}
+
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
         ) : (
           <div className="space-y-2">
             {users.map((u) => (
-              <div key={u.uid} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
-                <div className={`p-2 rounded-lg ${u.role === 'admin' ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-600'}`}>
-                  <Users size={18} />
+              <div key={u.uid} className={`bg-white border rounded-xl p-3 shadow-sm ${u.active === false ? 'border-gray-200 opacity-60' : 'border-gray-100'}`}>
+                <div className="flex items-center gap-3">
+                  <div className={`p-2 rounded-lg ${u.role === 'admin' ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-600'}`}>
+                    <Users size={18} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-bold text-sm text-gray-800">
+                      {u.displayName || u.username}
+                      {u.active === false && <span className="text-red-500 text-[10px] mr-2">(معطّل)</span>}
+                    </p>
+                    <p className="text-[11px] text-gray-400">
+                      {u.username} · {u.role === 'admin' ? 'مدير' : 'موظف'} · فرع {u.branchId === 'wardana' ? 'وردانة' : 'تويا'}
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-gray-800">{u.displayName || u.username}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {u.role === 'admin' ? 'مدير' : 'موظف'} · فرع {u.branchId === 'wardana' ? 'وردانة' : 'تويا'}
-                  </p>
-                </div>
+
+                {editPinUid === u.uid ? (
+                  <div className="mt-3 flex gap-2">
+                    <input type="password" inputMode="numeric" maxLength={4} value={editPinValue}
+                      onChange={(e) => setEditPinValue(e.target.value.replace(/\D/g, ''))}
+                      placeholder="رمز جديد (4 أرقام)"
+                      className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500" />
+                    <button onClick={() => handleChangePin(u.uid)} disabled={busyUid === u.uid}
+                      className="bg-blue-600 text-white font-bold px-4 rounded-lg text-xs disabled:opacity-60 flex items-center gap-1">
+                      {busyUid === u.uid && <Loader2 size={14} className="animate-spin" />} حفظ
+                    </button>
+                    <button onClick={() => { setEditPinUid(null); setEditPinValue(''); }}
+                      className="bg-gray-100 text-gray-600 font-bold px-3 rounded-lg text-xs">إلغاء</button>
+                  </div>
+                ) : (
+                  <div className="mt-3 flex gap-1.5">
+                    <button onClick={() => { setEditPinUid(u.uid); setEditPinValue(''); }}
+                      className="flex-1 bg-blue-50 text-blue-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
+                      <Key size={13} /> الرمز
+                    </button>
+                    <button onClick={() => handleToggleActive(u)} disabled={busyUid === u.uid}
+                      className={`flex-1 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 ${u.active === false ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                      {busyUid === u.uid ? <Loader2 size={13} className="animate-spin" /> :
+                        u.active === false ? <><UserCheck size={13} /> تفعيل</> : <><UserX size={13} /> تعطيل</>}
+                    </button>
+                    <button onClick={() => handleDelete(u)} disabled={busyUid === u.uid}
+                      className="flex-1 bg-red-50 text-red-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
+                      <Trash2 size={13} /> حذف
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>
@@ -1248,98 +1343,3 @@ function ManageCategories({ onBack }) {
     <div className="flex flex-col h-full bg-white pb-20">
       <div className="flex items-center p-4 border-b border-gray-100">
         <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">التصنيفات</h2>
-      </div>
-
-      <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-        {!showForm && (
-          <button onClick={() => setShowForm(true)}
-            className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center gap-2">
-            <Plus size={18} /> إضافة تصنيف
-          </button>
-        )}
-
-        {showForm && (
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
-            <h3 className="font-bold text-sm text-slate-800">تصنيف جديد</h3>
-            <input type="text" placeholder="اسم التصنيف (مثل: كهرباء)"
-              value={newName} onChange={(e) => setNewName(e.target.value)}
-              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
-
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">نوع المصروف (لتقارير المدير)</label>
-              <select value={newType} onChange={(e) => setNewType(e.target.value)}
-                className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500">
-                <option value="general">عام</option>
-                <option value="flower">ورد</option>
-                <option value="delivery">توصيل</option>
-                <option value="marketing">تسويق</option>
-              </select>
-            </div>
-
-            <label className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3 cursor-pointer">
-              <span className="text-sm font-bold text-gray-700">صورة الفاتورة إجبارية</span>
-              <input type="checkbox" checked={newReq} onChange={(e) => setNewReq(e.target.checked)}
-                className="w-5 h-5 accent-blue-600" />
-            </label>
-
-            {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">{error}</p>}
-            <div className="flex gap-2">
-              <button onClick={() => { setShowForm(false); setError(''); }}
-                className="flex-1 bg-white border border-gray-300 text-gray-600 font-bold py-2.5 rounded-xl text-sm">
-                إلغاء
-              </button>
-              <button onClick={handleAdd} disabled={saving}
-                className="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2">
-                {saving && <Loader2 size={16} className="animate-spin" />}
-                {saving ? 'جارٍ...' : 'حفظ'}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {!showForm && error && (
-          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
-        ) : (
-          <div className="space-y-2">
-            {cats.map((cat) => (
-              <div key={cat.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-gray-800">{cat.name}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {cat.requiresImage ? '🔴 صورة إجبارية' : '⚪ صورة اختيارية'}
-                    {' · '}
-                    {cat.expenseType === 'flower' ? 'ورد' :
-                     cat.expenseType === 'delivery' ? 'توصيل' :
-                     cat.expenseType === 'marketing' ? 'تسويق' : 'عام'}
-                  </p>
-                </div>
-
-                {/* مفتاح تبديل "يتطلب صورة" */}
-                <button onClick={() => toggleRequires(cat)} disabled={busyId === cat.id}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${cat.requiresImage ? 'bg-blue-600' : 'bg-gray-300'} disabled:opacity-50`}>
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${cat.requiresImage ? 'translate-x-1' : 'translate-x-6'}`} />
-                </button>
-
-                <button onClick={() => handleDelete(cat)} disabled={busyId === cat.id}
-                  className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50">
-                  {busyId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <span className="text-xs font-bold">حذف</span>}
-                </button>
-              </div>
-            ))}
-          </div>
-        )}
-
-        <p className="text-[11px] text-gray-400 text-center pt-2">
-          اضغط المفتاح الأزرق لتبديل "صورة إجبارية" لأي تصنيف
-        </p>
-      </div>
-    </div>
-  );
-}
