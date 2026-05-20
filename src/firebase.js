@@ -400,6 +400,13 @@ export async function deleteCategory(id) {
 
 // ========== إدارة المستخدمين (الرموز والتعطيل) ==========
 
+// ========== تفضيل اللغة للموظف (طلب اللغتين) ==========
+// language: "ar" | "en"
+export async function saveUserLanguage(uid, language) {
+  if (!uid || !['ar', 'en'].includes(language)) return;
+  await updateDoc(doc(db, "users", uid), { language });
+}
+
 // تغيير رمز المستخدم الحالي (لنفسه) — يحتاج الرمز الحالي
 export async function changeMyPin(currentPin, newPin) {
   if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");

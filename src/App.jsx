@@ -16,7 +16,9 @@ import {
   changeMyPin, setUserActive, adminChangeUserPin, adminDeleteUser,
   getBranches, getPaymentMethods,
   madaFees, madaNet, MADA_FEE_RATE,
+  saveUserLanguage,
 } from './firebase';
+import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -105,16 +107,27 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [adminTab, setAdminTab] = useState('dashboard');
+  // ✨ اللغة — تخص شاشات الموظف فقط، لكن نقرأها للجميع لاتساق شاشة الدخول
+  const [lang, setLang] = useState(readSavedLang());
 
   const userRole = user?.role || null;
   const branchId = user?.branchId || 'toia';
-  const branch = branchId === 'wardana' ? 'وردانة' : 'تويا';
+  const isAdmin = userRole === 'admin';
+  // اسم الفرع: للموظف يترجم حسب اللغة، للمدير يبقى عربي
+  const branch = isAdmin
+    ? (branchId === 'wardana' ? 'وردانة' : 'تويا')
+    : translateBranch(lang, branchId, branchId === 'wardana' ? 'وردانة' : 'تويا');
 
   useEffect(() => {
     const unsub = watchAuth((u) => {
       setUser(u);
       setAuthLoading(false);
       setCurrentView(u ? (u.role === 'admin' ? 'adminHome' : 'employeeHome') : 'login');
+      // عند الدخول، طبّق لغة المستخدم المحفوظة في Firestore (إن وجدت)
+      if (u && u.language && (u.language === 'ar' || u.language === 'en')) {
+        setLang(u.language);
+        saveLangLocal(u.language);
+      }
     });
     return () => unsub();
   }, []);
@@ -122,6 +135,10 @@ export default function App() {
   const handleLoginSuccess = (u) => {
     setUser(u);
     setCurrentView(u.role === 'admin' ? 'adminHome' : 'employeeHome');
+    if (u.language && (u.language === 'ar' || u.language === 'en')) {
+      setLang(u.language);
+      saveLangLocal(u.language);
+    }
   };
 
   const handleLogout = async () => {
@@ -131,12 +148,21 @@ export default function App() {
     setAdminTab('dashboard');
   };
 
+  // تبديل لغة الموظف (يحفظ محلياً + في Firestore)
+  const changeLang = async (newLang) => {
+    setLang(newLang);
+    saveLangLocal(newLang);
+    if (user?.uid && !isAdmin) {
+      try { await saveUserLanguage(user.uid, newLang); } catch { /* ignore */ }
+    }
+  };
+
+  // اتجاه الصفحة: للموظف حسب لغته، للمدير دائماً RTL
+  const pageDir = isAdmin ? 'rtl' : dirFor(lang);
+  const pageAlign = pageDir === 'rtl' ? 'text-right' : 'text-left';
+
   return (
-    <div className="min-h-screen bg-[#f1f5f9] md:flex md:items-center md:justify-center md:p-4 font-sans text-right" dir="rtl">
-      {/*
-        على الجوال: ملء الشاشة، بدون إطار، بدون حدود (الجوال نفسه هو الإطار)
-        على الكمبيوتر (md+): إطار جوال محاكي بعرض محدود وارتفاع ثابت
-      */}
+    <div className={`min-h-screen bg-[#f1f5f9] md:flex md:items-center md:justify-center md:p-4 font-sans ${pageAlign}`} dir={pageDir}>
       <div className="w-full bg-white overflow-hidden flex flex-col
                       min-h-screen
                       md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
@@ -162,13 +188,21 @@ export default function App() {
           {authLoading && (
             <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 pt-20">
               <Loader2 size={32} className="animate-spin" />
-              <p className="text-sm font-bold">جارٍ التحميل...</p>
+              <p className="text-sm font-bold">{lang === 'en' ? 'Loading...' : 'جارٍ التحميل...'}</p>
             </div>
           )}
-          {!authLoading && currentView === 'login' && <LoginView onLoginSuccess={handleLoginSuccess} />}
-          {!authLoading && currentView === 'employeeHome' && <EmployeeHome setView={setCurrentView} branch={branch} />}
-          {!authLoading && currentView === 'salesForm' && <SalesForm setView={setCurrentView} branch={branch} branchId={branchId} />}
-          {!authLoading && currentView === 'expenseForm' && <ExpenseForm setView={setCurrentView} branchId={branchId} />}
+          {!authLoading && currentView === 'login' && (
+            <LoginView onLoginSuccess={handleLoginSuccess} lang={lang} setLang={changeLang} />
+          )}
+          {!authLoading && currentView === 'employeeHome' && (
+            <EmployeeHome setView={setCurrentView} branch={branch} lang={lang} setLang={changeLang} />
+          )}
+          {!authLoading && currentView === 'salesForm' && (
+            <SalesForm setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+          )}
+          {!authLoading && currentView === 'expenseForm' && (
+            <ExpenseForm setView={setCurrentView} branchId={branchId} lang={lang} />
+          )}
           {!authLoading && currentView === 'adminHome' && adminTab === 'dashboard' && <SuperAdminDashboard />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && <AdminSettings />}
         </main>
@@ -889,7 +923,7 @@ function PaymentBar({ label, amount, total, color }) {
 // ==========================================
 // شاشة تسجيل الدخول
 // ==========================================
-function LoginView({ onLoginSuccess }) {
+function LoginView({ onLoginSuccess, lang, setLang }) {
   const [username, setUsername] = useState(() => {
     try { return localStorage.getItem('tw_remember_user') || ''; } catch { return ''; }
   });
@@ -902,12 +936,11 @@ function LoginView({ onLoginSuccess }) {
 
   const handleSubmit = async () => {
     setError('');
-    if (!username.trim()) { setError('أدخل اسم المستخدم'); return; }
-    if (!/^\d{4}$/.test(pin)) { setError('الرمز يجب أن يكون 4 أرقام'); return; }
+    if (!username.trim()) { setError(t(lang, 'login.err.username')); return; }
+    if (!/^\d{4}$/.test(pin)) { setError(t(lang, 'login.err.pin')); return; }
     setLoading(true);
     try {
       const u = await login(username, pin);
-      // احفظ اسم المستخدم إذا فعّل "تذكّرني"
       try {
         if (remember) localStorage.setItem('tw_remember_user', username.trim());
         else localStorage.removeItem('tw_remember_user');
@@ -916,37 +949,47 @@ function LoginView({ onLoginSuccess }) {
     } catch (err) {
       const code = err?.code || '';
       if (code.includes('invalid-credential') || code.includes('wrong-password') || code.includes('user-not-found')) {
-        setError('اسم المستخدم أو الرمز غير صحيح');
+        setError(t(lang, 'login.err.invalid'));
       } else if (code.includes('too-many-requests')) {
-        setError('محاولات كثيرة، حاول بعد قليل');
+        setError(t(lang, 'login.err.tooMany'));
       } else if (code.includes('network')) {
-        setError('تحقق من اتصال الإنترنت');
+        setError(t(lang, 'login.err.network'));
       } else {
-        setError(err?.message || 'تعذّر تسجيل الدخول');
+        setError(err?.message || t(lang, 'login.err.generic'));
       }
     } finally {
       setLoading(false);
     }
   };
 
+  // تبديل سريع للغة من شاشة الدخول
+  const toggleLang = () => setLang(lang === 'ar' ? 'en' : 'ar');
+
   return (
     <div className="p-8 h-full flex flex-col justify-center bg-white">
+      <div className="flex justify-end mb-2">
+        <button onClick={toggleLang}
+          className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+          <Globe size={14} />
+          {lang === 'ar' ? 'English' : 'العربية'}
+        </button>
+      </div>
       <div className="text-center mb-8">
         <div className="w-24 h-24 mx-auto mb-6 flex items-center justify-center bg-slate-50 rounded-3xl border border-slate-100 shadow-sm">
           <Building2 size={40} className="text-blue-600" />
         </div>
-        <h1 className="text-2xl font-bold text-slate-900">نظام المبيعات والمصاريف</h1>
-        <p className="text-slate-500 mt-2 text-sm font-medium">Toia &amp; Wardana Finance</p>
+        <h1 className="text-2xl font-bold text-slate-900">{t(lang, 'login.title')}</h1>
+        <p className="text-slate-500 mt-2 text-sm font-medium">{t(lang, 'login.subtitle')}</p>
       </div>
       <div className="space-y-4">
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">اسم المستخدم</label>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'login.username')}</label>
           <input type="text" value={username} onChange={(e) => setUsername(e.target.value)}
-            placeholder="مثال: admin" autoCapitalize="off"
+            placeholder={t(lang, 'login.usernameHint')} autoCapitalize="off"
             className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-500 text-sm" />
         </div>
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">الرمز السري (4 أرقام)</label>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'login.pin')}</label>
           <input type="password" inputMode="numeric" maxLength={4} value={pin}
             onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
@@ -957,7 +1000,7 @@ function LoginView({ onLoginSuccess }) {
         <label className="flex items-center gap-2 cursor-pointer select-none">
           <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)}
             className="w-4 h-4 accent-blue-600" />
-          <span className="text-xs font-bold text-gray-600">تذكّر اسم المستخدم</span>
+          <span className="text-xs font-bold text-gray-600">{t(lang, 'login.remember')}</span>
         </label>
 
         {error && (
@@ -966,10 +1009,10 @@ function LoginView({ onLoginSuccess }) {
         <button onClick={handleSubmit} disabled={loading}
           className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-lg hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
           {loading && <Loader2 size={18} className="animate-spin" />}
-          {loading ? 'جارٍ الدخول...' : 'تسجيل الدخول'}
+          {loading ? t(lang, 'login.loading') : t(lang, 'login.submit')}
         </button>
       </div>
-      <p className="text-center text-[11px] text-gray-400 mt-8">الفرع يُحدد تلقائياً حسب حساب المستخدم</p>
+      <p className="text-center text-[11px] text-gray-400 mt-8">{t(lang, 'login.footnote')}</p>
     </div>
   );
 }
@@ -977,25 +1020,36 @@ function LoginView({ onLoginSuccess }) {
 // ==========================================
 // الصفحة الرئيسية للموظف
 // ==========================================
-function EmployeeHome({ setView, branch }) {
+function EmployeeHome({ setView, branch, lang, setLang }) {
+  const align = lang === 'en' ? 'text-left' : 'text-right';
+  const toggleLang = () => setLang(lang === 'ar' ? 'en' : 'ar');
   return (
     <div className="p-6 h-full flex flex-col gap-4 pt-8">
+      <div className="flex justify-end">
+        <button onClick={toggleLang}
+          className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full flex items-center gap-1.5">
+          <Globe size={14} />
+          {t(lang, 'home.langToggle')}
+        </button>
+      </div>
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center mb-2">
-        <p className="text-gray-500 mb-1">مرحباً بك في</p>
-        <h2 className="text-3xl font-bold text-blue-600">فرع {branch}</h2>
+        <p className="text-gray-500 mb-1">{t(lang, 'home.greeting')}</p>
+        <h2 className="text-3xl font-bold text-blue-600">
+          {lang === 'en' ? branch : `فرع ${branch}`}
+        </h2>
       </div>
       <button onClick={() => setView('salesForm')} className="bg-blue-600 text-white p-6 rounded-2xl shadow-md flex items-center gap-4 active:scale-95 transition-transform">
         <div className="bg-white/20 p-4 rounded-xl"><TrendingUp size={32} /></div>
-        <div className="text-right">
-          <h3 className="font-bold text-xl mb-1">تسجيل المبيعات</h3>
-          <p className="text-blue-100 text-sm">إضافة مبيعات يومية جديدة</p>
+        <div className={align}>
+          <h3 className="font-bold text-xl mb-1">{t(lang, 'home.recordSales')}</h3>
+          <p className="text-blue-100 text-sm">{t(lang, 'home.recordSalesD')}</p>
         </div>
       </button>
       <button onClick={() => setView('expenseForm')} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform">
         <div className="bg-blue-50 text-blue-600 p-4 rounded-xl"><Receipt size={32} /></div>
-        <div className="text-right">
-          <h3 className="font-bold text-gray-800 text-xl mb-1">تسجيل مصروف</h3>
-          <p className="text-gray-500 text-sm">إضافة مصروف أو فاتورة</p>
+        <div className={align}>
+          <h3 className="font-bold text-gray-800 text-xl mb-1">{t(lang, 'home.recordExpense')}</h3>
+          <p className="text-gray-500 text-sm">{t(lang, 'home.recordExpenseD')}</p>
         </div>
       </button>
     </div>
@@ -1005,7 +1059,7 @@ function EmployeeHome({ setView, branch }) {
 // ==========================================
 // نموذج تسجيل المبيعات — يكتب في Firestore
 // ==========================================
-function SalesForm({ setView, branch, branchId }) {
+function SalesForm({ setView, branch, branchId, lang }) {
   const [date, setDate] = useState(todayStr());
   const [cash, setCash] = useState('');
   const [mada, setMada] = useState('');
@@ -1015,37 +1069,41 @@ function SalesForm({ setView, branch, branchId }) {
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
-  // اقرأ طرق الدفع من Firestore عشان نستخدم التسميات العربية
+  // اقرأ طرق الدفع من Firestore — مع ترجمة حسب اللغة
   useEffect(() => {
     (async () => {
       try { setMethods(await getPaymentMethods()); }
-      catch { /* نتجاهل، نستخدم تسميات افتراضية */ }
+      catch { /* تسميات افتراضية */ }
     })();
   }, []);
 
-  const labelFor = (id, fallback) => methods.find((m) => m.id === id)?.labelAr || fallback;
+  const labelFor = (id, fallback) => {
+    // أولوية: الترجمة من i18n، ثم labelAr من Firestore، ثم fallback
+    const tr = translatePM(lang, id);
+    if (tr && !tr.startsWith('pm.')) return tr;
+    return methods.find((m) => m.id === id)?.labelAr || fallback;
+  };
   const total = (Number(cash) || 0) + (Number(mada) || 0) + (Number(transfer) || 0);
-  // ✨ حسبة رسوم مدى (طلب المالك): 0.92% من قيمة مدى
   const madaFeesAmt = madaFees(mada);
   const madaNetAmt = madaNet(mada);
   const netTotal = (Number(cash) || 0) + madaNetAmt + (Number(transfer) || 0);
 
   const fields = [
-    { label: labelFor('Cash', 'كاش'), value: cash, set: setCash },
-    { label: labelFor('Mada', 'مدى'), value: mada, set: setMada },
-    { label: labelFor('Transfer', 'تحويل'), value: transfer, set: setTransfer },
+    { key: 'Cash', label: labelFor('Cash', t(lang, 'sales.cash')), value: cash, set: setCash },
+    { key: 'Mada', label: labelFor('Mada', t(lang, 'sales.mada')), value: mada, set: setMada },
+    { key: 'Transfer', label: labelFor('Transfer', t(lang, 'sales.transfer')), value: transfer, set: setTransfer },
   ];
 
   const handleSave = async () => {
     setError('');
-    if (total <= 0) { setError('أدخل مبلغاً واحداً على الأقل'); return; }
+    if (total <= 0) { setError(t(lang, 'sales.err.amount')); return; }
     setSaving(true);
     try {
       await addDailySales({ date, branchId, cash, mada, transfer });
       setDone(true);
       setTimeout(() => setView('employeeHome'), 1200);
     } catch (err) {
-      setError(err?.message || 'تعذّر الحفظ');
+      setError(err?.message || t(lang, 'sales.err.save'));
       setSaving(false);
     }
   };
@@ -1054,26 +1112,26 @@ function SalesForm({ setView, branch, branchId }) {
     <div className="flex flex-col h-full bg-white relative z-10">
       <div className="flex items-center p-4 border-b border-gray-100">
         <button onClick={() => setView('employeeHome')} className="p-2 text-slate-600 bg-slate-100 rounded-full">
-          <ChevronRight size={20} className="rotate-180" />
+          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">تسجيل المبيعات</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 px-8">{t(lang, 'sales.title')}</h2>
       </div>
       <div className="p-6 space-y-6 flex-1">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">التاريخ</label>
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'sales.date')}</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
               className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">الفرع (تلقائي)</label>
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'sales.branch')}</label>
             <div className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm font-bold text-blue-700">{branch}</div>
           </div>
         </div>
 
         <div className="space-y-4">
           {fields.map((f) => (
-            <div key={f.label} className="flex items-center">
+            <div key={f.key} className="flex items-center">
               <div className="w-1/3 text-gray-600 font-bold">{f.label}</div>
               <input type="number" placeholder="0.00" value={f.value}
                 onChange={(e) => f.set(e.target.value)}
@@ -1083,31 +1141,31 @@ function SalesForm({ setView, branch, branchId }) {
         </div>
 
         <div className="bg-blue-50 p-6 rounded-2xl text-center border border-blue-100">
-          <p className="text-blue-800 font-bold mb-2">الإجمالي</p>
-          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} ريال</p>
+          <p className="text-blue-800 font-bold mb-2">{t(lang, 'sales.total')}</p>
+          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} {t(lang, 'sales.currency')}</p>
         </div>
 
-        {/* ✨ حسبة رسوم مدى — تظهر فقط لما يدخل قيمة مدى */}
+        {/* حسبة رسوم مدى */}
         {Number(mada) > 0 && (
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
             <p className="text-amber-900 font-bold text-xs flex items-center gap-1">
-              💳 رسوم مدى ({(MADA_FEE_RATE * 100).toFixed(2)}%)
+              💳 {t(lang, 'sales.madaFees')} ({(MADA_FEE_RATE * 100).toFixed(2)}%)
             </p>
             <div className="flex justify-between text-xs font-bold">
-              <span className="text-amber-800">إجمالي مدى المُدخل:</span>
-              <span className="font-mono text-amber-900">{Number(mada).toLocaleString()} ريال</span>
+              <span className="text-amber-800">{t(lang, 'sales.madaGross')}</span>
+              <span className="font-mono text-amber-900">{Number(mada).toLocaleString()} {t(lang, 'sales.currency')}</span>
             </div>
             <div className="flex justify-between text-xs font-bold">
-              <span className="text-red-700">- رسوم مدى (0.80 هلله + 15% ضريبة):</span>
-              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} ريال</span>
+              <span className="text-red-700">{t(lang, 'sales.madaFeesLine')}</span>
+              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} {t(lang, 'sales.currency')}</span>
             </div>
             <div className="flex justify-between text-xs font-bold pt-1 border-t border-amber-200">
-              <span className="text-emerald-800">صافي مدى:</span>
-              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} ريال</span>
+              <span className="text-emerald-800">{t(lang, 'sales.madaNet')}</span>
+              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} {t(lang, 'sales.currency')}</span>
             </div>
             <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-300">
-              <span className="text-slate-900">الإجمالي بعد خصم رسوم مدى:</span>
-              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} ريال</span>
+              <span className="text-slate-900">{t(lang, 'sales.totalAfter')}</span>
+              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} {t(lang, 'sales.currency')}</span>
             </div>
           </div>
         )}
@@ -1115,14 +1173,14 @@ function SalesForm({ setView, branch, branchId }) {
         {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
           <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
-            <CheckCircle2 size={18} /> تم الحفظ بنجاح
+            <CheckCircle2 size={18} /> {t(lang, 'sales.saved')}
           </p>
         )}
 
         <button onClick={handleSave} disabled={saving || done}
           className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
           {saving && <Loader2 size={18} className="animate-spin" />}
-          {saving ? 'جارٍ الحفظ...' : 'حفظ وإرسال'}
+          {saving ? t(lang, 'sales.saving') : t(lang, 'sales.save')}
         </button>
       </div>
     </div>
@@ -1132,7 +1190,7 @@ function SalesForm({ setView, branch, branchId }) {
 // ==========================================
 // نموذج تسجيل المصروف — يقرأ التصنيفات من Firestore
 // ==========================================
-function ExpenseForm({ setView, branchId }) {
+function ExpenseForm({ setView, branchId, lang }) {
   const [date, setDate] = useState(todayStr());
   const [categories, setCategories] = useState([]);
   const [methods, setMethods] = useState([]);
@@ -1155,13 +1213,13 @@ function ExpenseForm({ setView, branchId }) {
         const [cats, pm] = await Promise.all([getCategories(), getPaymentMethods()]);
         if (!cancelled) { setCategories(cats); setMethods(pm); }
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
+        if (!cancelled) setError(err?.message || t(lang, 'expense.loading'));
       } finally {
         if (!cancelled) setLoadingCats(false);
       }
     })();
     return () => { cancelled = true; };
-  }, []);
+  }, [lang]);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const requiresImage = selectedCategory?.requiresImage || false;
@@ -1171,14 +1229,8 @@ function ExpenseForm({ setView, branchId }) {
   const handleFileChange = (e) => {
     const f = e.target.files?.[0];
     if (!f) return;
-    if (!f.type.startsWith('image/')) {
-      setError('يجب أن يكون الملف صورة');
-      return;
-    }
-    if (f.size > 7 * 1024 * 1024) {
-      setError('حجم الصورة أكبر من 7 ميجا');
-      return;
-    }
+    if (!f.type.startsWith('image/')) { setError(t(lang, 'expense.err.imgType')); return; }
+    if (f.size > 7 * 1024 * 1024) { setError(t(lang, 'expense.err.imgSize')); return; }
     setError('');
     setImageFile(f);
     setImagePreview(URL.createObjectURL(f));
@@ -1186,9 +1238,9 @@ function ExpenseForm({ setView, branchId }) {
 
   const handleSave = async () => {
     setError('');
-    if (!categoryId) { setError('اختر التصنيف'); return; }
-    if (!(Number(amount) > 0)) { setError('أدخل مبلغاً صحيحاً'); return; }
-    if (requiresImage && !imageFile) { setError('صورة الفاتورة مطلوبة لهذا التصنيف'); return; }
+    if (!categoryId) { setError(t(lang, 'expense.err.cat')); return; }
+    if (!(Number(amount) > 0)) { setError(t(lang, 'expense.err.amount')); return; }
+    if (requiresImage && !imageFile) { setError(t(lang, 'expense.err.img')); return; }
 
     setSaving(true);
     try {
@@ -1214,40 +1266,48 @@ function ExpenseForm({ setView, branchId }) {
       setDone(true);
       setTimeout(() => setView('employeeHome'), 1200);
     } catch (err) {
-      setError(err?.message || 'تعذّر الحفظ');
+      setError(err?.message || t(lang, 'expense.err.save'));
       setSaving(false);
       setUploading(false);
     }
+  };
+
+  // ترجمة طريقة الدفع للزر
+  const pmLabel = (id) => {
+    const tr = translatePM(lang, id);
+    if (tr && !tr.startsWith('pm.')) return tr;
+    const m = methods.find((x) => x.id === id);
+    return m?.labelAr || id;
   };
 
   return (
     <div className="flex flex-col h-full bg-white relative z-10">
       <div className="flex items-center p-4 border-b border-gray-100">
         <button onClick={() => setView('employeeHome')} className="p-2 text-slate-600 bg-slate-100 rounded-full">
-          <ChevronRight size={20} className="rotate-180" />
+          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">تسجيل مصروف</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 px-8">{t(lang, 'expense.title')}</h2>
       </div>
       <div className="p-6 space-y-5 flex-1">
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">التاريخ</label>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'sales.date')}</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
             className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">التصنيف</label>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.category')}</label>
           {loadingCats ? (
             <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-400 flex items-center gap-2">
-              <Loader2 size={16} className="animate-spin" /> جارٍ تحميل التصنيفات...
+              <Loader2 size={16} className="animate-spin" /> {t(lang, 'expense.loading')}
             </div>
           ) : (
             <select className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-blue-500"
               value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">اختر التصنيف...</option>
+              <option value="">{t(lang, 'expense.chooseCat')}</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.name}{c.requiresImage ? ' (صورة إجبارية)' : ''}
+                  {translateCategory(lang, c.name)}{c.requiresImage ? ` ${t(lang, 'expense.imageReqTag')}` : ''}
                 </option>
               ))}
             </select>
@@ -1255,18 +1315,18 @@ function ExpenseForm({ setView, branchId }) {
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">المبلغ</label>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.amount')}</label>
           <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
             className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">طريقة الدفع</label>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.payMethod')}</label>
           <div className="flex gap-2">
-            {(methods.length ? methods : [{ id: 'Cash', labelAr: 'Cash' }, { id: 'Mada', labelAr: 'Mada' }, { id: 'Transfer', labelAr: 'Transfer' }]).map((p) => (
+            {(methods.length ? methods : [{ id: 'Cash' }, { id: 'Mada' }, { id: 'Transfer' }]).map((p) => (
               <button key={p.id} onClick={() => setPayMethod(p.id)}
                 className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${payMethod === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                {p.labelAr || p.name || p.id}
+                {pmLabel(p.id)}
               </button>
             ))}
           </div>
@@ -1278,15 +1338,15 @@ function ExpenseForm({ setView, branchId }) {
         <div className={`p-6 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
           {imagePreview ? (
             <div className="text-center">
-              <img src={imagePreview} alt="معاينة" className="max-h-40 mx-auto rounded-xl shadow mb-3 object-contain" />
+              <img src={imagePreview} alt="preview" className="max-h-40 mx-auto rounded-xl shadow mb-3 object-contain" />
               <p className="text-xs text-gray-600 mb-3 font-bold truncate">{imageFile?.name}</p>
               <div className="flex gap-2 justify-center">
                 <button onClick={handlePickImage} className="bg-white border border-gray-300 px-4 py-2 rounded-xl text-xs font-bold">
-                  تغيير
+                  {t(lang, 'expense.change')}
                 </button>
                 <button onClick={() => { setImageFile(null); setImagePreview(''); }}
                   className="bg-white border border-red-200 text-red-600 px-4 py-2 rounded-xl text-xs font-bold">
-                  حذف
+                  {t(lang, 'expense.remove')}
                 </button>
               </div>
             </div>
@@ -1294,11 +1354,11 @@ function ExpenseForm({ setView, branchId }) {
             <div className="text-center">
               <Camera className={`mx-auto mb-3 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={32} />
               <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-4`}>
-                {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
+                {requiresImage ? t(lang, 'expense.imageReq') : t(lang, 'expense.imageOpt')}
               </p>
               <button onClick={handlePickImage}
                 className="bg-white border border-gray-300 px-6 py-2.5 rounded-xl text-sm font-bold flex gap-2 mx-auto">
-                <UploadCloud size={16} /> اختيار صورة
+                <UploadCloud size={16} /> {t(lang, 'expense.pickImage')}
               </button>
             </div>
           )}
@@ -1307,14 +1367,14 @@ function ExpenseForm({ setView, branchId }) {
         {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
           <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
-            <CheckCircle2 size={18} /> تم الحفظ بنجاح
+            <CheckCircle2 size={18} /> {t(lang, 'expense.saved')}
           </p>
         )}
 
         <button onClick={handleSave} disabled={saving || done}
           className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2">
           {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
-          {uploading ? 'جارٍ رفع الصورة...' : saving ? 'جارٍ الحفظ...' : 'حفظ المصروف'}
+          {uploading ? t(lang, 'expense.uploading') : saving ? t(lang, 'expense.saving') : t(lang, 'expense.save')}
         </button>
       </div>
     </div>
@@ -2230,63 +2290,3 @@ function AdminExpenseForm({ onBack, branchId }) {
           <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
             className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
         </div>
-
-        <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">طريقة الدفع</label>
-          <div className="flex gap-2">
-            {(methods.length ? methods : [{ id: 'Cash', labelAr: 'Cash' }, { id: 'Mada', labelAr: 'Mada' }, { id: 'Transfer', labelAr: 'Transfer' }]).map((p) => (
-              <button key={p.id} onClick={() => setPayMethod(p.id)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                {p.labelAr || p.name || p.id}
-              </button>
-            ))}
-          </div>
-        </div>
-
-        <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
-          onChange={handleFileChange} className="hidden" />
-
-        <div className={`p-5 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
-          {imagePreview ? (
-            <div className="text-center">
-              <img src={imagePreview} alt="معاينة" className="max-h-32 mx-auto rounded-xl shadow mb-2 object-contain" />
-              <div className="flex gap-2 justify-center">
-                <button onClick={handlePickImage} className="bg-white border border-gray-300 px-4 py-1.5 rounded-lg text-xs font-bold">
-                  تغيير
-                </button>
-                <button onClick={() => { setImageFile(null); setImagePreview(''); }}
-                  className="bg-white border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-bold">
-                  حذف
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center">
-              <Camera className={`mx-auto mb-2 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={28} />
-              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-3`}>
-                {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
-              </p>
-              <button onClick={handlePickImage}
-                className="bg-white border border-gray-300 px-5 py-2 rounded-xl text-xs font-bold flex gap-2 mx-auto">
-                <UploadCloud size={14} /> اختيار صورة
-              </button>
-            </div>
-          )}
-        </div>
-
-        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
-        {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
-            <CheckCircle2 size={18} /> تم الحفظ
-          </p>
-        )}
-
-        <button onClick={handleSave} disabled={saving || done}
-          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
-          {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
-          {uploading ? 'جارٍ رفع الصورة...' : saving ? 'جارٍ الحفظ...' : 'حفظ المصروف'}
-        </button>
-      </div>
-    </div>
-  );
-}
