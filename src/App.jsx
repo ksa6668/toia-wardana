@@ -2290,3 +2290,63 @@ function AdminExpenseForm({ onBack, branchId }) {
           <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
             className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
         </div>
+
+        <div>
+          <label className="text-xs font-bold text-gray-500 mb-1.5 block">طريقة الدفع</label>
+          <div className="flex gap-2">
+            {(methods.length ? methods : [{ id: 'Cash', labelAr: 'Cash' }, { id: 'Mada', labelAr: 'Mada' }, { id: 'Transfer', labelAr: 'Transfer' }]).map((p) => (
+              <button key={p.id} onClick={() => setPayMethod(p.id)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                {p.labelAr || p.name || p.id}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
+          onChange={handleFileChange} className="hidden" />
+
+        <div className={`p-5 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+          {imagePreview ? (
+            <div className="text-center">
+              <img src={imagePreview} alt="معاينة" className="max-h-32 mx-auto rounded-xl shadow mb-2 object-contain" />
+              <div className="flex gap-2 justify-center">
+                <button onClick={handlePickImage} className="bg-white border border-gray-300 px-4 py-1.5 rounded-lg text-xs font-bold">
+                  تغيير
+                </button>
+                <button onClick={() => { setImageFile(null); setImagePreview(''); }}
+                  className="bg-white border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-bold">
+                  حذف
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="text-center">
+              <Camera className={`mx-auto mb-2 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={28} />
+              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-3`}>
+                {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
+              </p>
+              <button onClick={handlePickImage}
+                className="bg-white border border-gray-300 px-5 py-2 rounded-xl text-xs font-bold flex gap-2 mx-auto">
+                <UploadCloud size={14} /> اختيار صورة
+              </button>
+            </div>
+          )}
+        </div>
+
+        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {done && (
+          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+            <CheckCircle2 size={18} /> تم الحفظ
+          </p>
+        )}
+
+        <button onClick={handleSave} disabled={saving || done}
+          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
+          {uploading ? 'جارٍ رفع الصورة...' : saving ? 'جارٍ الحفظ...' : 'حفظ المصروف'}
+        </button>
+      </div>
+    </div>
+  );
+}
