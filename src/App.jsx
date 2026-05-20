@@ -14,6 +14,8 @@ import {
   getUsers, createStaffUser, uploadInvoiceImage,
   getCategories, setCategoryRequiresImage, addCategory, deleteCategory,
   changeMyPin, setUserActive, adminChangeUserPin, adminDeleteUser,
+  getBranches, getPaymentMethods,
+  madaFees, madaNet, MADA_FEE_RATE,
 } from './firebase';
 
 // ==========================================
@@ -23,31 +25,75 @@ const todayStr = () => new Date().toISOString().slice(0, 10);
 const monthStr = (d = new Date()) => d.toISOString().slice(0, 7); // YYYY-MM
 
 // يحسب نطاق التاريخ حسب الفترة المختارة
-function periodRange(period) {
+// يدعم: يومي / أسبوعي / شهري / ربع سنوي / سنوي / مخصص
+function periodRange(period, customFrom, customTo) {
   const now = new Date();
-  if (period === 'يومي') {
-    const d = todayStr();
-    return { from: d, to: d, days: 1, daysInMonth: new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate() };
+  const iso = (d) => d.toISOString().slice(0, 10);
+  const daysInMonth = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+
+  if (period === 'مخصص' && customFrom && customTo) {
+    const f = new Date(customFrom);
+    const t = new Date(customTo);
+    const days = Math.max(1, Math.round((t - f) / 86400000) + 1);
+    return { from: customFrom, to: customTo, days, daysInMonth: daysInMonth(now), periodKind: 'custom' };
   }
+
+  if (period === 'يومي') {
+    const d = iso(now);
+    return { from: d, to: d, days: 1, daysInMonth: daysInMonth(now), periodKind: 'daily' };
+  }
+
+  if (period === 'أسبوعي') {
+    // الأسبوع الجاري: من الأحد إلى اليوم الحالي (في السعودية الأسبوع يبدأ الأحد)
+    const day = now.getDay(); // 0=Sun
+    const start = new Date(now);
+    start.setDate(now.getDate() - day);
+    return {
+      from: iso(start),
+      to: iso(now),
+      days: day + 1,
+      daysInMonth: daysInMonth(now),
+      periodKind: 'weekly',
+    };
+  }
+
   if (period === 'شهري') {
     const first = new Date(now.getFullYear(), now.getMonth(), 1);
     const last = new Date(now.getFullYear(), now.getMonth() + 1, 0);
     return {
-      from: first.toISOString().slice(0, 10),
-      to: last.toISOString().slice(0, 10),
+      from: iso(first),
+      to: iso(last),
       days: now.getDate(),
       daysInMonth: last.getDate(),
+      periodKind: 'monthly',
     };
   }
-  // سنوي
+
+  if (period === 'ربع سنوي') {
+    // الربع الحالي: يحتوي 3 أشهر
+    const quarter = Math.floor(now.getMonth() / 3);
+    const first = new Date(now.getFullYear(), quarter * 3, 1);
+    const last = new Date(now.getFullYear(), quarter * 3 + 3, 0);
+    const days = Math.round((now - first) / 86400000) + 1;
+    return {
+      from: iso(first),
+      to: iso(last),
+      days,
+      daysInMonth: daysInMonth(now),
+      periodKind: 'quarterly',
+    };
+  }
+
+  // سنوي (افتراضي)
   const first = new Date(now.getFullYear(), 0, 1);
   const last = new Date(now.getFullYear(), 11, 31);
   const dayOfYear = Math.floor((now - first) / 86400000) + 1;
   return {
-    from: first.toISOString().slice(0, 10),
-    to: last.toISOString().slice(0, 10),
+    from: iso(first),
+    to: iso(last),
     days: dayOfYear,
     daysInMonth: 30,
+    periodKind: 'yearly',
   };
 }
 
@@ -152,9 +198,17 @@ export default function App() {
 function SuperAdminDashboard() {
   const [period, setPeriod] = useState('شهري');
   const [activeReport, setActiveReport] = useState('overview');
+  const [branchFilter, setBranchFilter] = useState('all'); // all | toia | wardana
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [raw, setRaw] = useState({ sales: [], expenses: [], fixed: [] });
+
+  // نطاق تاريخ مخصص
+  const [customFrom, setCustomFrom] = useState(() => {
+    const d = new Date(); d.setDate(d.getDate() - 6);
+    return d.toISOString().slice(0, 10);
+  });
+  const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     let cancelled = false;
@@ -162,7 +216,7 @@ function SuperAdminDashboard() {
       setLoading(true);
       setError('');
       try {
-        const { from, to } = periodRange(period);
+        const { from, to } = periodRange(period, customFrom, customTo);
         const [sales, expenses, fixed] = await Promise.all([
           getSales(from, to),
           getExpenses(from, to),
@@ -177,10 +231,10 @@ function SuperAdminDashboard() {
     }
     load();
     return () => { cancelled = true; };
-  }, [period]);
+  }, [period, customFrom, customTo]);
 
   const m = useMemo(() => {
-    const { days, daysInMonth } = periodRange(period);
+    const { days, daysInMonth, periodKind } = periodRange(period, customFrom, customTo);
 
     const blank = () => ({
       sales: 0, cash: 0, mada: 0, transfer: 0,
@@ -212,9 +266,15 @@ function SuperAdminDashboard() {
     }
 
     const fixedForPeriod = (fm) => {
-      if (period === 'يومي') return fm / daysInMonth;
-      if (period === 'شهري') return fm;
-      return fm * 12;
+      // نصيب الثابتة حسب الفترة (§10.1، §10.2)
+      const perDay = fm / (daysInMonth || 30);
+      if (periodKind === 'daily') return perDay;
+      if (periodKind === 'weekly') return perDay * (days || 7);
+      if (periodKind === 'monthly') return fm;
+      if (periodKind === 'quarterly') return fm * 3;
+      if (periodKind === 'yearly') return fm * 12;
+      if (periodKind === 'custom') return perDay * (days || 1);
+      return fm;
     };
     const toia = branches.toia, wardana = branches.wardana;
     const toiaFixed = fixedForPeriod(fixedMonthly.toia);
@@ -245,11 +305,102 @@ function SuperAdminDashboard() {
     const totalFlowerPerc = totalSales ? (((toia.flowerExp + wardana.flowerExp) / totalSales) * 100).toFixed(1) : '0';
 
     const safeDays = days || 1;
+    // المتوسطات اليومية (§10.3)
     const avgSales = Math.round(totalSales / safeDays);
     const avgExp = Math.round(totalExp / safeDays);
     const avgFlower = Math.round((toia.flowerExp + wardana.flowerExp) / safeDays);
     const avgDelivery = Math.round((toia.deliveryExp + wardana.deliveryExp) / safeDays);
     const avgMarketing = Math.round((toia.marketingExp + wardana.marketingExp) / safeDays);
+    const avgCash = Math.round(totalCash / safeDays);
+    const avgMada = Math.round(totalMada / safeDays);
+    const avgTransfer = Math.round(totalTransfer / safeDays);
+
+    // ✨ "view" حسب فلتر الفرع (طلب #4)
+    // يتم استخدامها في تبويبات: نظرة عامة، متوسطات، طرق دفع
+    let view;
+    if (branchFilter === 'toia') {
+      view = {
+        label: 'تويا',
+        sales: toia.sales, cash: toia.cash, mada: toia.mada, transfer: toia.transfer,
+        varExp: toia.varExp, fixedExp: toiaFixed, totalExp: toiaTotalExp,
+        profit: toiaProfit, flowerExp: toia.flowerExp, deliveryExp: toia.deliveryExp, marketingExp: toia.marketingExp,
+      };
+    } else if (branchFilter === 'wardana') {
+      view = {
+        label: 'وردانة',
+        sales: wardana.sales, cash: wardana.cash, mada: wardana.mada, transfer: wardana.transfer,
+        varExp: wardana.varExp, fixedExp: wardanaFixed, totalExp: wardanaTotalExp,
+        profit: wardanaProfit, flowerExp: wardana.flowerExp, deliveryExp: wardana.deliveryExp, marketingExp: wardana.marketingExp,
+      };
+    } else {
+      view = {
+        label: 'الإجمالي',
+        sales: totalSales, cash: totalCash, mada: totalMada, transfer: totalTransfer,
+        varExp: totalVarExp, fixedExp: totalFixedExp, totalExp: totalExp,
+        profit: totalProfit,
+        flowerExp: toia.flowerExp + wardana.flowerExp,
+        deliveryExp: toia.deliveryExp + wardana.deliveryExp,
+        marketingExp: toia.marketingExp + wardana.marketingExp,
+      };
+    }
+    // مؤشرات مشتقّة من view
+    view.onlineSales = view.transfer;
+    view.offlineSales = view.cash + view.mada;
+    view.onlinePerc = view.sales ? Math.round((view.onlineSales / view.sales) * 100) : 0;
+    view.offlinePerc = view.sales ? 100 - view.onlinePerc : 0;
+    view.flowerPerc = view.sales ? ((view.flowerExp / view.sales) * 100).toFixed(1) : '0';
+    view.avgSales = Math.round(view.sales / safeDays);
+    view.avgExp = Math.round(view.totalExp / safeDays);
+    view.avgFlower = Math.round(view.flowerExp / safeDays);
+    view.avgDelivery = Math.round(view.deliveryExp / safeDays);
+    view.avgMarketing = Math.round(view.marketingExp / safeDays);
+    view.avgCash = Math.round(view.cash / safeDays);
+    view.avgMada = Math.round(view.mada / safeDays);
+    view.avgTransfer = Math.round(view.transfer / safeDays);
+
+    // ✨ تقسيم الشهر لـ 4 فترات (طلب #6) — يحسب فقط في "شهري"
+    let weeklyBreakdown = null;
+    if (periodKind === 'monthly') {
+      const buckets = [
+        { label: 'الربع الأول (1-7)', start: 1, end: 7, sales: 0 },
+        { label: 'الربع الثاني (8-15)', start: 8, end: 15, sales: 0 },
+        { label: 'الربع الثالث (16-22)', start: 16, end: 22, sales: 0 },
+        { label: 'الربع الرابع (23-نهاية)', start: 23, end: 31, sales: 0 },
+      ];
+      for (const s of raw.sales) {
+        if (branchFilter !== 'all' && s.branchId !== branchFilter) continue;
+        const d = new Date(s.date);
+        const dom = d.getDate();
+        const bucket = buckets.find((b) => dom >= b.start && dom <= b.end);
+        if (bucket) bucket.sales += s.total || 0;
+      }
+      weeklyBreakdown = buckets;
+    }
+
+    // ✨ تحليل أيام الشهر (طلب #5) — يحسب فقط في "شهري"
+    let dailyBreakdown = null;
+    if (periodKind === 'monthly') {
+      const map = new Map();
+      for (const s of raw.sales) {
+        if (branchFilter !== 'all' && s.branchId !== branchFilter) continue;
+        const dom = new Date(s.date).getDate();
+        map.set(dom, (map.get(dom) || 0) + (s.total || 0));
+      }
+      const expMap = new Map();
+      for (const e of raw.expenses) {
+        if (branchFilter !== 'all' && e.branchId !== branchFilter) continue;
+        const dom = new Date(e.date).getDate();
+        expMap.set(dom, (expMap.get(dom) || 0) + (e.amount || 0));
+      }
+      dailyBreakdown = [];
+      for (let d = 1; d <= daysInMonth; d++) {
+        dailyBreakdown.push({
+          day: d,
+          sales: map.get(d) || 0,
+          expenses: expMap.get(d) || 0,
+        });
+      }
+    }
 
     return {
       data: { toia, wardana, days: safeDays },
@@ -259,25 +410,73 @@ function SuperAdminDashboard() {
       onlineSales, offlineSales, onlinePerc, offlinePerc,
       toiaFlowerPerc, wardanaFlowerPerc, totalFlowerPerc,
       avgSales, avgExp, avgFlower, avgDelivery, avgMarketing,
+      avgCash, avgMada, avgTransfer,
+      view, weeklyBreakdown, dailyBreakdown,
     };
-  }, [raw, period]);
+  }, [raw, period, customFrom, customTo, branchFilter]);
 
-  const profitLabel = period === 'يومي' ? 'الربحية اليومية' : period === 'شهري' ? 'الربحية الشهرية' : 'الربحية السنوية';
+  const profitLabel = (() => {
+    if (period === 'يومي') return 'الربحية اليومية';
+    if (period === 'أسبوعي') return 'الربحية الأسبوعية';
+    if (period === 'شهري') return 'الربحية الشهرية';
+    if (period === 'ربع سنوي') return 'ربحية الربع';
+    if (period === 'سنوي') return 'الربحية السنوية';
+    return 'صافي الربح للفترة';
+  })();
   const isEmpty = !loading && m.totalSales === 0 && m.totalExp === 0;
 
   return (
     <div className="flex flex-col h-full pb-20">
-      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 flex justify-between items-center border-b border-gray-100">
-        <div className="flex items-center gap-2 text-slate-800 font-bold">
-          <Calendar size={18} className="text-blue-600" />
-          <span>فترة التقرير:</span>
+      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 border-b border-gray-100">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center gap-2 text-slate-800 font-bold">
+            <Calendar size={18} className="text-blue-600" />
+            <span>فترة التقرير:</span>
+          </div>
+          <select value={period} onChange={(e) => setPeriod(e.target.value)}
+            className="bg-slate-50 border border-slate-200 text-sm font-bold rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 text-blue-700">
+            <option value="يومي">يومي</option>
+            <option value="أسبوعي">أسبوعي</option>
+            <option value="شهري">شهري (هذا الشهر)</option>
+            <option value="ربع سنوي">ربع سنوي</option>
+            <option value="سنوي">سنوي</option>
+            <option value="مخصص">مخصص (من - إلى)</option>
+          </select>
         </div>
-        <select value={period} onChange={(e) => setPeriod(e.target.value)}
-          className="bg-slate-50 border border-slate-200 text-sm font-bold rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 text-blue-700">
-          <option value="يومي">يومي (اليوم)</option>
-          <option value="شهري">شهري (هذا الشهر)</option>
-          <option value="سنوي">سنوي (هذا العام)</option>
-        </select>
+        {period === 'مخصص' && (
+          <div className="mt-3 flex items-center gap-2">
+            <div className="flex-1">
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">من</label>
+              <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
+                className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] font-bold text-gray-500 block mb-1">إلى</label>
+              <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
+                className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
+            </div>
+          </div>
+        )}
+
+        {/* ✨ فلتر الفرع (طلب #4) */}
+        <div className="mt-3 flex gap-1.5">
+          {[
+            { v: 'all', t: 'الإجمالي', c: 'slate' },
+            { v: 'toia', t: 'تويا', c: 'blue' },
+            { v: 'wardana', t: 'وردانة', c: 'pink' },
+          ].map((b) => (
+            <button key={b.v} onClick={() => setBranchFilter(b.v)}
+              className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
+                branchFilter === b.v
+                  ? b.v === 'all' ? 'bg-slate-900 text-white border-slate-900'
+                    : b.v === 'toia' ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-pink-600 text-white border-pink-600'
+                  : 'bg-white text-gray-500 border-gray-200'
+              }`}>
+              {b.t}
+            </button>
+          ))}
+        </div>
       </div>
 
       <div className="bg-white border-b border-gray-100 px-2 py-3 overflow-x-auto whitespace-nowrap flex gap-2">
@@ -285,6 +484,8 @@ function SuperAdminDashboard() {
         <ReportTab id="branches" current={activeReport} set={setActiveReport} icon={<Store size={16} />} label="مقارنة الفروع" />
         <ReportTab id="averages" current={activeReport} set={setActiveReport} icon={<PieChart size={16} />} label="المتوسطات" />
         <ReportTab id="payments" current={activeReport} set={setActiveReport} icon={<Wallet size={16} />} label="طرق الدفع" />
+        <ReportTab id="monthDays" current={activeReport} set={setActiveReport} icon={<Calendar size={16} />} label="الشهر بالأيام" />
+        <ReportTab id="monthWeeks" current={activeReport} set={setActiveReport} icon={<Layers size={16} />} label="أرباع الشهر" />
         <ReportTab id="kpi" current={activeReport} set={setActiveReport} icon={<Layers size={16} />} label="جدول المؤشرات" />
       </div>
 
@@ -314,43 +515,43 @@ function SuperAdminDashboard() {
             <div className="space-y-4">
               <div className="bg-slate-900 p-5 rounded-2xl shadow-lg text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
-                <p className="text-slate-300 font-bold text-xs mb-2">إجمالي صافي الربح — {profitLabel}</p>
+                <p className="text-slate-300 font-bold text-xs mb-2">{profitLabel} — {m.view.label}</p>
                 <p className="text-4xl font-bold font-mono text-emerald-400">
-                  {Math.round(m.totalProfit).toLocaleString()} <span className="text-sm font-sans text-slate-400">ريال</span>
+                  {Math.round(m.view.profit).toLocaleString()} <span className="text-sm font-sans text-slate-400">ريال</span>
                 </p>
                 <p className="text-[10px] text-slate-400 mt-2 bg-slate-800 w-fit px-2 py-1 rounded">
                   المبيعات − (المصاريف المتغيرة + نصيب الثابتة)
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <StatCard label="المبيعات" value={m.totalSales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
-                <StatCard label="المصاريف" value={m.totalExp} icon={<TrendingDown size={16} className="text-red-500" />} />
-                <StatCard label="م. متغيرة" value={m.totalVarExp} icon={<Receipt size={16} className="text-orange-500" />} />
-                <StatCard label="نصيب الثابتة" value={m.totalFixedExp} icon={<Building2 size={16} className="text-indigo-500" />} />
+                <StatCard label="المبيعات" value={m.view.sales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
+                <StatCard label="المصاريف" value={m.view.totalExp} icon={<TrendingDown size={16} className="text-red-500" />} />
+                <StatCard label="م. متغيرة" value={m.view.varExp} icon={<Receipt size={16} className="text-orange-500" />} />
+                <StatCard label="نصيب الثابتة" value={m.view.fixedExp} icon={<Building2 size={16} className="text-indigo-500" />} />
               </div>
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-4 text-sm flex items-center gap-2">
-                  <Globe size={16} className="text-blue-600" /> قنوات البيع (أون لاين / أوف لاين)
+                  <Globe size={16} className="text-blue-600" /> قنوات البيع (أون لاين / أوف لاين) — {m.view.label}
                 </h3>
                 <div className="flex justify-between text-xs font-bold mb-2">
-                  <span className="text-blue-700">أون لاين: {m.onlinePerc}%</span>
-                  <span className="text-slate-700">أوف لاين: {m.offlinePerc}%</span>
+                  <span className="text-blue-700">أون لاين: {m.view.onlinePerc}%</span>
+                  <span className="text-slate-700">أوف لاين: {m.view.offlinePerc}%</span>
                 </div>
                 <div className="h-3 w-full flex rounded-full overflow-hidden mb-3 bg-slate-100">
-                  <div style={{ width: `${m.onlinePerc}%` }} className="bg-blue-500"></div>
-                  <div style={{ width: `${m.offlinePerc}%` }} className="bg-slate-300"></div>
+                  <div style={{ width: `${m.view.onlinePerc}%` }} className="bg-blue-500"></div>
+                  <div style={{ width: `${m.view.offlinePerc}%` }} className="bg-slate-300"></div>
                 </div>
                 <div className="flex justify-between text-[11px] text-gray-500">
-                  <span>التحويلات ({m.onlineSales.toLocaleString()})</span>
-                  <span>النقد ومدى ({m.offlineSales.toLocaleString()})</span>
+                  <span>التحويلات ({m.view.onlineSales.toLocaleString()})</span>
+                  <span>النقد ومدى ({m.view.offlineSales.toLocaleString()})</span>
                 </div>
               </div>
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
                 <h3 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
-                  <ShoppingCart size={16} className="text-pink-500" /> نسبة تكلفة الورد للمبيعات
+                  <ShoppingCart size={16} className="text-pink-500" /> نسبة تكلفة الورد للمبيعات — {m.view.label}
                 </h3>
                 <div className="flex items-end gap-2">
-                  <p className="text-3xl font-bold text-pink-600 font-mono">{m.totalFlowerPerc}%</p>
+                  <p className="text-3xl font-bold text-pink-600 font-mono">{m.view.flowerPerc}%</p>
                   <p className="text-[11px] text-gray-400 mb-1">من إجمالي المبيعات</p>
                 </div>
               </div>
@@ -398,15 +599,25 @@ function SuperAdminDashboard() {
           {activeReport === 'averages' && (
             <div className="space-y-3">
               <div className="bg-blue-600 text-white p-4 rounded-2xl shadow-md">
-                <h3 className="font-bold mb-1 text-sm flex items-center gap-2"><PieChart size={18} /> المتوسطات اليومية</h3>
+                <h3 className="font-bold mb-1 text-sm flex items-center gap-2"><PieChart size={18} /> المتوسطات اليومية — {m.view.label}</h3>
                 <p className="text-blue-200 text-xs">محسوبة على أساس {m.data.days} يوم بناءً على فلتر ({period})</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <AverageCard title="متوسط المبيعات" amount={m.avgSales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
-                <AverageCard title="متوسط المصاريف" amount={m.avgExp} icon={<TrendingDown size={16} className="text-red-500" />} />
-                <AverageCard title="متوسط الورد" amount={m.avgFlower} icon={<ShoppingCart size={16} className="text-pink-500" />} />
-                <AverageCard title="متوسط التوصيل" amount={m.avgDelivery} icon={<Car size={16} className="text-orange-500" />} />
-                <AverageCard title="متوسط التسويق" amount={m.avgMarketing} icon={<Megaphone size={16} className="text-purple-500" />} full />
+                <AverageCard title="متوسط المبيعات" amount={m.view.avgSales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
+                <AverageCard title="متوسط المصاريف" amount={m.view.avgExp} icon={<TrendingDown size={16} className="text-red-500" />} />
+                <AverageCard title="متوسط الورد" amount={m.view.avgFlower} icon={<ShoppingCart size={16} className="text-pink-500" />} />
+                <AverageCard title="متوسط التوصيل" amount={m.view.avgDelivery} icon={<Car size={16} className="text-orange-500" />} />
+                <AverageCard title="متوسط التسويق" amount={m.view.avgMarketing} icon={<Megaphone size={16} className="text-purple-500" />} full />
+              </div>
+
+              <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md mt-3">
+                <h3 className="font-bold mb-1 text-sm flex items-center gap-2"><CreditCard size={18} /> متوسطات طرق الدفع اليومية</h3>
+                <p className="text-slate-300 text-xs">قيمة كل وسيلة دفع يومياً ضمن الفترة</p>
+              </div>
+              <div className="grid grid-cols-3 gap-2">
+                <AverageCard title="Cash" amount={m.view.avgCash} icon={<Wallet size={14} className="text-emerald-500" />} />
+                <AverageCard title="Mada" amount={m.view.avgMada} icon={<CreditCard size={14} className="text-blue-500" />} />
+                <AverageCard title="Transfer" amount={m.view.avgTransfer} icon={<Globe size={14} className="text-purple-500" />} />
               </div>
             </div>
           )}
@@ -414,13 +625,144 @@ function SuperAdminDashboard() {
           {activeReport === 'payments' && (
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
               <h3 className="font-bold text-gray-800 mb-5 text-sm flex items-center gap-2">
-                <CreditCard size={18} className="text-blue-600" /> تحليل طرق الدفع
+                <CreditCard size={18} className="text-blue-600" /> تحليل طرق الدفع — {m.view.label}
               </h3>
               <div className="space-y-5">
-                <PaymentBar label="مدى (شبكة)" amount={m.totalMada} total={m.totalSales} color="bg-blue-500" />
-                <PaymentBar label="تحويل (أون لاين)" amount={m.totalTransfer} total={m.totalSales} color="bg-purple-500" />
-                <PaymentBar label="نقدي (كاش)" amount={m.totalCash} total={m.totalSales} color="bg-emerald-500" />
+                <PaymentBar label="مدى (شبكة)" amount={m.view.mada} total={m.view.sales} color="bg-blue-500" />
+                <PaymentBar label="تحويل (أون لاين)" amount={m.view.transfer} total={m.view.sales} color="bg-purple-500" />
+                <PaymentBar label="نقدي (كاش)" amount={m.view.cash} total={m.view.sales} color="bg-emerald-500" />
               </div>
+            </div>
+          )}
+
+          {/* ✨ تحليل الشهر بالأيام (طلب #5) */}
+          {activeReport === 'monthDays' && (
+            <div className="space-y-3">
+              {!m.dailyBreakdown ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+                  <p className="text-amber-800 font-bold text-sm">هذا التحليل متاح فقط في فلتر "شهري"</p>
+                  <p className="text-amber-600 text-xs mt-1">بدّل الفلتر فوق إلى "شهري"</p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-emerald-600 text-white p-4 rounded-2xl shadow-md">
+                    <h3 className="font-bold text-sm flex items-center gap-2"><Calendar size={18} /> أيام الشهر — {m.view.label}</h3>
+                    <p className="text-emerald-100 text-[11px] mt-1">معرفة الأيام الأقوى والأضعف بيعاً</p>
+                  </div>
+
+                  {/* ملخص أفضل/أسوأ يوم */}
+                  {(() => {
+                    const withSales = m.dailyBreakdown.filter((d) => d.sales > 0);
+                    if (!withSales.length) {
+                      return (
+                        <div className="bg-white border border-gray-100 rounded-xl p-5 text-center text-gray-400 text-sm">
+                          لا توجد مبيعات مسجّلة في هذا الشهر بعد
+                        </div>
+                      );
+                    }
+                    const best = withSales.reduce((a, b) => b.sales > a.sales ? b : a);
+                    const worst = withSales.reduce((a, b) => b.sales < a.sales ? b : a);
+                    const avg = Math.round(withSales.reduce((s, x) => s + x.sales, 0) / withSales.length);
+                    return (
+                      <div className="grid grid-cols-3 gap-2">
+                        <div className="bg-white border border-emerald-100 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-400 font-bold">أقوى يوم</p>
+                          <p className="text-lg font-bold text-emerald-600 font-mono">يوم {best.day}</p>
+                          <p className="text-xs font-mono text-emerald-700">{best.sales.toLocaleString()}</p>
+                        </div>
+                        <div className="bg-white border border-blue-100 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-400 font-bold">المتوسط</p>
+                          <p className="text-lg font-bold text-blue-600 font-mono">{avg.toLocaleString()}</p>
+                          <p className="text-[10px] text-gray-400">ريال/يوم</p>
+                        </div>
+                        <div className="bg-white border border-red-100 rounded-xl p-3 text-center">
+                          <p className="text-[10px] text-gray-400 font-bold">أضعف يوم</p>
+                          <p className="text-lg font-bold text-red-500 font-mono">يوم {worst.day}</p>
+                          <p className="text-xs font-mono text-red-600">{worst.sales.toLocaleString()}</p>
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* رسم أعمدة لكل يوم */}
+                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                    {(() => {
+                      const maxSales = Math.max(1, ...m.dailyBreakdown.map((d) => d.sales));
+                      return (
+                        <div className="space-y-1.5">
+                          {m.dailyBreakdown.map((d) => {
+                            const widthPerc = (d.sales / maxSales) * 100;
+                            const isMax = d.sales === maxSales && d.sales > 0;
+                            return (
+                              <div key={d.day} className="flex items-center gap-2">
+                                <span className="text-[10px] font-mono w-6 text-gray-500 font-bold text-left">{d.day}</span>
+                                <div className="flex-1 bg-gray-50 rounded h-5 overflow-hidden relative">
+                                  <div className={`h-full ${isMax ? 'bg-emerald-500' : 'bg-blue-400'} rounded transition-all`}
+                                    style={{ width: `${widthPerc}%` }} />
+                                </div>
+                                <span className="text-[10px] font-mono w-20 text-gray-700 font-bold text-left">
+                                  {d.sales > 0 ? d.sales.toLocaleString() : '—'}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
+                    })()}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ✨ تقسيم الشهر لـ 4 فترات (طلب #6) */}
+          {activeReport === 'monthWeeks' && (
+            <div className="space-y-3">
+              {!m.weeklyBreakdown ? (
+                <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
+                  <p className="text-amber-800 font-bold text-sm">هذا التحليل متاح فقط في فلتر "شهري"</p>
+                  <p className="text-amber-600 text-xs mt-1">بدّل الفلتر فوق إلى "شهري"</p>
+                </div>
+              ) : (
+                <>
+                  <div className="bg-indigo-600 text-white p-4 rounded-2xl shadow-md">
+                    <h3 className="font-bold text-sm flex items-center gap-2"><Layers size={18} /> أرباع الشهر — {m.view.label}</h3>
+                    <p className="text-indigo-100 text-[11px] mt-1">مبيعات الشهر مقسّمة على 4 أرباع</p>
+                  </div>
+
+                  {(() => {
+                    const total = m.weeklyBreakdown.reduce((s, b) => s + b.sales, 0);
+                    const maxW = Math.max(1, ...m.weeklyBreakdown.map((b) => b.sales));
+                    return (
+                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                        {m.weeklyBreakdown.map((b, i) => {
+                          const widthPerc = (b.sales / maxW) * 100;
+                          const sharePerc = total > 0 ? Math.round((b.sales / total) * 100) : 0;
+                          return (
+                            <div key={i} className="p-4 border-b border-gray-50 last:border-0">
+                              <div className="flex justify-between items-center mb-2">
+                                <span className="font-bold text-sm text-gray-700">{b.label}</span>
+                                <div className="text-left">
+                                  <span className="font-mono font-bold text-slate-800">{b.sales.toLocaleString()}</span>
+                                  <span className="text-[11px] text-gray-400 mr-1">({sharePerc}%)</span>
+                                </div>
+                              </div>
+                              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                                <div className="bg-indigo-500 h-full rounded-full transition-all duration-500"
+                                  style={{ width: `${widthPerc}%` }} />
+                              </div>
+                            </div>
+                          );
+                        })}
+                        <div className="bg-slate-50 p-3 flex justify-between font-bold text-sm">
+                          <span className="text-slate-700">إجمالي الشهر:</span>
+                          <span className="font-mono text-slate-900">{total.toLocaleString()} ريال</span>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </>
+              )}
             </div>
           )}
 
@@ -548,8 +890,13 @@ function PaymentBar({ label, amount, total, color }) {
 // شاشة تسجيل الدخول
 // ==========================================
 function LoginView({ onLoginSuccess }) {
-  const [username, setUsername] = useState('');
+  const [username, setUsername] = useState(() => {
+    try { return localStorage.getItem('tw_remember_user') || ''; } catch { return ''; }
+  });
   const [pin, setPin] = useState('');
+  const [remember, setRemember] = useState(() => {
+    try { return !!localStorage.getItem('tw_remember_user'); } catch { return false; }
+  });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -560,6 +907,11 @@ function LoginView({ onLoginSuccess }) {
     setLoading(true);
     try {
       const u = await login(username, pin);
+      // احفظ اسم المستخدم إذا فعّل "تذكّرني"
+      try {
+        if (remember) localStorage.setItem('tw_remember_user', username.trim());
+        else localStorage.removeItem('tw_remember_user');
+      } catch { /* ignore */ }
       onLoginSuccess(u);
     } catch (err) {
       const code = err?.code || '';
@@ -601,6 +953,13 @@ function LoginView({ onLoginSuccess }) {
             placeholder="••••"
             className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl outline-none focus:border-blue-500 text-center tracking-[0.5em] font-mono text-lg" />
         </div>
+
+        <label className="flex items-center gap-2 cursor-pointer select-none">
+          <input type="checkbox" checked={remember} onChange={(e) => setRemember(e.target.checked)}
+            className="w-4 h-4 accent-blue-600" />
+          <span className="text-xs font-bold text-gray-600">تذكّر اسم المستخدم</span>
+        </label>
+
         {error && (
           <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
         )}
@@ -651,16 +1010,30 @@ function SalesForm({ setView, branch, branchId }) {
   const [cash, setCash] = useState('');
   const [mada, setMada] = useState('');
   const [transfer, setTransfer] = useState('');
+  const [methods, setMethods] = useState([]);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
 
+  // اقرأ طرق الدفع من Firestore عشان نستخدم التسميات العربية
+  useEffect(() => {
+    (async () => {
+      try { setMethods(await getPaymentMethods()); }
+      catch { /* نتجاهل، نستخدم تسميات افتراضية */ }
+    })();
+  }, []);
+
+  const labelFor = (id, fallback) => methods.find((m) => m.id === id)?.labelAr || fallback;
   const total = (Number(cash) || 0) + (Number(mada) || 0) + (Number(transfer) || 0);
+  // ✨ حسبة رسوم مدى (طلب المالك): 0.92% من قيمة مدى
+  const madaFeesAmt = madaFees(mada);
+  const madaNetAmt = madaNet(mada);
+  const netTotal = (Number(cash) || 0) + madaNetAmt + (Number(transfer) || 0);
 
   const fields = [
-    { label: 'كاش', value: cash, set: setCash },
-    { label: 'مدى', value: mada, set: setMada },
-    { label: 'تحويل', value: transfer, set: setTransfer },
+    { label: labelFor('Cash', 'كاش'), value: cash, set: setCash },
+    { label: labelFor('Mada', 'مدى'), value: mada, set: setMada },
+    { label: labelFor('Transfer', 'تحويل'), value: transfer, set: setTransfer },
   ];
 
   const handleSave = async () => {
@@ -714,6 +1087,31 @@ function SalesForm({ setView, branch, branchId }) {
           <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} ريال</p>
         </div>
 
+        {/* ✨ حسبة رسوم مدى — تظهر فقط لما يدخل قيمة مدى */}
+        {Number(mada) > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+            <p className="text-amber-900 font-bold text-xs flex items-center gap-1">
+              💳 رسوم مدى ({(MADA_FEE_RATE * 100).toFixed(2)}%)
+            </p>
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-amber-800">إجمالي مدى المُدخل:</span>
+              <span className="font-mono text-amber-900">{Number(mada).toLocaleString()} ريال</span>
+            </div>
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-red-700">- رسوم مدى (0.80 هلله + 15% ضريبة):</span>
+              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} ريال</span>
+            </div>
+            <div className="flex justify-between text-xs font-bold pt-1 border-t border-amber-200">
+              <span className="text-emerald-800">صافي مدى:</span>
+              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} ريال</span>
+            </div>
+            <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-300">
+              <span className="text-slate-900">الإجمالي بعد خصم رسوم مدى:</span>
+              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} ريال</span>
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
           <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
@@ -737,6 +1135,7 @@ function SalesForm({ setView, branch, branchId }) {
 function ExpenseForm({ setView, branchId }) {
   const [date, setDate] = useState(todayStr());
   const [categories, setCategories] = useState([]);
+  const [methods, setMethods] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
   const [categoryId, setCategoryId] = useState('');
   const [amount, setAmount] = useState('');
@@ -753,10 +1152,10 @@ function ExpenseForm({ setView, branchId }) {
     let cancelled = false;
     (async () => {
       try {
-        const cats = await getCategories();
-        if (!cancelled) setCategories(cats);
+        const [cats, pm] = await Promise.all([getCategories(), getPaymentMethods()]);
+        if (!cancelled) { setCategories(cats); setMethods(pm); }
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر تحميل التصنيفات');
+        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
       } finally {
         if (!cancelled) setLoadingCats(false);
       }
@@ -864,10 +1263,10 @@ function ExpenseForm({ setView, branchId }) {
         <div>
           <label className="text-xs font-bold text-gray-500 mb-1.5 block">طريقة الدفع</label>
           <div className="flex gap-2">
-            {['Cash', 'Mada', 'Transfer'].map((p) => (
-              <button key={p} onClick={() => setPayMethod(p)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${payMethod === p ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                {p}
+            {(methods.length ? methods : [{ id: 'Cash', labelAr: 'Cash' }, { id: 'Mada', labelAr: 'Mada' }, { id: 'Transfer', labelAr: 'Transfer' }]).map((p) => (
+              <button key={p.id} onClick={() => setPayMethod(p.id)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${payMethod === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                {p.labelAr || p.name || p.id}
               </button>
             ))}
           </div>
@@ -1531,13 +1930,23 @@ function ChangeMyPin({ onBack }) {
 // شاشة تسجيل المبيعات/المصاريف للمدير (لأي فرع)
 // ==========================================
 function AdminDataEntry({ onBack }) {
-  const [step, setStep] = useState('menu'); // menu, sales, expense
+  const [step, setStep] = useState('menu');
   const [chosenBranch, setChosenBranch] = useState('toia');
+  const [branches, setBranches] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try { setBranches(await getBranches()); }
+      catch { setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]); }
+    })();
+  }, []);
+
+  const branchName = branches.find((b) => b.id === chosenBranch)?.name
+    || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا');
 
   if (step === 'sales') {
     return (
-      <AdminSalesForm onBack={() => setStep('menu')} branchId={chosenBranch}
-        branchName={chosenBranch === 'wardana' ? 'وردانة' : 'تويا'} />
+      <AdminSalesForm onBack={() => setStep('menu')} branchId={chosenBranch} branchName={branchName} />
     );
   }
   if (step === 'expense') {
@@ -1563,11 +1972,11 @@ function AdminDataEntry({ onBack }) {
 
         <div>
           <label className="text-xs font-bold text-gray-500 mb-2 block">اختر الفرع</label>
-          <div className="flex gap-2">
-            {[{ v: 'toia', t: 'تويا' }, { v: 'wardana', t: 'وردانة' }].map((b) => (
-              <button key={b.v} onClick={() => setChosenBranch(b.v)}
-                className={`flex-1 py-3 rounded-xl text-sm font-bold border ${chosenBranch === b.v ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-500 border-gray-200'}`}>
-                {b.t}
+          <div className="flex gap-2 flex-wrap">
+            {(branches.length ? branches : [{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]).map((b) => (
+              <button key={b.id} onClick={() => setChosenBranch(b.id)}
+                className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold border ${chosenBranch === b.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-500 border-gray-200'}`}>
+                {b.name}
               </button>
             ))}
           </div>
@@ -1579,7 +1988,7 @@ function AdminDataEntry({ onBack }) {
             <div className="bg-white/20 p-3 rounded-xl"><TrendingUp size={24} /></div>
             <div className="text-right">
               <h3 className="font-bold text-base mb-0.5">تسجيل المبيعات</h3>
-              <p className="text-blue-100 text-xs">فرع {chosenBranch === 'wardana' ? 'وردانة' : 'تويا'}</p>
+              <p className="text-blue-100 text-xs">فرع {branchName}</p>
             </div>
           </button>
           <button onClick={() => setStep('expense')}
@@ -1587,7 +1996,7 @@ function AdminDataEntry({ onBack }) {
             <div className="bg-blue-50 text-blue-600 p-3 rounded-xl"><Receipt size={24} /></div>
             <div className="text-right">
               <h3 className="font-bold text-gray-800 text-base mb-0.5">تسجيل مصروف</h3>
-              <p className="text-gray-500 text-xs">فرع {chosenBranch === 'wardana' ? 'وردانة' : 'تويا'}</p>
+              <p className="text-gray-500 text-xs">فرع {branchName}</p>
             </div>
           </button>
         </div>
@@ -1607,6 +2016,10 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
   const [error, setError] = useState('');
 
   const total = (Number(cash) || 0) + (Number(mada) || 0) + (Number(transfer) || 0);
+  const madaFeesAmt = madaFees(mada);
+  const madaNetAmt = madaNet(mada);
+  const netTotal = (Number(cash) || 0) + madaNetAmt + (Number(transfer) || 0);
+
   const fields = [
     { label: 'كاش', value: cash, set: setCash },
     { label: 'مدى', value: mada, set: setMada },
@@ -1664,6 +2077,24 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
           <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} ريال</p>
         </div>
 
+        {Number(mada) > 0 && (
+          <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
+            <p className="text-amber-900 font-bold text-xs">💳 رسوم مدى ({(MADA_FEE_RATE * 100).toFixed(2)}%)</p>
+            <div className="flex justify-between text-xs font-bold">
+              <span className="text-red-700">- رسوم:</span>
+              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} ريال</span>
+            </div>
+            <div className="flex justify-between text-xs font-bold pt-1 border-t border-amber-200">
+              <span className="text-emerald-800">صافي مدى:</span>
+              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} ريال</span>
+            </div>
+            <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-300">
+              <span className="text-slate-900">الإجمالي بعد الرسوم:</span>
+              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} ريال</span>
+            </div>
+          </div>
+        )}
+
         {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
           <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
@@ -1685,6 +2116,7 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
 function AdminExpenseForm({ onBack, branchId }) {
   const [date, setDate] = useState(todayStr());
   const [categories, setCategories] = useState([]);
+  const [methods, setMethods] = useState([]);
   const [loadingCats, setLoadingCats] = useState(true);
   const [categoryId, setCategoryId] = useState('');
   const [amount, setAmount] = useState('');
@@ -1701,8 +2133,8 @@ function AdminExpenseForm({ onBack, branchId }) {
     let cancelled = false;
     (async () => {
       try {
-        const cats = await getCategories();
-        if (!cancelled) setCategories(cats);
+        const [cats, pm] = await Promise.all([getCategories(), getPaymentMethods()]);
+        if (!cancelled) { setCategories(cats); setMethods(pm); }
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل التصنيفات');
       } finally {
@@ -1802,10 +2234,10 @@ function AdminExpenseForm({ onBack, branchId }) {
         <div>
           <label className="text-xs font-bold text-gray-500 mb-1.5 block">طريقة الدفع</label>
           <div className="flex gap-2">
-            {['Cash', 'Mada', 'Transfer'].map((p) => (
-              <button key={p} onClick={() => setPayMethod(p)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
-                {p}
+            {(methods.length ? methods : [{ id: 'Cash', labelAr: 'Cash' }, { id: 'Mada', labelAr: 'Mada' }, { id: 'Transfer', labelAr: 'Transfer' }]).map((p) => (
+              <button key={p.id} onClick={() => setPayMethod(p.id)}
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                {p.labelAr || p.name || p.id}
               </button>
             ))}
           </div>

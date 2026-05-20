@@ -129,16 +129,41 @@ export async function createStaffUser({ username, pin, role, branchId, displayNa
 
 // ========== كتابة البيانات ==========
 
+// ========== حسبة رسوم مدى (طلب المالك) ==========
+// كل 10 ريال => 0.80 هلله رسوم + 15% ضريبة على الرسوم = 0.92 هلله
+// نسبة الرسوم الإجمالية على المبلغ = 0.092 / 10 = 0.92%
+export const MADA_FEE_RATE = 0.0092;
+export function madaFees(grossMada) {
+  const g = Number(grossMada) || 0;
+  return +(g * MADA_FEE_RATE).toFixed(2);
+}
+export function madaNet(grossMada) {
+  const g = Number(grossMada) || 0;
+  return +(g * (1 - MADA_FEE_RATE)).toFixed(2);
+}
+
 // تسجيل مبيعات يومية (القسم 6 من المنطق)
+// ملاحظة: المبلغ المدخل لـ mada هو الإجمالي قبل الرسوم.
+// نحفظ كذلك madaFees و madaNet لأغراض التقارير.
 export async function addDailySales({ date, branchId, cash, mada, transfer }) {
-  const total = (Number(cash) || 0) + (Number(mada) || 0) + (Number(transfer) || 0);
+  const cashN = Number(cash) || 0;
+  const madaN = Number(mada) || 0;
+  const transferN = Number(transfer) || 0;
+  const total = cashN + madaN + transferN;
+  const madaFeesAmt = +(madaN * MADA_FEE_RATE).toFixed(2);
+  const madaNetAmt = +(madaN - madaFeesAmt).toFixed(2);
+  const netTotal = +(cashN + madaNetAmt + transferN).toFixed(2);
+
   return addDoc(collection(db, "dailySales"), {
     date,
     branchId,
-    cash: Number(cash) || 0,
-    mada: Number(mada) || 0,
-    transfer: Number(transfer) || 0,
-    total,
+    cash: cashN,
+    mada: madaN,
+    madaFees: madaFeesAmt,
+    madaNet: madaNetAmt,
+    transfer: transferN,
+    total,        // الإجمالي قبل خصم رسوم مدى
+    netTotal,     // الإجمالي بعد خصم رسوم مدى
     createdBy: auth.currentUser.uid,
     createdAt: serverTimestamp(),
   });
@@ -223,6 +248,79 @@ export async function setFixedExpense({ month, branchId, amount }) {
 export async function getUsers() {
   const snap = await getDocs(collection(db, "users"));
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+}
+
+// ========== الفروع (§12 من المنطق) ==========
+
+const DEFAULT_BRANCHES = [
+  { id: "toia", name: "تويا", active: true, order: 1 },
+  { id: "wardana", name: "وردانة", active: true, order: 2 },
+];
+
+// جلب الفروع النشطة، مرتبة، مع زرع افتراضي عند أول تشغيل
+export async function getBranches() {
+  const snap = await getDocs(collection(db, "branches"));
+  if (snap.empty) {
+    try {
+      const batch = writeBatch(db);
+      for (const b of DEFAULT_BRANCHES) {
+        batch.set(doc(db, "branches", b.id), {
+          name: b.name,
+          active: b.active,
+          order: b.order,
+          createdAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    } catch {
+      return DEFAULT_BRANCHES;
+    }
+    return DEFAULT_BRANCHES;
+  }
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((b) => b.active !== false)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+// تحديث اسم فرع أو حالته
+export async function updateBranch(id, data) {
+  await updateDoc(doc(db, "branches", id), data);
+}
+
+// ========== طرق الدفع (§12 من المنطق) ==========
+
+const DEFAULT_PAYMENT_METHODS = [
+  { id: "Cash", name: "Cash", labelAr: "نقدي (كاش)", active: true, order: 1 },
+  { id: "Mada", name: "Mada", labelAr: "مدى (شبكة)", active: true, order: 2 },
+  { id: "Transfer", name: "Transfer", labelAr: "تحويل (أون لاين)", isOnline: true, active: true, order: 3 },
+];
+
+export async function getPaymentMethods() {
+  const snap = await getDocs(collection(db, "paymentMethods"));
+  if (snap.empty) {
+    try {
+      const batch = writeBatch(db);
+      for (const p of DEFAULT_PAYMENT_METHODS) {
+        batch.set(doc(db, "paymentMethods", p.id), {
+          name: p.name,
+          labelAr: p.labelAr,
+          isOnline: !!p.isOnline,
+          active: p.active,
+          order: p.order,
+          createdAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    } catch {
+      return DEFAULT_PAYMENT_METHODS;
+    }
+    return DEFAULT_PAYMENT_METHODS;
+  }
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((p) => p.active !== false)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
 
 // ========== تصنيفات المصاريف (قابلة للإدارة من المدير) ==========
