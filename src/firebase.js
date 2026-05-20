@@ -28,6 +28,10 @@ import {
   query,
   where,
   serverTimestamp,
+  updateDoc,
+  deleteDoc,
+  orderBy,
+  writeBatch,
 } from "firebase/firestore";
 
 // 🔻 الصق هنا كائن firebaseConfig من Firebase Console
@@ -132,7 +136,7 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
   });
 }
 
-// تصنيف نوع المصروف لأغراض التقارير (ورد/توصيل/تسويق/عام)
+// تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
 export function classifyExpense(categoryId) {
   if (categoryId === "ورد") return "flower";
   if (categoryId === "توصيل") return "delivery";
@@ -145,6 +149,8 @@ export async function addExpense({
   date,
   branchId,
   categoryId,
+  categoryName,
+  expenseType,
   amount,
   paymentMethodId,
   invoiceUrl = null,
@@ -154,7 +160,8 @@ export async function addExpense({
     date,
     branchId,
     categoryId,
-    expenseType: classifyExpense(categoryId),
+    categoryName: categoryName || categoryId,
+    expenseType: expenseType || classifyExpense(categoryName || categoryId),
     amount: Number(amount) || 0,
     paymentMethodId,
     invoiceUrl,
@@ -208,6 +215,81 @@ export async function setFixedExpense({ month, branchId, amount }) {
 export async function getUsers() {
   const snap = await getDocs(collection(db, "users"));
   return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+}
+
+// ========== تصنيفات المصاريف (قابلة للإدارة من المدير) ==========
+
+// التصنيفات الافتراضية — تُزرع تلقائياً أول مرة
+const DEFAULT_CATEGORIES = [
+  { id: "flower", name: "ورد", requiresImage: true, expenseType: "flower", order: 1 },
+  { id: "customer_orders", name: "طلبات العملاء", requiresImage: true, expenseType: "general", order: 2 },
+  { id: "supplies", name: "مستلزمات وبضائع", requiresImage: true, expenseType: "general", order: 3 },
+  { id: "delivery", name: "توصيل", requiresImage: false, expenseType: "delivery", order: 4 },
+  { id: "marketing", name: "تسويق", requiresImage: false, expenseType: "marketing", order: 5 },
+  { id: "electricity", name: "كهرباء", requiresImage: false, expenseType: "general", order: 6 },
+  { id: "internet", name: "إنترنت", requiresImage: false, expenseType: "general", order: 7 },
+  { id: "services", name: "خدمات", requiresImage: false, expenseType: "general", order: 8 },
+  { id: "maintenance", name: "صيانة", requiresImage: false, expenseType: "general", order: 9 },
+  { id: "other", name: "أخرى", requiresImage: false, expenseType: "general", order: 10 },
+];
+
+// جلب كل التصنيفات النشطة، مرتبة. يزرع الافتراضي إذا لم توجد تصنيفات.
+export async function getCategories() {
+  const snap = await getDocs(collection(db, "categories"));
+  if (snap.empty) {
+    // أول تشغيل — ازرع الافتراضي (يتطلب صلاحية مدير حسب قواعد الأمان)
+    try {
+      const batch = writeBatch(db);
+      for (const c of DEFAULT_CATEGORIES) {
+        batch.set(doc(db, "categories", c.id), {
+          name: c.name,
+          requiresImage: c.requiresImage,
+          expenseType: c.expenseType,
+          order: c.order,
+          active: true,
+          createdAt: serverTimestamp(),
+        });
+      }
+      await batch.commit();
+    } catch (err) {
+      // لو الزرع فشل (موظف بدون صلاحية)، ارجع الافتراضي محلياً
+      return DEFAULT_CATEGORIES.map((c) => ({ ...c, active: true }));
+    }
+    return DEFAULT_CATEGORIES.map((c) => ({ ...c, active: true }));
+  }
+  return snap.docs
+    .map((d) => ({ id: d.id, ...d.data() }))
+    .filter((c) => c.active !== false)
+    .sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
+// تبديل خاصية "يتطلب صورة" لتصنيف
+export async function setCategoryRequiresImage(id, requiresImage) {
+  await updateDoc(doc(db, "categories", id), { requiresImage: !!requiresImage });
+}
+
+// إضافة تصنيف جديد
+export async function addCategory({ name, requiresImage = false, expenseType = "general" }) {
+  if (!name?.trim()) throw new Error("اسم التصنيف مطلوب");
+  // معرّف بسيط من الاسم + رقم وقت لتجنب التكرار
+  const cleanId = String(name).trim().toLowerCase().replace(/\s+/g, "_") + "_" + Date.now();
+  // احسب الترتيب التالي
+  const snap = await getDocs(collection(db, "categories"));
+  const maxOrder = snap.docs.reduce((m, d) => Math.max(m, d.data().order || 0), 0);
+  await setDoc(doc(db, "categories", cleanId), {
+    name: name.trim(),
+    requiresImage: !!requiresImage,
+    expenseType,
+    order: maxOrder + 1,
+    active: true,
+    createdAt: serverTimestamp(),
+  });
+  return cleanId;
+}
+
+// حذف تصنيف (نخفيه بدل حذف نهائي، حتى لا تتأثر سجلات قديمة)
+export async function deleteCategory(id) {
+  await updateDoc(doc(db, "categories", id), { active: false });
 }
 
 // ========== رفع صورة الفاتورة إلى R2 عبر /api/upload ==========

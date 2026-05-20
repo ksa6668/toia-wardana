@@ -11,6 +11,7 @@ import {
   addDailySales, addExpense,
   getSales, getExpenses, getFixedExpenses, setFixedExpense,
   getUsers, createStaffUser, uploadInvoiceImage,
+  getCategories, setCategoryRequiresImage, addCategory, deleteCategory,
 } from './firebase';
 
 // ==========================================
@@ -83,11 +84,18 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-[#f1f5f9] flex items-center justify-center p-4 font-sans text-right" dir="rtl">
-      <div className="w-full max-w-md bg-white rounded-[2.5rem] shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)] overflow-hidden border-8 border-slate-900 relative h-[850px] flex flex-col">
+    <div className="min-h-screen bg-[#f1f5f9] md:flex md:items-center md:justify-center md:p-4 font-sans text-right" dir="rtl">
+      {/*
+        على الجوال: ملء الشاشة، بدون إطار، بدون حدود (الجوال نفسه هو الإطار)
+        على الكمبيوتر (md+): إطار جوال محاكي بعرض محدود وارتفاع ثابت
+      */}
+      <div className="w-full bg-white overflow-hidden flex flex-col
+                      min-h-screen
+                      md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
+                      md:border-8 md:border-slate-900 md:h-[850px] md:relative">
 
         {currentView !== 'login' && !authLoading && (
-          <header className="bg-slate-900 text-white p-5 pt-8 z-20 relative">
+          <header className="bg-slate-900 text-white p-5 pt-12 md:pt-8 z-20 relative">
             <div className="flex justify-between items-center">
               <div>
                 <h1 className="text-xl font-bold tracking-wide">Toia &amp; Wardana</h1>
@@ -102,9 +110,9 @@ export default function App() {
           </header>
         )}
 
-        <main className="flex-1 overflow-y-auto bg-slate-50 relative z-10">
+        <main className="flex-1 overflow-y-auto bg-slate-50 relative z-10 pb-24 md:pb-0">
           {authLoading && (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3">
+            <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 pt-20">
               <Loader2 size={32} className="animate-spin" />
               <p className="text-sm font-bold">جارٍ التحميل...</p>
             </div>
@@ -118,7 +126,7 @@ export default function App() {
         </main>
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
-          <nav className="absolute bottom-0 w-full bg-white border-t border-gray-200 flex justify-around p-3 pb-6 z-30 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
+          <nav className="fixed bottom-0 left-0 right-0 md:absolute bg-white border-t border-gray-200 flex justify-around p-3 pb-6 md:pb-6 z-30 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
             <button onClick={() => setAdminTab('dashboard')}
               className={`flex flex-col items-center p-2 transition-colors ${adminTab === 'dashboard' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}>
               <BarChart3 size={24} />
@@ -722,24 +730,13 @@ function SalesForm({ setView, branch, branchId }) {
 }
 
 // ==========================================
-// نموذج تسجيل المصروف — يكتب في Firestore
+// نموذج تسجيل المصروف — يقرأ التصنيفات من Firestore
 // ==========================================
-const EXPENSE_CATEGORIES = [
-  { id: 'ورد', label: 'ورد (صورة إجبارية)', requiresImage: true },
-  { id: 'طلبات العملاء', label: 'طلبات العملاء (صورة إجبارية)', requiresImage: true },
-  { id: 'مستلزمات وبضائع', label: 'مستلزمات وبضائع (صورة إجبارية)', requiresImage: true },
-  { id: 'توصيل', label: 'توصيل', requiresImage: false },
-  { id: 'تسويق', label: 'تسويق', requiresImage: false },
-  { id: 'كهرباء', label: 'كهرباء', requiresImage: false },
-  { id: 'إنترنت', label: 'إنترنت', requiresImage: false },
-  { id: 'خدمات', label: 'خدمات', requiresImage: false },
-  { id: 'صيانة', label: 'صيانة', requiresImage: false },
-  { id: 'أخرى', label: 'أخرى', requiresImage: false },
-];
-
 function ExpenseForm({ setView, branchId }) {
   const [date, setDate] = useState(todayStr());
-  const [category, setCategory] = useState('');
+  const [categories, setCategories] = useState([]);
+  const [loadingCats, setLoadingCats] = useState(true);
+  const [categoryId, setCategoryId] = useState('');
   const [amount, setAmount] = useState('');
   const [payMethod, setPayMethod] = useState('Cash');
   const [imageFile, setImageFile] = useState(null);
@@ -750,7 +747,23 @@ function ExpenseForm({ setView, branchId }) {
   const [error, setError] = useState('');
   const fileInputRef = React.useRef(null);
 
-  const requiresImage = EXPENSE_CATEGORIES.find((c) => c.id === category)?.requiresImage || false;
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const cats = await getCategories();
+        if (!cancelled) setCategories(cats);
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'تعذّر تحميل التصنيفات');
+      } finally {
+        if (!cancelled) setLoadingCats(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, []);
+
+  const selectedCategory = categories.find((c) => c.id === categoryId);
+  const requiresImage = selectedCategory?.requiresImage || false;
 
   const handlePickImage = () => fileInputRef.current?.click();
 
@@ -772,13 +785,12 @@ function ExpenseForm({ setView, branchId }) {
 
   const handleSave = async () => {
     setError('');
-    if (!category) { setError('اختر التصنيف'); return; }
+    if (!categoryId) { setError('اختر التصنيف'); return; }
     if (!(Number(amount) > 0)) { setError('أدخل مبلغاً صحيحاً'); return; }
     if (requiresImage && !imageFile) { setError('صورة الفاتورة مطلوبة لهذا التصنيف'); return; }
 
     setSaving(true);
     try {
-      // ارفع الصورة أولاً (إن وُجدت)
       let invoiceUrl = null, invoicePath = null;
       if (imageFile) {
         setUploading(true);
@@ -790,7 +802,9 @@ function ExpenseForm({ setView, branchId }) {
       await addExpense({
         date,
         branchId,
-        categoryId: category,
+        categoryId,
+        categoryName: selectedCategory?.name,
+        expenseType: selectedCategory?.expenseType || 'general',
         amount,
         paymentMethodId: payMethod,
         invoiceUrl,
@@ -822,13 +836,21 @@ function ExpenseForm({ setView, branchId }) {
 
         <div>
           <label className="text-xs font-bold text-gray-500 mb-1.5 block">التصنيف</label>
-          <select className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-blue-500"
-            value={category} onChange={(e) => setCategory(e.target.value)}>
-            <option value="">اختر التصنيف...</option>
-            {EXPENSE_CATEGORIES.map((c) => (
-              <option key={c.id} value={c.id}>{c.label}</option>
-            ))}
-          </select>
+          {loadingCats ? (
+            <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-400 flex items-center gap-2">
+              <Loader2 size={16} className="animate-spin" /> جارٍ تحميل التصنيفات...
+            </div>
+          ) : (
+            <select className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-blue-500"
+              value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <option value="">اختر التصنيف...</option>
+              {categories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}{c.requiresImage ? ' (صورة إجبارية)' : ''}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
 
         <div>
@@ -906,12 +928,13 @@ function AdminSettings() {
 
   if (screen === 'users') return <ManageUsers onBack={() => setScreen('menu')} />;
   if (screen === 'fixed') return <ManageFixedExpenses onBack={() => setScreen('menu')} />;
+  if (screen === 'categories') return <ManageCategories onBack={() => setScreen('menu')} />;
 
   const items = [
     { key: 'users', label: 'المستخدمون والصلاحيات', desc: 'إضافة موظفين ومديرين', enabled: true },
+    { key: 'categories', label: 'التصنيفات والفواتير', desc: 'تحديد التصنيفات وإلزامية الصورة', enabled: true },
     { key: 'fixed', label: 'المصاريف الثابتة', desc: 'إيجار ورواتب — شهري لكل فرع', enabled: true },
     { key: 'branches', label: 'الفروع', desc: 'تويا، وردانة', enabled: false },
-    { key: 'categories', label: 'التصنيفات والفواتير', desc: 'تحديد التصنيفات وإلزامية الصورة', enabled: false },
   ];
 
   return (
@@ -1152,6 +1175,170 @@ function ManageFixedExpenses({ onBack }) {
             </button>
           </>
         )}
+      </div>
+    </div>
+  );
+}
+
+// ==========================================
+// شاشة إدارة التصنيفات
+// ==========================================
+function ManageCategories({ onBack }) {
+  const [cats, setCats] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [busyId, setBusyId] = useState(null);
+  const [error, setError] = useState('');
+  const [showForm, setShowForm] = useState(false);
+  const [newName, setNewName] = useState('');
+  const [newReq, setNewReq] = useState(false);
+  const [newType, setNewType] = useState('general');
+  const [saving, setSaving] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try { setCats(await getCategories()); }
+    catch (err) { setError(err?.message || 'تعذّر التحميل'); }
+    finally { setLoading(false); }
+  };
+  useEffect(() => { load(); }, []);
+
+  const toggleRequires = async (cat) => {
+    setBusyId(cat.id);
+    setError('');
+    try {
+      await setCategoryRequiresImage(cat.id, !cat.requiresImage);
+      setCats((prev) => prev.map((c) => c.id === cat.id ? { ...c, requiresImage: !c.requiresImage } : c));
+    } catch (err) {
+      setError(err?.message || 'تعذّر التحديث');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleDelete = async (cat) => {
+    if (!confirm(`حذف تصنيف "${cat.name}"؟ السجلات القديمة لن تتأثر.`)) return;
+    setBusyId(cat.id);
+    try {
+      await deleteCategory(cat.id);
+      setCats((prev) => prev.filter((c) => c.id !== cat.id));
+    } catch (err) {
+      setError(err?.message || 'تعذّر الحذف');
+    } finally {
+      setBusyId(null);
+    }
+  };
+
+  const handleAdd = async () => {
+    setError('');
+    if (!newName.trim()) { setError('أدخل اسم التصنيف'); return; }
+    setSaving(true);
+    try {
+      await addCategory({ name: newName, requiresImage: newReq, expenseType: newType });
+      setNewName(''); setNewReq(false); setNewType('general');
+      setShowForm(false);
+      await load();
+    } catch (err) {
+      setError(err?.message || 'تعذّر الإضافة');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flex flex-col h-full bg-white pb-20">
+      <div className="flex items-center p-4 border-b border-gray-100">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+          <ChevronRight size={20} className="rotate-180" />
+        </button>
+        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">التصنيفات</h2>
+      </div>
+
+      <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+        {!showForm && (
+          <button onClick={() => setShowForm(true)}
+            className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center gap-2">
+            <Plus size={18} /> إضافة تصنيف
+          </button>
+        )}
+
+        {showForm && (
+          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+            <h3 className="font-bold text-sm text-slate-800">تصنيف جديد</h3>
+            <input type="text" placeholder="اسم التصنيف (مثل: كهرباء)"
+              value={newName} onChange={(e) => setNewName(e.target.value)}
+              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+
+            <div>
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">نوع المصروف (لتقارير المدير)</label>
+              <select value={newType} onChange={(e) => setNewType(e.target.value)}
+                className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500">
+                <option value="general">عام</option>
+                <option value="flower">ورد</option>
+                <option value="delivery">توصيل</option>
+                <option value="marketing">تسويق</option>
+              </select>
+            </div>
+
+            <label className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3 cursor-pointer">
+              <span className="text-sm font-bold text-gray-700">صورة الفاتورة إجبارية</span>
+              <input type="checkbox" checked={newReq} onChange={(e) => setNewReq(e.target.checked)}
+                className="w-5 h-5 accent-blue-600" />
+            </label>
+
+            {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">{error}</p>}
+            <div className="flex gap-2">
+              <button onClick={() => { setShowForm(false); setError(''); }}
+                className="flex-1 bg-white border border-gray-300 text-gray-600 font-bold py-2.5 rounded-xl text-sm">
+                إلغاء
+              </button>
+              <button onClick={handleAdd} disabled={saving}
+                className="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+                {saving && <Loader2 size={16} className="animate-spin" />}
+                {saving ? 'جارٍ...' : 'حفظ'}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {!showForm && error && (
+          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
+        )}
+
+        {loading ? (
+          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
+        ) : (
+          <div className="space-y-2">
+            {cats.map((cat) => (
+              <div key={cat.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
+                <div className="flex-1">
+                  <p className="font-bold text-sm text-gray-800">{cat.name}</p>
+                  <p className="text-[11px] text-gray-400">
+                    {cat.requiresImage ? '🔴 صورة إجبارية' : '⚪ صورة اختيارية'}
+                    {' · '}
+                    {cat.expenseType === 'flower' ? 'ورد' :
+                     cat.expenseType === 'delivery' ? 'توصيل' :
+                     cat.expenseType === 'marketing' ? 'تسويق' : 'عام'}
+                  </p>
+                </div>
+
+                {/* مفتاح تبديل "يتطلب صورة" */}
+                <button onClick={() => toggleRequires(cat)} disabled={busyId === cat.id}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${cat.requiresImage ? 'bg-blue-600' : 'bg-gray-300'} disabled:opacity-50`}>
+                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${cat.requiresImage ? 'translate-x-1' : 'translate-x-6'}`} />
+                </button>
+
+                <button onClick={() => handleDelete(cat)} disabled={busyId === cat.id}
+                  className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50">
+                  {busyId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <span className="text-xs font-bold">حذف</span>}
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+
+        <p className="text-[11px] text-gray-400 text-center pt-2">
+          اضغط المفتاح الأزرق لتبديل "صورة إجبارية" لأي تصنيف
+        </p>
       </div>
     </div>
   );
