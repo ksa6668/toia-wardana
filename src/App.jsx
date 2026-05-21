@@ -5,7 +5,8 @@ import {
   BarChart3, Wallet, UploadCloud,
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
-  Key, UserX, UserCheck, Trash2, Edit3
+  Key, UserX, UserCheck, Trash2, Edit3,
+  Home, Bell
 } from 'lucide-react';
 import {
   login, logout, watchAuth,
@@ -20,6 +21,11 @@ import {
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 import SarSymbol from './components/SarSymbol';
+// Manager screens redesigned to match the prototype experience
+import ManagerHome from './components/ManagerHome';
+import ManagerMonthly from './components/ManagerMonthly';
+import ManagerOverview from './components/ManagerOverview';
+import ManagerKpis from './components/ManagerKpis';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -107,7 +113,7 @@ export default function App() {
   const [currentView, setCurrentView] = useState('login');
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
-  const [adminTab, setAdminTab] = useState('dashboard');
+  const [adminTab, setAdminTab] = useState('home');
   // ✨ اللغة — تخص شاشات الموظف فقط، لكن نقرأها للجميع لاتساق شاشة الدخول
   const [lang, setLang] = useState(readSavedLang());
 
@@ -146,7 +152,7 @@ export default function App() {
     await logout();
     setUser(null);
     setCurrentView('login');
-    setAdminTab('dashboard');
+    setAdminTab('home');
   };
 
   // تبديل لغة الموظف (يحفظ محلياً + في Firestore)
@@ -178,9 +184,21 @@ export default function App() {
                   {user?.displayName || 'Finance Control'}
                 </p>
               </div>
-              <button onClick={handleLogout} className="p-2.5 bg-slate-800 rounded-full hover:bg-red-500 transition-colors">
-                <LogOut size={18} />
-              </button>
+              <div className="flex items-center gap-2">
+                {/* زر الإشعارات — placeholder حالياً، نظام كامل في الدفعة 3 */}
+                {isAdmin && (
+                  <button
+                    onClick={() => alert(lang === 'en' ? 'Notifications coming soon' : 'الإشعارات قريباً')}
+                    className="p-2.5 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors relative"
+                    title={lang === 'en' ? 'Notifications' : 'الإشعارات'}
+                  >
+                    <Bell size={18} />
+                  </button>
+                )}
+                <button onClick={handleLogout} className="p-2.5 bg-slate-800 rounded-full hover:bg-red-500 transition-colors">
+                  <LogOut size={18} />
+                </button>
+              </div>
             </div>
           </header>
         )}
@@ -204,22 +222,42 @@ export default function App() {
           {!authLoading && currentView === 'expenseForm' && (
             <ExpenseForm setView={setCurrentView} branchId={branchId} lang={lang} />
           )}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'dashboard' && <SuperAdminDashboard />}
+          {/* ====== شاشات المدير — مطابقة لتجربة الـ prototype ====== */}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && <ManagerMonthly lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'overview' && <ManagerOverview lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && <AdminSettings />}
+          {/* Dashboard القديم: متاح للرجوع إن أردت — adminTab === 'dashboard' */}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'dashboard' && <SuperAdminDashboard />}
         </main>
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
-          <nav className="fixed bottom-0 left-0 right-0 md:absolute bg-white border-t border-gray-200 flex justify-around p-3 pb-6 md:pb-6 z-30 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
-            <button onClick={() => setAdminTab('dashboard')}
-              className={`flex flex-col items-center p-2 transition-colors ${adminTab === 'dashboard' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}>
-              <BarChart3 size={24} />
-              <span className="text-[11px] mt-1 font-bold">الملخصات الشاملة</span>
-            </button>
-            <button onClick={() => setAdminTab('settings')}
-              className={`flex flex-col items-center p-2 transition-colors ${adminTab === 'settings' ? 'text-blue-600 scale-110' : 'text-gray-400'}`}>
-              <Settings size={24} />
-              <span className="text-[11px] mt-1 font-bold">الإعدادات</span>
-            </button>
+          <nav className="fixed bottom-0 left-0 right-0 md:absolute bg-white border-t border-gray-200 flex justify-around items-center px-1 py-2 pb-5 md:pb-4 z-30 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
+            {[
+              { key: 'monthly', icon: BarChart3, label: 'المؤشرات الشهرية' },
+              { key: 'overview', icon: PieChart, label: 'نظرة عامة' },
+              { key: 'home', icon: Home, label: 'الرئيسية' },
+              { key: 'kpis', icon: TrendingUp, label: 'المؤشرات' },
+              { key: 'settings', icon: Settings, label: 'الإعدادات' },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const active = adminTab === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setAdminTab(tab.key)}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
+                    active ? 'text-blue-600 scale-110' : 'text-gray-400 hover:text-gray-600'
+                  }`}
+                >
+                  <Icon size={20} strokeWidth={active ? 2.4 : 1.8} />
+                  <span className={`text-[9px] mt-0.5 font-bold leading-tight text-center ${active ? '' : 'opacity-80'}`}>
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
           </nav>
         )}
       </div>
