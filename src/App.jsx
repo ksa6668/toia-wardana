@@ -19,6 +19,7 @@ import {
   saveUserLanguage,
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
+import SarSymbol from './components/SarSymbol';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -551,7 +552,7 @@ function SuperAdminDashboard() {
                 <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
                 <p className="text-slate-300 font-bold text-xs mb-2">{profitLabel} — {m.view.label}</p>
                 <p className="text-4xl font-bold font-mono text-emerald-400">
-                  {Math.round(m.view.profit).toLocaleString()} <span className="text-sm font-sans text-slate-400">ريال</span>
+                  {Math.round(m.view.profit).toLocaleString()} <SarSymbol className="text-sm text-slate-400" />
                 </p>
                 <p className="text-[10px] text-slate-400 mt-2 bg-slate-800 w-fit px-2 py-1 rounded">
                   المبيعات − (المصاريف المتغيرة + نصيب الثابتة)
@@ -790,7 +791,7 @@ function SuperAdminDashboard() {
                         })}
                         <div className="bg-slate-50 p-3 flex justify-between font-bold text-sm">
                           <span className="text-slate-700">إجمالي الشهر:</span>
-                          <span className="font-mono text-slate-900">{total.toLocaleString()} ريال</span>
+                          <span className="font-mono text-slate-900">{total.toLocaleString()} <SarSymbol /></span>
                         </div>
                       </div>
                     );
@@ -1152,33 +1153,178 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
 function EmployeeHome({ setView, branch, lang, setLang }) {
   const align = lang === 'en' ? 'text-left' : 'text-right';
   const toggleLang = () => setLang(lang === 'ar' ? 'en' : 'ar');
+
+  // اسم الشهر الحالي بتنسيق "مايو 2026" / "May 2026" — قراءة فقط حالياً.
+  // لاحقاً يمكن جعله picker إذا قررنا السماح للموظف باستعراض شهور أخرى.
+  const monthLabel = new Date().toLocaleDateString(
+    lang === 'en' ? 'en-US' : 'ar-SA',
+    { month: 'long', year: 'numeric' }
+  );
+
   return (
-    <div className="p-6 h-full flex flex-col gap-4 pt-8">
-      <div className="flex justify-end">
-        <button onClick={toggleLang}
-          className="text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-full flex items-center gap-1.5">
-          <Globe size={14} />
+    <div
+      className="relative min-h-full flex flex-col px-5 pt-6 pb-8 overflow-hidden"
+      style={{
+        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* خلفية زخرفية ناعمة — نفس طابع شاشة الدخول للاتساق البصري */}
+      <div
+        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
+      />
+      <div
+        className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full opacity-15 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(0,91,255,0.25), transparent 70%)' }}
+      />
+
+      {/* شريط اللغة */}
+      <div className={`relative z-10 flex ${lang === 'en' ? 'justify-start' : 'justify-end'} mb-3`}>
+        <button
+          onClick={toggleLang}
+          className="bg-white/80 backdrop-blur-sm border border-blue-100 text-slate-700 px-3 py-1.5 rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 text-xs font-bold"
+        >
+          <Globe size={14} className="text-blue-600" />
           {t(lang, 'home.langToggle')}
         </button>
       </div>
-      <div className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 text-center mb-2">
-        <p className="text-gray-500 mb-1">{t(lang, 'home.greeting')}</p>
-        <h2 className="text-3xl font-bold text-blue-600">
+
+      {/* بطاقة الترحيب — مدمجة وأنيقة */}
+      <div className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center mb-3">
+        <p className="text-gray-500 text-sm mb-1">{t(lang, 'home.greeting')}</p>
+        <h2 className="text-2xl font-bold" style={{ color: '#061742' }}>
           {lang === 'en' ? branch : `فرع ${branch}`}
         </h2>
       </div>
-      <button onClick={() => setView('salesForm')} className="bg-blue-600 text-white p-6 rounded-2xl shadow-md flex items-center gap-4 active:scale-95 transition-transform">
-        <div className="bg-white/20 p-4 rounded-xl"><TrendingUp size={32} /></div>
-        <div className={align}>
-          <h3 className="font-bold text-xl mb-1">{t(lang, 'home.recordSales')}</h3>
-          <p className="text-blue-100 text-sm">{t(lang, 'home.recordSalesD')}</p>
+
+      {/* شريط الشهر — قراءة فقط، يعطي السياق الزمني */}
+      <div className="relative z-10 flex items-center justify-center gap-2 bg-white border border-gray-100 rounded-xl py-2.5 px-4 mb-4 shadow-sm">
+        <Calendar size={16} className="text-blue-600" />
+        <span className="font-bold text-sm text-slate-700">{monthLabel}</span>
+      </div>
+
+      {/* ============================================================
+          كرتا مؤشرات الأداء (KPI) — تحقيق الميزانية + التقييمات
+          ⚠️ TODO (ربط Firestore):
+            1) أنشئ collection 'goals' في Firestore بهذا الشكل:
+                 goals/{branchId}_{YYYY-MM}  →  { budget: 50000, reviewsTarget: 100 }
+            2) أضف في firebase.js:
+                 export async function getMonthlyGoal(branchId, monthStr) {...}
+                 export async function getCurrentMonthSales(branchId) {...}
+                 export async function getCurrentReviews(branchId) {...}
+            3) استبدل الأرقام التجريبية أدناه بـ useState + useEffect:
+                 const [budget, setBudget] = useState({ achieved: 0, target: 1 });
+                 const [reviews, setReviews] = useState({ achieved: 0, target: 1 });
+                 useEffect(() => { ... fetch ... }, [branch]);
+            4) أضف شاشة إدارية للمدير لإدخال الأهداف الشهرية.
+         الآن: أرقام تجريبية لاستعراض التصميم.
+         ============================================================ */}
+      {(() => {
+        // أرقام تجريبية — استبدلها بقراءات حقيقية لاحقاً
+        const budgetAchieved = 39000;
+        const budgetTarget = 50000;
+        const reviewsAchieved = 92;
+        const reviewsTarget = 100;
+        const budgetPct = Math.min(100, Math.round((budgetAchieved / budgetTarget) * 100));
+        const reviewsPct = Math.min(100, Math.round((reviewsAchieved / reviewsTarget) * 100));
+        return (
+          <div className="relative z-10 space-y-3 mb-4">
+            {/* كارت تحقيق الميزانية */}
+            <div
+              className="text-white p-4 rounded-2xl overflow-hidden relative"
+              style={{
+                background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+                boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+              }}
+            >
+              <div
+                className="absolute inset-0 opacity-30 pointer-events-none"
+                style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+              />
+              <div className="relative">
+                <p className="text-center text-sm font-semibold opacity-95 mb-2">
+                  {t(lang, 'home.kpiBudget') || 'نسبة تحقيق الميزانية'}
+                </p>
+                <p className="text-center text-4xl font-extrabold leading-none mb-3 tracking-tight">
+                  {budgetPct}%
+                </p>
+                {/* شريط التقدم */}
+                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-white rounded-full transition-all duration-500"
+                    style={{ width: `${budgetPct}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* كارت تقييمات قوقل ماب */}
+            <div
+              className="text-white p-4 rounded-2xl overflow-hidden relative"
+              style={{
+                background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+                boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+              }}
+            >
+              <div
+                className="absolute inset-0 opacity-30 pointer-events-none"
+                style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+              />
+              <div className="relative">
+                <p className="text-center text-sm font-semibold opacity-95 mb-2">
+                  {t(lang, 'home.kpiReviews') || 'نسبة تحقيق تقييمات قوقل ماب'}
+                </p>
+                <p className="text-center text-4xl font-extrabold leading-none mb-2 tracking-tight">
+                  {reviewsPct}%
+                </p>
+                <p className="text-center text-sm tracking-[0.15em] mb-2">⭐⭐⭐⭐⭐</p>
+                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-white rounded-full transition-all duration-500"
+                    style={{ width: `${reviewsPct}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* كارت تسجيل المبيعات — gradient navy بنفس طابع الـ prototype */}
+      <button
+        onClick={() => setView('salesForm')}
+        className="relative z-10 text-white p-5 rounded-2xl flex items-center gap-4 active:scale-95 transition-transform mb-3 overflow-hidden"
+        style={{
+          background: 'linear-gradient(135deg, #082765 0%, #061742 60%, #1E3A8A 100%)',
+          boxShadow: '0 12px 30px -8px rgba(8, 39, 101, 0.4)',
+        }}
+      >
+        {/* لمعة خفيفة */}
+        <div
+          className="absolute inset-0 opacity-30 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at 20% 20%, rgba(40,223,255,0.4), transparent 50%)' }}
+        />
+        <div className="relative bg-white/15 backdrop-blur-sm p-3.5 rounded-xl">
+          <TrendingUp size={28} />
+        </div>
+        <div className={`relative flex-1 ${align}`}>
+          <h3 className="font-bold text-lg mb-0.5">{t(lang, 'home.recordSales')}</h3>
+          <p className="text-blue-100 text-xs">{t(lang, 'home.recordSalesD')}</p>
         </div>
       </button>
-      <button onClick={() => setView('expenseForm')} className="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform">
-        <div className="bg-blue-50 text-blue-600 p-4 rounded-xl"><Receipt size={32} /></div>
-        <div className={align}>
-          <h3 className="font-bold text-gray-800 text-xl mb-1">{t(lang, 'home.recordExpense')}</h3>
-          <p className="text-gray-500 text-sm">{t(lang, 'home.recordExpenseD')}</p>
+
+      {/* كارت تسجيل المصروفات — أبيض ناعم */}
+      <button
+        onClick={() => setView('expenseForm')}
+        className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform"
+      >
+        <div className="bg-blue-50 text-blue-600 p-3.5 rounded-xl">
+          <Receipt size={28} />
+        </div>
+        <div className={`flex-1 ${align}`}>
+          <h3 className="font-bold text-gray-800 text-lg mb-0.5">{t(lang, 'home.recordExpense')}</h3>
+          <p className="text-gray-500 text-xs">{t(lang, 'home.recordExpenseD')}</p>
         </div>
       </button>
     </div>
@@ -1271,7 +1417,7 @@ function SalesForm({ setView, branch, branchId, lang }) {
 
         <div className="bg-blue-50 p-6 rounded-2xl text-center border border-blue-100">
           <p className="text-blue-800 font-bold mb-2">{t(lang, 'sales.total')}</p>
-          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} {t(lang, 'sales.currency')}</p>
+          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} <SarSymbol /></p>
         </div>
 
         {/* حسبة رسوم مدى */}
@@ -1282,19 +1428,19 @@ function SalesForm({ setView, branch, branchId, lang }) {
             </p>
             <div className="flex justify-between text-xs font-bold">
               <span className="text-amber-800">{t(lang, 'sales.madaGross')}</span>
-              <span className="font-mono text-amber-900">{Number(mada).toLocaleString()} {t(lang, 'sales.currency')}</span>
+              <span className="font-mono text-amber-900">{Number(mada).toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-xs font-bold">
               <span className="text-red-700">{t(lang, 'sales.madaFeesLine')}</span>
-              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} {t(lang, 'sales.currency')}</span>
+              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-xs font-bold pt-1 border-t border-amber-200">
               <span className="text-emerald-800">{t(lang, 'sales.madaNet')}</span>
-              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} {t(lang, 'sales.currency')}</span>
+              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-300">
               <span className="text-slate-900">{t(lang, 'sales.totalAfter')}</span>
-              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} {t(lang, 'sales.currency')}</span>
+              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} <SarSymbol /></span>
             </div>
           </div>
         )}
@@ -2263,7 +2409,7 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
 
         <div className="bg-blue-50 p-5 rounded-2xl text-center border border-blue-100">
           <p className="text-blue-800 font-bold mb-1 text-sm">الإجمالي</p>
-          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} ريال</p>
+          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} <SarSymbol /></p>
         </div>
 
         {Number(mada) > 0 && (
@@ -2271,15 +2417,15 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
             <p className="text-amber-900 font-bold text-xs">💳 رسوم مدى ({(MADA_FEE_RATE * 100).toFixed(2)}%)</p>
             <div className="flex justify-between text-xs font-bold">
               <span className="text-red-700">- رسوم:</span>
-              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} ريال</span>
+              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-xs font-bold pt-1 border-t border-amber-200">
               <span className="text-emerald-800">صافي مدى:</span>
-              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} ريال</span>
+              <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-300">
               <span className="text-slate-900">الإجمالي بعد الرسوم:</span>
-              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} ريال</span>
+              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} <SarSymbol /></span>
             </div>
           </div>
         )}

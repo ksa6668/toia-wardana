@@ -37,6 +37,9 @@ const dict = {
   'home.recordExpenseD': { ar: 'فاتورة واحدة لكل سجل',             en: 'One invoice per record' },
   'home.logout':         { ar: 'تسجيل خروج',                      en: 'Sign out' },
   'home.langToggle':     { ar: 'English',                         en: 'العربية' }, // الزر يعرض اللغة الأخرى
+  // KPI cards on the employee home (currently use mock data — wire to Firestore later)
+  'home.kpiBudget':      { ar: 'نسبة تحقيق الميزانية',              en: 'Budget achievement' },
+  'home.kpiReviews':     { ar: 'نسبة تحقيق تقييمات قوقل ماب',        en: 'Google Maps reviews achievement' },
 
   // ===== شاشة المبيعات =====
   'sales.title':         { ar: 'تسجيل المبيعات',                  en: 'Record Sales' },
