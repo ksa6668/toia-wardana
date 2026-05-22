@@ -197,13 +197,28 @@ export default function App() {
   const pageAlign = pageDir === 'rtl' ? 'text-right' : 'text-left';
 
   return (
-    <div className={`min-h-screen bg-tw-bg md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
+    <div className={`min-h-screen md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
          dir={pageDir}
-         style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}>
-      <div id="tw-app-frame" className="w-full bg-white overflow-hidden flex flex-col tw-app-frame relative
-                      min-h-screen
-                      md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
-                      md:border-8 md:border-slate-900 md:h-[850px]">
+         style={{
+           fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
+           background: '#0A1535', // الخلفية خارج phone-frame (ديسكتوب)
+         }}>
+      <div
+        id="tw-app-frame"
+        className="tw-app-frame w-full overflow-hidden flex flex-col relative
+                   h-screen
+                   md:h-[850px] md:max-w-md md:rounded-[2.5rem]
+                   md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.25)]
+                   md:border-8 md:border-slate-900"
+        style={{
+          /* تدرج موحّد من أعلى الجوال إلى الأسفل — يبيّن أن التطبيق قطعة واحدة */
+          background: `
+            radial-gradient(circle at 4% 6%, rgba(0,91,255,0.10), transparent 22%),
+            radial-gradient(circle at 96% 4%, rgba(40,223,255,0.10), transparent 22%),
+            linear-gradient(180deg, #EAF2FF 0%, #F2F8FF 35%, #F7FAFF 65%, #FFFFFF 100%)
+          `,
+        }}
+      >
 
         {currentView !== 'login' && !authLoading && (
           <AppHeader
@@ -222,7 +237,10 @@ export default function App() {
           />
         )}
 
-        <main className="flex-1 overflow-y-auto bg-tw-bg pb-24">
+        <main
+          className="flex-1 overflow-y-auto pb-24"
+          style={{ background: 'transparent', minHeight: 0 }}
+        >
           {authLoading && (
             <div className="h-full flex flex-col items-center justify-center text-tw-muted/70 gap-3 pt-20">
               <Loader2 size={32} className="animate-spin" />
@@ -264,8 +282,12 @@ export default function App() {
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
           <nav
-            className="absolute bottom-0 left-0 right-0 bg-white border-t border-tw-line flex items-center px-2 py-2 pb-5 md:pb-3 z-10"
+            className="absolute bottom-0 left-0 right-0 flex items-center px-2 py-2 pb-5 md:pb-3 z-10"
             style={{
+              background: 'rgba(255, 255, 255, 0.78)',
+              backdropFilter: 'blur(12px)',
+              WebkitBackdropFilter: 'blur(12px)',
+              borderTop: '1px solid rgba(230, 236, 246, 0.6)',
               boxShadow: '0 -8px 24px rgba(6, 23, 66, 0.06)',
               fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
             }}

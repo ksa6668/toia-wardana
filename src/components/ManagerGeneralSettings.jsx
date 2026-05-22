@@ -126,7 +126,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
     <div
       className="min-h-full relative overflow-hidden"
       style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        background: 'transparent',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >

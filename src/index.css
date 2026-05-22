@@ -68,8 +68,10 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid var(--tw-line);
-  background: #fff;
+  border-bottom: 1px solid rgba(230, 236, 246, 0.6);
+  background: rgba(255, 255, 255, 0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
   z-index: 5;
 }
 .tw-phone-head h3 {
@@ -943,10 +945,7 @@ body {
   color: #fff;
 }
 .page-bg-soft {
-  background:
-    radial-gradient(circle at 4% 8%, rgba(0,91,255,.10), transparent 23%),
-    radial-gradient(circle at 93% 5%, rgba(40,223,255,.08), transparent 22%),
-    #F7FAFF;
+  background: transparent;
 }
 .card-base { background: #fff; border: 1px solid var(--tw-line); border-radius: 16px; box-shadow: 0 6px 16px rgba(6,23,66,.05); }
 
@@ -1264,11 +1263,9 @@ body {
 
 /* ---- Page background (sales/expense/recordOps screens) ---- */
 .tw-page-bg {
-  background:
-    radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%);
+  background: transparent;
   min-height: 100%;
   position: relative;
-  overflow: hidden;
 }
 
 /* ---- Controls row (pills for date + branch) ---- */
