@@ -12,8 +12,8 @@
 //   - حذف: نسبة التسويق، نسبة المصاريف من المبيعات
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Loader2 } from 'lucide-react';
-import { getSales } from '../firebase';
+import { Calendar, ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Loader2 } from 'lucide-react';
+import { getSales, getExpenses } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import {
@@ -92,6 +92,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sales, setSales] = useState([]);
+  const [expenses, setExpenses] = useState([]);
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => {
@@ -101,8 +102,8 @@ export default function ManagerKpis({ lang = 'ar' }) {
       setError('');
       try {
         const { from, to } = period === 'month' ? monthRange(selectedMonth) : yearRange(selectedYear);
-        const s = await getSales(from, to);
-        if (!cancelled) setSales(s);
+        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
+        if (!cancelled) { setSales(s); setExpenses(e); }
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
       } finally {
@@ -116,6 +117,10 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const filteredSales = useMemo(
     () => branchFilter === 'all' ? sales : sales.filter((s) => s.branchId === branchFilter),
     [sales, branchFilter]
+  );
+  const filteredExpenses = useMemo(
+    () => branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter),
+    [expenses, branchFilter]
   );
 
   // أداء الأسابيع/الأرباع
@@ -136,7 +141,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
     });
   }, [period, selectedMonth, selectedYear, filteredSales, lang]);
 
-  // النسب الجديدة (Batch 13.10)
+  // النسب (Batch 13 + Batch 15)
   const kpiRows = useMemo(() => {
     const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
     const totalMada = filteredSales.reduce((s, x) => s + (Number(x.mada) || 0), 0);
@@ -144,7 +149,25 @@ export default function ManagerKpis({ lang = 'ar' }) {
     const totalSales = totalCash + totalMada + totalTransfer || 1;
     const storeOnly = totalCash + totalMada || 1; // كاش + مدى = المتجر
 
+    // مصاريف الورد والتوصيل من filteredExpenses
+    const sumByType = (type) =>
+      filteredExpenses
+        .filter((e) => e.expenseType === type || e.category === type)
+        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    const flowers = sumByType('flower');
+    const delivery = sumByType('delivery');
+
     return [
+      {
+        icon: Flower2,
+        label: lang === 'en' ? 'Flowers cost ratio of sales' : 'نسبة تكلفة الورد من المبيعات',
+        pct: (flowers / totalSales) * 100,
+      },
+      {
+        icon: Truck,
+        label: lang === 'en' ? 'Delivery cost ratio of sales' : 'نسبة تكلفة التوصيل من المبيعات',
+        pct: (delivery / totalSales) * 100,
+      },
       {
         icon: Wallet,
         label: lang === 'en' ? 'Cash ratio of sales' : 'نسبة الكاش من المبيعات',
@@ -166,7 +189,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
         pct: (totalTransfer / storeOnly) * 100,
       },
     ];
-  }, [filteredSales, lang]);
+  }, [filteredSales, filteredExpenses, lang]);
 
   const openPeriodPicker = () => {
     if (period === 'month') {

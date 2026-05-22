@@ -352,8 +352,8 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               onClick={() => setEditActive(!editActive)}
               className="w-full bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between border border-emerald-100 hover:bg-emerald-100 transition-colors"
             >
-              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-tw-green' : 'bg-gray-300'}`}>
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
+              <div className={`relative w-12 h-6 rounded-full transition-colors ${editActive ? 'bg-tw-green' : 'bg-gray-300'}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${editActive ? 'right-0.5' : 'right-[26px]'}`} />
               </div>
               <span className="text-sm font-bold text-tw-navy">
                 {lang === 'en' ? 'Branch Active' : 'الفرع نشط'}

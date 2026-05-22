@@ -14,8 +14,9 @@ import {
   ChevronRight, Globe, Settings as Gear, Calendar, CheckCircle2, Loader2,
   AlertTriangle, Trash2,
 } from 'lucide-react';
-import { getAppSettings, setAppSettings } from '../firebase';
+import { getAppSettings, setAppSettings, resetAllData } from '../firebase';
 import BottomSheet from './BottomSheet';
+import DeleteConfirmSheet from './DeleteConfirmSheet';
 import SarSymbol from './SarSymbol';
 
 const APP_VERSION = '1.0.0';
@@ -113,13 +114,23 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
     onPick: (v) => { setDateSystem(v); setSheet(null); },
   });
 
-  // الزر الخطر — معطّل في الإنتاج
-  const handleResetClick = () => {
-    alert(
-      lang === 'en'
-        ? 'Reset is disabled in production. Contact developer to safely clear data.'
-        : 'إعادة التعيين معطّلة في الإنتاج. تواصل مع المطوّر لمسح البيانات بأمان.'
-    );
+  // الزر الخطر — يمسح المبيعات والمصاريف والأهداف
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetResult, setResetResult] = useState('');
+
+  const handleResetConfirm = async () => {
+    setResetResult('');
+    try {
+      const { totalDeleted } = await resetAllData({ alsoGoals: true, alsoFixed: false });
+      setResetResult(
+        lang === 'en'
+          ? `Deleted ${totalDeleted} records successfully`
+          : `تم حذف ${totalDeleted} سجلاً بنجاح`
+      );
+      setTimeout(() => setResetResult(''), 3500);
+    } catch (err) {
+      setResetResult(err?.message || (lang === 'en' ? 'Reset failed' : 'تعذّرت العملية'));
+    }
   };
 
   return (
@@ -304,15 +315,31 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
                 : 'عملية لا يمكن التراجع عنها. تأكد من وجود نسخة احتياطية قبل المتابعة.'}
             </p>
             <button
-              onClick={handleResetClick}
+              onClick={() => setShowResetConfirm(true)}
               className="w-full text-white font-bold py-3.5 rounded-xl bg-tw-red hover:bg-tw-red transition-colors flex items-center justify-center gap-2"
             >
               <Trash2 size={16} />
               {lang === 'en' ? 'Reset All Data' : 'إعادة تعيين جميع البيانات'}
             </button>
+            {resetResult && (
+              <p className="text-xs text-center mt-3 p-2 rounded-lg bg-emerald-50 border border-emerald-100 text-tw-green font-bold">
+                {resetResult}
+              </p>
+            )}
           </div>
         </div>
       )}
+
+      <DeleteConfirmSheet
+        open={showResetConfirm}
+        title={lang === 'en' ? 'Delete all sales & expenses?' : 'مسح كل المبيعات والمصاريف والأهداف؟'}
+        message={lang === 'en'
+          ? 'This will permanently delete all sales, expenses and goals. Branches, users, categories and settings will be kept. This cannot be undone.'
+          : 'سيتم حذف كل المبيعات والمصاريف والأهداف بشكل نهائي. الفروع والمستخدمون والتصنيفات والإعدادات ستبقى. لا يمكن التراجع عن هذا الإجراء.'}
+        onConfirm={handleResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        lang={lang}
+      />
 
       <BottomSheet
         open={!!sheet}

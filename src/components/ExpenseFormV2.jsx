@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import {
   addExpense, updateExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,
+  classifyExpense,
 } from '../firebase';
 import { t, translateCategory, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
@@ -81,16 +82,17 @@ export default function ExpenseFormV2({
         const [cats, pm] = await Promise.all([getCategories(), getPaymentMethods()]);
         if (!cancelled) {
           const orderMap = { flower: 1, delivery: 2, customerOrders: 3, supplies: 4 };
+          const typeOf = (c) => c.expenseType || classifyExpense(c.name || c.id);
           const sorted = [...cats].sort((a, b) => {
-            const ra = orderMap[a.expenseType] || 99;
-            const rb = orderMap[b.expenseType] || 99;
+            const ra = orderMap[typeOf(a)] || 99;
+            const rb = orderMap[typeOf(b)] || 99;
             if (ra !== rb) return ra - rb;
             return (a.order || 0) - (b.order || 0);
           });
           setCategories(sorted);
           setMethods(pm);
           if (!existingRecord) {
-            const firstPrimary = sorted.find((c) => PRIMARY_TYPES.includes(c.expenseType));
+            const firstPrimary = sorted.find((c) => PRIMARY_TYPES.includes(typeOf(c)));
             if (firstPrimary) setCategoryId(firstPrimary.id);
           }
         }
@@ -279,7 +281,9 @@ export default function ExpenseFormV2({
         ) : (
           <div className="tw-chips">
             {categories.map((c) => {
-              const isPrimary = PRIMARY_TYPES.includes(c.expenseType);
+              // primary إذا كان expenseType من الأربعة، أو إذا الـ classifier يعتبره أحدها
+              const effectiveType = c.expenseType || classifyExpense(c.name || c.id);
+              const isPrimary = PRIMARY_TYPES.includes(effectiveType);
               const isActive = c.id === categoryId;
               const classes = ['tw-chip'];
               if (isPrimary) classes.push('primary');

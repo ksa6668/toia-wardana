@@ -171,8 +171,12 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
 
 // تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
 export function classifyExpense(categoryId) {
+  // التصنيفات الأربعة الأساسية — مظللة باللون الأزرق المميّز في الـ UI
   if (categoryId === "ورد") return "flower";
   if (categoryId === "توصيل") return "delivery";
+  if (categoryId === "طلبات عملاء" || categoryId === "طلبات العملاء") return "customerOrders";
+  if (categoryId === "مستلزمات وبضائع" || categoryId === "مستلزمات" || categoryId === "بضائع") return "supplies";
+  // التصنيفات الثانوية
   if (categoryId === "تسويق") return "marketing";
   return "general";
 }
@@ -302,11 +306,26 @@ export async function getFixedExpenses(month) {
 }
 
 // حفظ المصروف الثابت الشهري لفرع (معرّف المستند = month_branchId)
-export async function setFixedExpense({ month, branchId, amount }) {
+// Batch 15: دعم الفصل إلى إيجار + رواتب + تأمينات GOSI
+// يحافظ على حقل amount (إجمالي) للتوافق مع الكود القديم
+export async function setFixedExpense({ month, branchId, amount, rent, salaries, gosi }) {
+  // إذا تم تمرير breakdown، نحسب amount منهم
+  const rentN = Number(rent) || 0;
+  const salariesN = Number(salaries) || 0;
+  const gosiN = Number(gosi) || 0;
+  const breakdownTotal = rentN + salariesN + gosiN;
+  // إذا تم تمرير breakdown نستخدمه، وإلا نعتمد على amount القديم
+  const finalAmount = (rent !== undefined || salaries !== undefined || gosi !== undefined)
+    ? breakdownTotal
+    : (Number(amount) || 0);
+
   await setDoc(doc(db, "fixedExpenses", `${month}_${branchId}`), {
     month,
     branchId,
-    amount: Number(amount) || 0,
+    amount: finalAmount,
+    rent: rentN,
+    salaries: salariesN,
+    gosi: gosiN,
     updatedAt: serverTimestamp(),
   });
 }
@@ -776,4 +795,29 @@ export async function getDataStats() {
     users: data.users.length,
     categories: data.categories.length,
   };
+}
+
+// ========================================================
+// Batch 15: إعادة تعيين كل البيانات (للمدير فقط)
+// يحذف فقط: dailySales, expenses, goals — يحافظ على branches/users/categories/appSettings
+// ========================================================
+export async function resetAllData({ alsoFixed = false, alsoGoals = true } = {}) {
+  const collectionsToWipe = ['dailySales', 'expenses'];
+  if (alsoFixed) collectionsToWipe.push('fixedExpenses');
+  if (alsoGoals) collectionsToWipe.push('goals');
+
+  let totalDeleted = 0;
+  for (const coll of collectionsToWipe) {
+    const snap = await getDocs(collection(db, coll));
+    // الحذف على دفعات من 400 (حد batch=500)
+    const docs = snap.docs;
+    for (let i = 0; i < docs.length; i += 400) {
+      const slice = docs.slice(i, i + 400);
+      const batch = writeBatch(db);
+      slice.forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+      totalDeleted += slice.length;
+    }
+  }
+  return { totalDeleted };
 }

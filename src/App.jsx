@@ -2277,8 +2277,8 @@ function ManageUsers({ onBack }) {
               onClick={() => setEditActive(!editActive)}
               className="w-full bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between border border-emerald-100 hover:bg-emerald-100 transition-colors"
             >
-              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-tw-green' : 'bg-gray-300'}`}>
-                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
+              <div className={`relative w-12 h-6 rounded-full transition-colors ${editActive ? 'bg-tw-green' : 'bg-gray-300'}`}>
+                <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${editActive ? 'right-0.5' : 'right-[26px]'}`} />
               </div>
               <span className="text-sm font-bold text-tw-navy">المستخدم نشط</span>
             </button>
@@ -2331,8 +2331,9 @@ function ManageUsers({ onBack }) {
 // شاشة المصاريف الثابتة الشهرية
 function ManageFixedExpenses({ onBack }) {
   const month = monthStr();
-  const [toiaAmount, setToiaAmount] = useState('');
-  const [wardanaAmount, setWardanaAmount] = useState('');
+  // كل فرع له 3 بنود: إيجار + رواتب + تأمينات GOSI
+  const [toia, setToia] = useState({ rent: '', salaries: '', gosi: '' });
+  const [wardana, setWardana] = useState({ rent: '', salaries: '', gosi: '' });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -2344,8 +2345,29 @@ function ManageFixedExpenses({ onBack }) {
         const fixed = await getFixedExpenses(month);
         const t = fixed.find((f) => f.branchId === 'toia');
         const w = fixed.find((f) => f.branchId === 'wardana');
-        if (t) setToiaAmount(String(t.amount));
-        if (w) setWardanaAmount(String(w.amount));
+        if (t) {
+          // إذا الـ breakdown موجود نستخدمه، وإلا نضع المبلغ كله في الإيجار (compat)
+          if (t.rent != null || t.salaries != null || t.gosi != null) {
+            setToia({
+              rent: t.rent != null ? String(t.rent) : '',
+              salaries: t.salaries != null ? String(t.salaries) : '',
+              gosi: t.gosi != null ? String(t.gosi) : '',
+            });
+          } else if (t.amount) {
+            setToia({ rent: String(t.amount), salaries: '', gosi: '' });
+          }
+        }
+        if (w) {
+          if (w.rent != null || w.salaries != null || w.gosi != null) {
+            setWardana({
+              rent: w.rent != null ? String(w.rent) : '',
+              salaries: w.salaries != null ? String(w.salaries) : '',
+              gosi: w.gosi != null ? String(w.gosi) : '',
+            });
+          } else if (w.amount) {
+            setWardana({ rent: String(w.amount), salaries: '', gosi: '' });
+          }
+        }
       } catch (err) {
         setError(err?.message || 'تعذّر التحميل');
       } finally {
@@ -2359,8 +2381,14 @@ function ManageFixedExpenses({ onBack }) {
     setError(''); setDone(false);
     setSaving(true);
     try {
-      await setFixedExpense({ month, branchId: 'toia', amount: toiaAmount });
-      await setFixedExpense({ month, branchId: 'wardana', amount: wardanaAmount });
+      await setFixedExpense({
+        month, branchId: 'toia',
+        rent: toia.rent, salaries: toia.salaries, gosi: toia.gosi,
+      });
+      await setFixedExpense({
+        month, branchId: 'wardana',
+        rent: wardana.rent, salaries: wardana.salaries, gosi: wardana.gosi,
+      });
       setDone(true);
     } catch (err) {
       setError(err?.message || 'تعذّر الحفظ');
@@ -2369,24 +2397,52 @@ function ManageFixedExpenses({ onBack }) {
     }
   };
 
-  // حساب الإجمالي للعرض في الشريط السفلي
-  const totalFixed = (Number(toiaAmount) || 0) + (Number(wardanaAmount) || 0);
+  const sumBranch = (b) =>
+    (Number(b.rent) || 0) + (Number(b.salaries) || 0) + (Number(b.gosi) || 0);
+  const totalFixed = sumBranch(toia) + sumBranch(wardana);
+
+  // مكوّن داخلي لكل بطاقة فرع — 3 inputs (إيجار/رواتب/تأمينات)
+  const BranchCard = ({ title, data, setData }) => (
+    <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 space-y-3">
+      <div className="flex items-center justify-between border-b border-tw-line/60 pb-2">
+        <h4 className="text-sm font-bold text-tw-navy">{title}</h4>
+        <span className="text-xs font-bold text-tw-blue flex items-center gap-1">
+          {sumBranch(data).toLocaleString()} <SarSymbol className="text-[10px]" />
+        </span>
+      </div>
+
+      {[
+        { key: 'rent', label: 'الإيجار' },
+        { key: 'salaries', label: 'الرواتب' },
+        { key: 'gosi', label: 'التأمينات (GOSI)' },
+      ].map((field) => (
+        <div key={field.key}>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">{field.label}</label>
+          <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="0"
+              value={data[field.key]}
+              onChange={(e) => setData({ ...data, [field.key]: e.target.value })}
+              className="flex-1 text-base font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
+              dir="ltr"
+            />
+            <SarSymbol className="text-tw-muted/70 text-sm" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div
-      className="min-h-full relative overflow-hidden pb-20"
+      className="min-h-full relative pb-20"
       style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        background: 'transparent',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* خلفية زخرفية */}
-      <div
-        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-      />
-
-      {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
@@ -2395,51 +2451,17 @@ function ManageFixedExpenses({ onBack }) {
       </div>
 
       <div className="relative z-10 p-4 space-y-4">
-        {/* بطاقة الشهر */}
         <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-3 text-center">
           <p className="text-tw-navy font-bold text-sm">شهر {month}</p>
-          <p className="text-tw-muted/70 text-[11px] mt-1">تُحتسب تلقائياً ضمن التقارير</p>
+          <p className="text-tw-muted/70 text-[11px] mt-1">إيجار + رواتب + تأمينات GOSI لكل فرع</p>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-tw-muted/50" /></div>
         ) : (
           <>
-            {/* بطاقة فرع تويا */}
-            <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4">
-              <h4 className="text-sm font-bold text-tw-navy mb-3">فرع تويا</h4>
-              <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ الشهري الثابت</label>
-              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={toiaAmount}
-                  onChange={(e) => setToiaAmount(e.target.value)}
-                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
-                  dir="ltr"
-                />
-                <SarSymbol className="text-tw-muted/70 text-base" />
-              </div>
-            </div>
-
-            {/* بطاقة فرع وردانة */}
-            <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4">
-              <h4 className="text-sm font-bold text-tw-navy mb-3">فرع وردانة</h4>
-              <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ الشهري الثابت</label>
-              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={wardanaAmount}
-                  onChange={(e) => setWardanaAmount(e.target.value)}
-                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
-                  dir="ltr"
-                />
-                <SarSymbol className="text-tw-muted/70 text-base" />
-              </div>
-            </div>
+            <BranchCard title="فرع تويا" data={toia} setData={setToia} />
+            <BranchCard title="فرع وردانة" data={wardana} setData={setWardana} />
 
             {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
             {done && (
@@ -2448,7 +2470,6 @@ function ManageFixedExpenses({ onBack }) {
               </p>
             )}
 
-            {/* شريط الإجمالي - navy gradient (مطابق للـ prototype) */}
             <div
               className="text-white p-4 rounded-2xl flex items-center justify-between relative overflow-hidden"
               style={{
@@ -2466,7 +2487,6 @@ function ManageFixedExpenses({ onBack }) {
               </b>
             </div>
 
-            {/* أزرار الإجراءات */}
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onBack}
@@ -2697,17 +2717,17 @@ function ManageCategories({ onBack }) {
           <div className="space-y-3">
             {cats.map((cat, idx) => (
               <div key={cat.id} className="bg-white border border-tw-line rounded-2xl p-4 flex items-center gap-3 shadow-sm">
-                {/* Toggle أخضر كبير على اليسار (لـ RTL) — مطابق للـ prototype */}
+                {/* Toggle موحّد بنفس تصميم التنبيهات والإشعارات */}
                 <button
                   onClick={() => toggleRequires(cat)}
                   disabled={busyId === cat.id}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors flex-shrink-0 ${
+                  className={`relative w-12 h-6 rounded-full transition-colors flex-shrink-0 ${
                     cat.requiresImage ? 'bg-tw-green' : 'bg-gray-300'
                   } disabled:opacity-50`}
                 >
                   <span
-                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
-                      cat.requiresImage ? 'translate-x-1' : 'translate-x-6'
+                    className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
+                      cat.requiresImage ? 'right-0.5' : 'right-[26px]'
                     }`}
                   />
                 </button>
