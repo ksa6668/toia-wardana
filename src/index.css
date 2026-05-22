@@ -949,3 +949,341 @@ body {
     #F7FAFF;
 }
 .card-base { background: #fff; border: 1px solid var(--tw-line); border-radius: 16px; box-shadow: 0 6px 16px rgba(6,23,66,.05); }
+
+/* =================================================================
+   Batch 12 — Sales/Expense forms + Record Ops history (prototype 1:1)
+   ================================================================= */
+
+/* ---- Payment row (sales form) ---- */
+.tw-payment-row {
+  display: grid;
+  grid-template-columns: 90px 1fr 80px;
+  gap: 10px;
+  align-items: center;
+  padding: 12px;
+  border-bottom: 1px solid var(--tw-line);
+}
+.tw-payment-row:last-child { border-bottom: 0; }
+.tw-payment-row label {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tw-navy);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.tw-payment-row label svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--tw-blue);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tw-payment-row input {
+  border: 1.5px solid var(--tw-line);
+  border-radius: 10px;
+  padding: 10px;
+  font-size: 14px;
+  font-weight: 700;
+  text-align: center;
+  background: #FAFCFF;
+  outline: none;
+  font-family: inherit;
+  width: 100%;
+  color: var(--tw-navy);
+}
+.tw-payment-row input:focus { border-color: var(--tw-blue); }
+.tw-payment-row .unit {
+  font-size: 12px;
+  color: var(--tw-muted);
+  font-weight: 600;
+  text-align: center;
+}
+
+/* ---- Total strip (sales form) ---- */
+.tw-total-strip {
+  background: linear-gradient(145deg, var(--tw-navy2), var(--tw-blue));
+  color: #fff;
+  padding: 14px;
+  border-radius: 14px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 12px;
+}
+.tw-total-strip small { font-size: 12px; opacity: .85; font-weight: 600; }
+.tw-total-strip b {
+  font-size: 22px;
+  font-weight: 800;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+/* ---- Form card (sales + expense) ---- */
+.tw-form-card {
+  background: #fff;
+  border: 1px solid var(--tw-line);
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(6,23,66,.05);
+  padding: 14px;
+  margin-bottom: 12px;
+}
+.tw-form-card h4 {
+  font-size: 13px;
+  margin: 0 0 9px;
+  font-weight: 700;
+  color: var(--tw-navy);
+}
+.tw-form-card label {
+  font-size: 12px;
+  color: var(--tw-muted);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 5px;
+}
+
+/* ---- Chips (expense category) ---- */
+.tw-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+.tw-chip {
+  padding: 8px 12px;
+  border-radius: 99px;
+  background: #fff;
+  border: 1.5px solid var(--tw-line);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tw-navy);
+  cursor: pointer;
+  transition: transform .1s, background .15s, border-color .15s, color .15s;
+  user-select: none;
+}
+.tw-chip.primary {
+  background: #E8F9FE;
+  border-color: #7FE5FA;
+  color: var(--tw-navy);
+}
+.tw-chip.active {
+  background: var(--tw-blue);
+  color: #fff;
+  border-color: var(--tw-blue);
+}
+.tw-chip.primary.active {
+  background: var(--tw-blue);
+  color: #fff;
+  border-color: var(--tw-blue);
+}
+.tw-chip:active { transform: scale(.96); }
+
+/* ---- Photo upload (expense form) ---- */
+.tw-photo-up {
+  border: 2px dashed #C4D2EE;
+  border-radius: 12px;
+  min-height: 90px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--tw-blue);
+  font-size: 13px;
+  font-weight: 700;
+  background: #FAFCFF;
+  cursor: pointer;
+  margin-bottom: 10px;
+  padding: 14px 12px;
+  text-align: center;
+  transition: background .15s, border-color .15s;
+}
+.tw-photo-up:active { background: #F0F6FF; }
+.tw-photo-up svg {
+  width: 24px;
+  height: 24px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tw-photo-up.required {
+  border-color: #FCA5A5;
+  background: #FEF2F2;
+  color: var(--tw-red);
+}
+.tw-photo-up.has {
+  border-style: solid;
+  border-color: var(--tw-green);
+  color: var(--tw-green);
+  background: #F0FDF8;
+}
+.tw-photo-note {
+  font-size: 11px;
+  color: var(--tw-muted);
+  margin: 8px 0 0;
+  line-height: 1.5;
+  padding: 8px 10px;
+  background: var(--tw-soft);
+  border-radius: 8px;
+}
+.tw-photo-note.required {
+  background: #FEF2F2;
+  color: #B91C1C;
+  border: 1px solid #FCA5A5;
+}
+.tw-photo-preview-wrap {
+  position: relative;
+  margin-top: 10px;
+}
+.tw-photo-preview-wrap img {
+  width: 100%;
+  max-height: 200px;
+  object-fit: cover;
+  border-radius: 12px;
+  border: 1px solid var(--tw-line);
+  display: block;
+}
+.tw-photo-remove {
+  position: absolute;
+  top: 8px;
+  inset-inline-end: 8px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0,0,0,.6);
+  color: #fff;
+  font-size: 18px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+/* ---- Record-ops history list (last 7 days) ---- */
+.tw-rec-history-section { margin-top: 18px; }
+.tw-rec-history-title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--tw-navy);
+  margin: 14px 4px 8px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.tw-rec-history-title .tw-rec-history-count {
+  font-size: 11px;
+  color: var(--tw-muted);
+  font-weight: 600;
+}
+.tw-rec-card {
+  background: #fff;
+  border: 1px solid var(--tw-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tw-rec-card .tw-rec-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.tw-rec-card .tw-rec-icon.sale {
+  background: rgba(23,201,139,.12);
+  color: var(--tw-green);
+}
+.tw-rec-card .tw-rec-icon.expense {
+  background: rgba(240,68,68,.12);
+  color: var(--tw-red);
+}
+.tw-rec-card .tw-rec-icon svg {
+  width: 18px;
+  height: 18px;
+  stroke: currentColor;
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.tw-rec-card .tw-rec-body {
+  flex: 1;
+  min-width: 0;
+}
+.tw-rec-card .tw-rec-body b {
+  display: block;
+  font-size: 13px;
+  color: var(--tw-navy);
+  font-weight: 800;
+  margin-bottom: 2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tw-rec-card .tw-rec-body small {
+  display: block;
+  font-size: 11px;
+  color: var(--tw-muted);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tw-rec-card .tw-rec-amt {
+  font-weight: 800;
+  font-size: 14px;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.tw-rec-card .tw-rec-amt.sale { color: var(--tw-green); }
+.tw-rec-card .tw-rec-amt.expense { color: var(--tw-red); }
+.tw-rec-day-header {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tw-muted);
+  margin: 12px 4px 6px;
+  padding-bottom: 4px;
+  border-bottom: 1px dashed var(--tw-soft);
+}
+.tw-rec-empty {
+  padding: 30px 20px;
+  text-align: center;
+  color: var(--tw-muted);
+  font-size: 13px;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid var(--tw-line);
+}
+.tw-rec-empty svg {
+  width: 32px;
+  height: 32px;
+  stroke: var(--tw-muted);
+  fill: none;
+  stroke-width: 1.5;
+  opacity: .4;
+  margin: 0 auto 10px;
+  display: block;
+}
+
+/* ---- Page background (sales/expense/recordOps screens) ---- */
+.tw-page-bg {
+  background:
+    radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%);
+  min-height: 100%;
+  position: relative;
+  overflow: hidden;
+}
+
+/* ---- Controls row (pills for date + branch) ---- */
+.tw-controls-row {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+}

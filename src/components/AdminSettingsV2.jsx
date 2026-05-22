@@ -133,6 +133,8 @@ export default function AdminSettingsV2({
   AdminDataEntryComponent,
 }) {
   const [screen, setScreen] = useState('menu');
+  // Batch 11: شاشة التصنيفات المنبثقة من داخل الإيصالات
+  const [showCategoriesFromReceipts, setShowCategoriesFromReceipts] = useState(false);
   const goBack = () => setScreen('menu');
 
   // التنقل للشاشات الفرعية
@@ -146,7 +148,22 @@ export default function AdminSettingsV2({
   if (screen === 'general') return <ManagerGeneralSettings onBack={goBack} lang={lang} />;
   if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;
   if (screen === 'backup') return <ManagerBackup onBack={goBack} lang={lang} />;
-  if (screen === 'receipts') return <ManagerReceipts onBack={goBack} />;
+  if (screen === 'receipts') {
+    // Batch 11: التصنيفات تُفتح كـ overlay من داخل شاشة الإيصالات
+    if (showCategoriesFromReceipts && ManageCategoriesComponent) {
+      return <ManageCategoriesComponent onBack={() => setShowCategoriesFromReceipts(false)} />;
+    }
+    return (
+      <ManagerReceipts
+        onBack={goBack}
+        onOpenCategories={
+          ManageCategoriesComponent
+            ? () => setShowCategoriesFromReceipts(true)
+            : undefined
+        }
+      />
+    );
+  }
 
   return (
     <div

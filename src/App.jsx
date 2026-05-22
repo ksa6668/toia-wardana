@@ -32,6 +32,8 @@ import ManagerKpis from './components/ManagerKpis';
 import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
 import EmployeeHistory from './components/EmployeeHistory';
+// Batch 12: Shared last-7-days list used in EmployeeHistory + AdminDataEntry
+import RecHistorySection from './components/RecHistorySection';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
 // Batch 5: Notifications + Receipts + Logout confirm
@@ -2879,12 +2881,16 @@ function AdminDataEntry({ onBack }) {
     );
   }
 
-  // مرحلة 2: شاشة الموظف (EmployeeHome)
+  // مرحلة 2: شاشة "المبيعات والمصروفات" للمدير
+  // تصميم 1:1 مع الـ prototype (screen-recordOps):
+  //   - زرّان كبيران: تسجيل المبيعات + تسجيل المصروفات
+  //   - قائمة "آخر 7 أيام" تحتها (RecHistorySection المشترك)
+  //   - شريط علوي صغير: "وضع المدير — فرع X | تغيير الفرع"
   if (step === 'home') {
     return (
-      <div className="flex flex-col h-full">
+      <div className="flex flex-col h-full tw-page-bg">
         {/* شريط علوي صغير لإظهار الفرع المختار + زر تغيير */}
-        <div className="bg-tw-soft/60 border-b border-tw-line px-4 py-2 flex items-center justify-between text-xs">
+        <div className="bg-tw-soft/60 border-b border-tw-line px-4 py-2 flex items-center justify-between text-xs flex-shrink-0">
           <span className="text-tw-muted">
             وضع المدير — فرع <b className="text-tw-navy">{branchName}</b>
           </span>
@@ -2895,14 +2901,61 @@ function AdminDataEntry({ onBack }) {
             تغيير الفرع
           </button>
         </div>
-        <div className="flex-1 overflow-y-auto">
-          <EmployeeHome
-            setView={setView}
-            branch={branchName}
-            branchId={chosenBranch}
-            lang="ar"
-            setLang={() => {}}
-          />
+
+        {/* شريط العنوان */}
+        <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm flex-shrink-0">
+          <button
+            onClick={onBack}
+            className="tw-circle-btn"
+            type="button"
+            aria-label="Back"
+          >
+            <ChevronRight size={20} className="rotate-180" />
+          </button>
+          <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
+            المبيعات والمصروفات
+          </h2>
+          <div style={{ width: 36 }} />
+        </div>
+
+        {/* المحتوى — قابل للتمرير */}
+        <div className="flex-1 overflow-y-auto p-4 pb-8">
+          {/* الزر 1: تسجيل المبيعات */}
+          <div
+            className="tw-card tw-action"
+            onClick={() => setView('salesForm')}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="tw-action-icon">
+              <TrendingUp />
+            </div>
+            <div>
+              <h4>تسجيل المبيعات</h4>
+              <p>إجمالي المبيعات اليومية</p>
+            </div>
+            <div className="arrow">‹</div>
+          </div>
+
+          {/* الزر 2: تسجيل المصروفات */}
+          <div
+            className="tw-card tw-action"
+            onClick={() => setView('expenseForm')}
+            role="button"
+            tabIndex={0}
+          >
+            <div className="tw-action-icon">
+              <Receipt />
+            </div>
+            <div>
+              <h4>تسجيل المصروفات</h4>
+              <p>فواتير ومصروفات أخرى</p>
+            </div>
+            <div className="arrow">‹</div>
+          </div>
+
+          {/* قائمة آخر 7 أيام */}
+          <RecHistorySection branchId={chosenBranch} lang="ar" />
         </div>
       </div>
     );

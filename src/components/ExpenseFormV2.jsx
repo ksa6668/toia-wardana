@@ -1,19 +1,19 @@
 // src/components/ExpenseFormV2.jsx
 // ----------------------------------------------------------
-// نموذج تسجيل المصروف — تصميم مطابق للـ prototype (screen-addExpense)
+// نموذج تسجيل المصروف — تصميم 1:1 مع الـ prototype (screen-addExpense)
 //
-// المنطق محفوظ كاملاً:
+// المنطق محفوظ بالكامل:
 //   - addExpense من firebase.js
-//   - uploadInvoiceImage لـ Cloudflare R2
+//   - uploadInvoiceImage (Cloudflare R2)
 //   - getCategories + getPaymentMethods
-//   - i18n
+//   - منطق الكاميرا الإجبارية: requiresImage → cameraInput, غيرها → fileInput
 //
-// التصميم الجديد:
-//   - chips للتصنيفات (primary للأكثر استخداماً، عادية للباقي)
-//   - chip "ورد" يفعّل كاميرا إلزامية لصورة الفاتورة
-//   - photo-up: مستطيل dashed يفتح الكاميرا
-//   - preview للصورة بعد الاختيار
-//   - أزرار صف (إلغاء + حفظ)
+// التصميم الجديد (Batch 12):
+//   - .tw-controls-row pills للتاريخ + الفرع
+//   - .tw-chips مع .tw-chip.primary للتصنيفات الأساسية (cyan tint)
+//   - .tw-form-card لتفاصيل المصروف
+//   - .tw-photo-up (dashed → solid عند الإرفاق)
+//   - .tw-btn-row (إلغاء + حفظ)
 // ----------------------------------------------------------
 import { useState, useEffect, useRef } from 'react';
 import {
@@ -30,8 +30,7 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// التصنيفات الأكثر استخداماً تظهر بـ chip "primary" (cyan tint).
-// لو الـ category في Firestore فيه expenseType من هذه، نعتبره primary.
+// التصنيفات الأساسية الأربعة (chip primary بلون cyan tint)
 const PRIMARY_TYPES = ['flower', 'delivery', 'customerOrders', 'supplies'];
 
 export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }) {
@@ -58,10 +57,18 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
       try {
         const [cats, pm] = await Promise.all([getCategories(), getPaymentMethods()]);
         if (!cancelled) {
-          setCategories(cats);
+          // ترتيب التصنيفات: الأساسية الأربعة أولاً ثم الباقي
+          const orderMap = { flower: 1, delivery: 2, customerOrders: 3, supplies: 4 };
+          const sorted = [...cats].sort((a, b) => {
+            const ra = orderMap[a.expenseType] || 99;
+            const rb = orderMap[b.expenseType] || 99;
+            if (ra !== rb) return ra - rb;
+            return (a.order || 0) - (b.order || 0);
+          });
+          setCategories(sorted);
           setMethods(pm);
           // التصنيف الافتراضي: أول تصنيف primary
-          const firstPrimary = cats.find((c) => PRIMARY_TYPES.includes(c.expenseType));
+          const firstPrimary = sorted.find((c) => PRIMARY_TYPES.includes(c.expenseType));
           if (firstPrimary) setCategoryId(firstPrimary.id);
         }
       } catch (err) {
@@ -148,13 +155,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
     : date;
 
   return (
-    <div
-      className="min-h-full relative overflow-hidden"
-      style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
-      }}
-    >
+    <div className="tw-page-bg">
       {/* خلفية زخرفية */}
       <div
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
@@ -165,215 +166,206 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
-          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
+          className="tw-circle-btn"
+          type="button"
+          aria-label="Back"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {t(lang, 'expense.title')}
         </h2>
+        <div style={{ width: 36 }} />
       </div>
 
-      <div className="relative z-10 p-4 space-y-4 pb-8">
+      <div className="relative z-10 p-4 pb-8">
         {/* Pills: التاريخ + الفرع */}
-        <div className="flex gap-2">
-          <div className="flex-1 relative">
-            <div className="flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm">
-              <Calendar size={14} className="text-tw-blue" />
-              <span className="font-bold text-xs text-tw-navy">{dateLabel}</span>
-            </div>
+        <div className="tw-controls-row">
+          <div className="tw-pill" style={{ position: 'relative' }}>
+            <Calendar size={14} />
+            <span>{dateLabel}</span>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
               className="absolute inset-0 opacity-0 cursor-pointer"
+              style={{ width: '100%', height: '100%' }}
             />
           </div>
-          <div className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm">
-            <MapPin size={14} className="text-tw-blue" />
-            <span className="font-bold text-xs text-tw-navy">
-              {lang === 'en' ? branch : `فرع ${branch}`}
-            </span>
+          <div className="tw-pill">
+            <MapPin size={14} />
+            <span>{lang === 'en' ? branch : `فرع ${branch}`}</span>
           </div>
         </div>
 
-        {/* التصنيف — chips */}
-        <div>
-          <h4 className="text-sm font-bold text-tw-navy mb-2">{t(lang, 'expense.category')}</h4>
-          {loadingCats ? (
-            <div className="bg-white border border-tw-line rounded-xl p-4 text-sm text-tw-muted/70 flex items-center gap-2">
-              <Loader2 size={16} className="animate-spin" /> {t(lang, 'expense.loading')}
-            </div>
-          ) : (
-            <div className="flex flex-wrap gap-2">
-              {categories.map((c) => {
-                const isPrimary = PRIMARY_TYPES.includes(c.expenseType);
-                const isActive = c.id === categoryId;
-                return (
-                  <button
-                    key={c.id}
-                    onClick={() => setCategoryId(c.id)}
-                    className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
-                      isActive
-                        ? 'bg-tw-blue text-white border-tw-blue shadow-md scale-105'
-                        : isPrimary
-                        ? 'bg-tw-soft text-tw-navy2 border-tw-blue/30 hover:bg-tw-blue/10'
-                        : 'bg-white text-tw-muted border-tw-line hover:bg-tw-soft/40'
-                    }`}
-                  >
-                    {translateCategory(lang, c.name)}
-                  </button>
-                );
-              })}
-            </div>
-          )}
+        {/* عنوان التصنيف */}
+        <div className="tw-sec-h" style={{ margin: '14px 4px 8px' }}>
+          {t(lang, 'expense.category')}
         </div>
 
+        {/* Chips التصنيفات */}
+        {loadingCats ? (
+          <div className="tw-form-card" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tw-muted)' }}>
+            <Loader2 size={16} className="animate-spin" />
+            <span style={{ fontSize: 13, fontWeight: 600 }}>{t(lang, 'expense.loading')}</span>
+          </div>
+        ) : (
+          <div className="tw-chips">
+            {categories.map((c) => {
+              const isPrimary = PRIMARY_TYPES.includes(c.expenseType);
+              const isActive = c.id === categoryId;
+              const classes = ['tw-chip'];
+              if (isPrimary) classes.push('primary');
+              if (isActive) classes.push('active');
+              return (
+                <span
+                  key={c.id}
+                  className={classes.join(' ')}
+                  onClick={() => setCategoryId(c.id)}
+                  role="button"
+                  tabIndex={0}
+                >
+                  {translateCategory(lang, c.name)}
+                </span>
+              );
+            })}
+          </div>
+        )}
+
         {/* تفاصيل المصروف — كارت */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line space-y-3">
-          <h4 className="text-sm font-bold text-tw-navy">{lang === 'en' ? 'Expense details' : 'تفاصيل المصروف'}</h4>
+        <div className="tw-form-card">
+          <h4>{lang === 'en' ? 'Expense details' : 'تفاصيل المصروف'}</h4>
 
           {/* المبلغ */}
-          <div>
-            <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.amount')}</label>
-            <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
-              <input
-                type="number"
-                inputMode="decimal"
-                placeholder="0"
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-                className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
-                dir="ltr"
-              />
-              <SarSymbol className="text-tw-muted/70 text-base" />
-            </div>
+          <label>{t(lang, 'expense.amount')}</label>
+          <div className="tw-field">
+            <input
+              type="number"
+              inputMode="decimal"
+              placeholder="0"
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              dir="ltr"
+            />
+            <span className="tw-field-suffix">{t(lang, 'sales.currency')}</span>
           </div>
 
           {/* طريقة الدفع */}
-          <div>
-            <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.payMethod')}</label>
-            <div className="flex gap-2">
-              {(methods.length ? methods : [{ id: 'Cash' }, { id: 'Mada' }, { id: 'Transfer' }]).map((p) => (
-                <button
+          <label style={{ marginTop: 10 }}>{t(lang, 'expense.payMethod')}</label>
+          <div className="tw-um-pills" style={{ marginBottom: 10 }}>
+            {(methods.length ? methods : [{ id: 'Cash' }, { id: 'Mada' }, { id: 'Transfer' }]).map((p) => {
+              const active = payMethod === p.id;
+              return (
+                <span
                   key={p.id}
+                  className={`tw-um-pill${active ? ' active' : ''}`}
                   onClick={() => setPayMethod(p.id)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
-                    payMethod === p.id
-                      ? 'bg-tw-blue text-white border-blue-600'
-                      : 'bg-tw-soft/40 text-tw-muted border-tw-line'
-                  }`}
+                  role="button"
+                  tabIndex={0}
                 >
                   {pmLabel(p.id)}
-                </button>
-              ))}
-            </div>
+                </span>
+              );
+            })}
           </div>
 
           {/* الملاحظات */}
-          <div>
-            <label className="text-xs font-bold text-tw-muted mb-1.5 block">
-              {lang === 'en' ? 'Notes (optional)' : 'الملاحظات (اختياري)'}
-            </label>
+          <label style={{ marginTop: 10 }}>
+            {lang === 'en' ? 'Notes (optional)' : 'الملاحظات (اختياري)'}
+          </label>
+          <div className="tw-field">
             <input
               type="text"
               placeholder={lang === 'en' ? 'Short description' : 'وصف مختصر'}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-tw-soft/40 border border-tw-line rounded-xl p-3 text-sm outline-none focus:border-tw-blue"
             />
           </div>
 
           {/* صورة الفاتورة */}
-          <div>
-            <label className="text-xs font-bold text-tw-muted mb-1.5 block">
-              {lang === 'en' ? 'Invoice photo' : 'صورة الفاتورة'}
-              {requiresImage && <span className="text-tw-red mr-1">*</span>}
-            </label>
-            <input
-              ref={cameraInputRef}
-              type="file"
-              accept="image/*"
-              capture="environment"
-              onChange={onPhotoSelected}
-              className="hidden"
-            />
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={onPhotoSelected}
-              className="hidden"
-            />
-            {imagePreview ? (
-              <div className="relative">
-                <img
-                  src={imagePreview}
-                  alt="preview"
-                  className="w-full max-h-48 object-cover rounded-xl border border-tw-line"
-                />
-                <button
-                  type="button"
-                  onClick={removePhoto}
-                  className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black/80"
-                >
-                  <X size={14} />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={triggerPhotoCapture}
-                className={`w-full p-5 rounded-xl border-2 border-dashed flex flex-col items-center gap-2 transition-colors ${
-                  requiresImage
-                    ? 'border-red-300 bg-red-50 text-tw-red hover:bg-red-50'
-                    : 'border-tw-line bg-tw-soft/40 text-tw-muted hover:bg-tw-soft'
-                }`}
-              >
-                {requiresImage ? <Camera size={28} /> : <ImageIcon size={28} />}
-                <span className="text-xs font-bold">
-                  {lang === 'en' ? 'Tap to attach invoice photo' : 'اضغط لإرفاق صورة الفاتورة'}
-                </span>
+          <label style={{ marginTop: 10 }}>
+            {lang === 'en' ? 'Invoice photo' : 'صورة الفاتورة'}
+            {requiresImage && <span style={{ color: 'var(--tw-red)', marginInlineStart: 4 }}>*</span>}
+          </label>
+
+          <input
+            ref={cameraInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={onPhotoSelected}
+            style={{ display: 'none' }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            onChange={onPhotoSelected}
+            style={{ display: 'none' }}
+          />
+
+          {imagePreview ? (
+            <div className="tw-photo-preview-wrap">
+              <img src={imagePreview} alt="preview" />
+              <button type="button" onClick={removePhoto} className="tw-photo-remove" aria-label="Remove photo">
+                <X size={14} />
               </button>
-            )}
-            {requiresImage && !imageFile && (
-              <p className="text-[11px] text-tw-red mt-2 font-bold">
-                📷 {lang === 'en'
-                  ? 'Photo must be captured with camera for this category.'
-                  : 'يجب التقاط الصورة بالكاميرا مباشرة لهذا التصنيف.'}
-              </p>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              <div
+                className={`tw-photo-up${requiresImage ? ' required' : ''}`}
+                onClick={triggerPhotoCapture}
+                role="button"
+                tabIndex={0}
+              >
+                {requiresImage ? <Camera /> : <ImageIcon />}
+                <span>
+                  {requiresImage
+                    ? (lang === 'en' ? 'Tap to capture with camera' : 'اضغط لالتقاط الصورة بالكاميرا')
+                    : (lang === 'en' ? 'Tap to attach invoice photo' : 'اضغط لإرفاق صورة الفاتورة')}
+                </span>
+              </div>
+              {requiresImage && (
+                <p className="tw-photo-note required">
+                  📷 {lang === 'en'
+                    ? 'Photo must be captured live with the camera for this category.'
+                    : 'يجب التقاط الصورة بالكاميرا مباشرة لهذا التصنيف.'}
+                </p>
+              )}
+            </>
+          )}
         </div>
 
         {error && (
-          <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+          <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center mt-3">
             {error}
           </p>
         )}
         {done && (
-          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center mt-3 flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> {t(lang, 'expense.saved')}
           </p>
         )}
 
-        {/* أزرار الإجراءات */}
-        <div className="flex gap-3 pt-2">
+        {/* أزرار الإجراءات — صف (إلغاء + حفظ) مطابق للـ prototype */}
+        <div className="tw-btn-row" style={{ marginTop: 14 }}>
           <button
             onClick={() => setView('employeeHome')}
-            className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 transition-colors"
+            className="tw-btn secondary"
+            type="button"
+            style={{ flex: 0.6 }}
           >
             {lang === 'en' ? 'Cancel' : 'إلغاء'}
           </button>
           <button
             onClick={handleSave}
             disabled={saving || done || uploading}
-            className="flex-1 text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-            style={{
-              background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
-              boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
-            }}
+            className="tw-btn"
+            type="button"
+            style={{ flex: 1 }}
           >
-            {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
+            {(saving || uploading) && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
             {uploading
               ? (lang === 'en' ? 'Uploading...' : 'جارٍ رفع الصورة...')
               : saving

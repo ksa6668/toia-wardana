@@ -1,0 +1,182 @@
+// src/components/RecHistorySection.jsx
+// ----------------------------------------------------------
+// قائمة "آخر 7 أيام" — مكوّن مشترك يُستخدم في:
+//   1) شاشة EmployeeHistory (الموظف)
+//   2) شاشة AdminDataEntry → recordOps (المدير)
+//
+// تصميم 1:1 مع الـ prototype:
+//   - .tw-rec-history-section
+//   - .tw-rec-day-header  (تجميع حسب اليوم)
+//   - .tw-rec-card        (مبيعة أو مصروف)
+//   - .tw-rec-empty       (حالة فارغة)
+//
+// يقرأ من Firestore عبر firebase.js (getSales, getExpenses)
+// يُفلتر إلى فرع واحد فقط (branchId).
+// ----------------------------------------------------------
+import { useState, useEffect, useMemo } from 'react';
+import { TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar } from 'lucide-react';
+import { getSales, getExpenses } from '../firebase';
+import { t, translateCategory } from '../i18n';
+import SarSymbol from './SarSymbol';
+
+// تنسيق التاريخ "YYYY-MM-DD" إلى "اليوم"/"أمس"/"21 مايو"
+function formatDayHeader(dateStr, lang) {
+  if (!dateStr) return '—';
+  const today = new Date();
+  const todayKey = today.toISOString().slice(0, 10);
+  const yest = new Date(today); yest.setDate(today.getDate() - 1);
+  const yestKey = yest.toISOString().slice(0, 10);
+  if (dateStr === todayKey) return lang === 'en' ? 'Today' : 'اليوم';
+  if (dateStr === yestKey) return lang === 'en' ? 'Yesterday' : 'أمس';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
+    weekday: 'long', day: 'numeric', month: 'short',
+  });
+}
+
+export default function RecHistorySection({ branchId, lang = 'ar', showTitle = true }) {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [sales, setSales] = useState([]);
+  const [expenses, setExpenses] = useState([]);
+
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError('');
+      try {
+        const today = new Date();
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(today.getDate() - 7);
+        const iso = (d) => d.toISOString().slice(0, 10);
+        const from = iso(sevenDaysAgo);
+        const to = iso(today);
+        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
+        if (!cancelled) {
+          setSales(s.filter((x) => x.branchId === branchId));
+          setExpenses(e.filter((x) => x.branchId === branchId));
+        }
+      } catch (err) {
+        if (!cancelled) setError(err?.message || (lang === 'en' ? 'Failed to load data' : 'تعذّر تحميل البيانات'));
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [branchId, lang]);
+
+  // دمج + ترتيب تنازلي حسب التاريخ ثم الوقت إن وُجد
+  const allEntries = useMemo(() => {
+    const items = [
+      ...sales.map((s) => ({ kind: 'sale', ...s })),
+      ...expenses.map((e) => ({ kind: 'expense', ...e })),
+    ];
+    return items.sort((a, b) => {
+      const k = (a.date || '').localeCompare(b.date || '');
+      if (k !== 0) return -k; // الأحدث أولاً
+      // عند تساوي التاريخ، نرتب حسب createdAt إن وُجد
+      const ta = a.createdAt?.toMillis?.() || 0;
+      const tb = b.createdAt?.toMillis?.() || 0;
+      return tb - ta;
+    });
+  }, [sales, expenses]);
+
+  // تجميع حسب اليوم
+  const groupedByDay = useMemo(() => {
+    const map = {};
+    allEntries.forEach((e) => {
+      const k = e.date || '—';
+      if (!map[k]) map[k] = [];
+      map[k].push(e);
+    });
+    return map;
+  }, [allEntries]);
+
+  const days = Object.keys(groupedByDay); // الأيام مرتبة لأن allEntries مرتب
+
+  return (
+    <div className="tw-rec-history-section">
+      {showTitle && (
+        <div className="tw-rec-history-title">
+          <span>{lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام'}</span>
+          <span className="tw-rec-history-count">{allEntries.length}</span>
+        </div>
+      )}
+
+      {loading && (
+        <div className="tw-rec-empty">
+          <Loader2 size={28} className="animate-spin" style={{ margin: '0 auto 10px', display: 'block', color: 'var(--tw-blue)' }} />
+          <span>{lang === 'en' ? 'Loading…' : 'جارٍ التحميل…'}</span>
+        </div>
+      )}
+
+      {error && !loading && (
+        <div className="tw-rec-empty" style={{ color: 'var(--tw-red)' }}>
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && allEntries.length === 0 && (
+        <div className="tw-rec-empty">
+          <Calendar />
+          <div>
+            {lang === 'en'
+              ? 'No records in the last 7 days'
+              : 'لا توجد عمليات في آخر 7 أيام'}
+          </div>
+        </div>
+      )}
+
+      {!loading && !error && days.map((day) => (
+        <div key={day}>
+          <div className="tw-rec-day-header">{formatDayHeader(day, lang)}</div>
+          {groupedByDay[day].map((entry, i) => {
+            const isSale = entry.kind === 'sale';
+            const title = isSale
+              ? (lang === 'en' ? 'Daily sales' : 'مبيعات اليوم')
+              : translateCategory(lang, entry.categoryName || entry.category || '—');
+            const sub = [
+              entry.notes,
+              entry.invoiceUrl && (lang === 'en' ? 'with photo' : 'مع صورة'),
+            ].filter(Boolean).join(' • ');
+            const amt = isSale
+              ? Math.round(entry.total || 0)
+              : Math.round(entry.amount || 0);
+
+            return (
+              <div key={entry.id || `${day}-${i}`} className="tw-rec-card">
+                <div className={`tw-rec-icon ${isSale ? 'sale' : 'expense'}`}>
+                  {isSale ? <TrendingUp /> : <Receipt />}
+                </div>
+                <div className="tw-rec-body">
+                  <b>{title}</b>
+                  {sub && <small>{sub}</small>}
+                </div>
+                {entry.invoiceUrl && (
+                  <a
+                    href={entry.invoiceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="tw-circle-btn"
+                    style={{ width: 32, height: 32 }}
+                    title={lang === 'en' ? 'View invoice' : 'عرض الفاتورة'}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <ImageIcon size={14} />
+                  </a>
+                )}
+                <div className={`tw-rec-amt ${isSale ? 'sale' : 'expense'}`}>
+                  <span dir="ltr">{isSale ? '+' : '−'}{amt.toLocaleString('en-US')}</span>
+                  <SarSymbol />
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      ))}
+    </div>
+  );
+}
