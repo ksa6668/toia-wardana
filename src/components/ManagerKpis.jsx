@@ -56,12 +56,12 @@ function PeriodCard({ label, amount, pct }) {
 function KpiRow({ icon: Icon, label, pct }) {
   const p = Math.max(0, Math.min(100, pct));
   return (
-    <div className="flex items-center justify-between py-3 border-b border-gray-100 last:border-0">
+    <div className="flex items-center justify-between py-3 border-b border-tw-line last:border-0">
       <div className="flex items-center gap-3">
-        <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+        <div className="w-9 h-9 rounded-xl bg-tw-soft text-tw-blue flex items-center justify-center">
           <Icon size={16} />
         </div>
-        <span className="text-sm font-bold text-slate-700">{label}</span>
+        <span className="text-sm font-bold text-tw-navy">{label}</span>
       </div>
       {/* مؤشر دائري بسيط: نص داخل دائرة ملونة */}
       <div className="relative w-11 h-11 flex items-center justify-center">
@@ -76,7 +76,7 @@ function KpiRow({ icon: Icon, label, pct }) {
             strokeDasharray={`${(p / 100) * 113} 113`}
           />
         </svg>
-        <span className="text-[10px] font-bold text-blue-600 relative">{p}%</span>
+        <span className="text-[10px] font-bold text-tw-blue relative">{p}%</span>
       </div>
     </div>
   );
@@ -220,15 +220,15 @@ export default function ManagerKpis({ lang = 'ar' }) {
       className="min-h-full px-4 pt-4 pb-8"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* تبويبات شهري/سنوي */}
-      <div className="flex bg-blue-50 p-1 rounded-xl mb-3">
+      <div className="flex bg-tw-soft p-1 rounded-xl mb-3">
         <button
           onClick={() => setPeriod('month')}
           className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-            period === 'month' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600'
+            period === 'month' ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
           }`}
         >
           {lang === 'en' ? 'Monthly' : 'شهري'}
@@ -236,7 +236,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
         <button
           onClick={() => setPeriod('year')}
           className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-            period === 'year' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600'
+            period === 'year' ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
           }`}
         >
           {lang === 'en' ? 'Yearly' : 'سنوي'}
@@ -247,26 +247,26 @@ export default function ManagerKpis({ lang = 'ar' }) {
       <div className="flex gap-2 mb-4">
         <button
           onClick={openPeriodPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
-          <Calendar size={14} className="text-blue-600" />
-          <span className="font-bold text-xs text-slate-700">{periodLabel}</span>
-          <ChevronDown size={12} className="text-gray-400" />
+          <Calendar size={14} className="text-tw-blue" />
+          <span className="font-bold text-xs text-tw-navy">{periodLabel}</span>
+          <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
         <button
           onClick={openBranchPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
-          <MapPin size={14} className="text-blue-600" />
-          <span className="font-bold text-xs text-slate-700">
+          <MapPin size={14} className="text-tw-blue" />
+          <span className="font-bold text-xs text-tw-navy">
             {lang === 'en' ? `Branch: ${branchLabel}` : `الفرع: ${branchLabel}`}
           </span>
-          <ChevronDown size={12} className="text-gray-400" />
+          <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-10 text-slate-400">
+        <div className="flex items-center justify-center py-10 text-tw-muted/70">
           <Loader2 className="animate-spin" size={24} />
         </div>
       )}
@@ -277,7 +277,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
       {!loading && !error && (
         <>
           {/* عنوان القسم */}
-          <h3 className="text-center text-sm font-extrabold text-slate-800 my-3">
+          <h3 className="text-center text-sm font-extrabold text-tw-navy my-3">
             {period === 'month'
               ? (lang === 'en' ? 'Weekly sales performance' : 'أداء المبيعات الأسبوعي')
               : (lang === 'en' ? 'Quarterly sales performance' : 'أداء المبيعات الربع سنوي')
@@ -292,7 +292,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
           </div>
 
           {/* قائمة المؤشرات */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm px-4 py-2">
+          <div className="bg-white rounded-2xl border border-tw-line shadow-sm px-4 py-2">
             {kpiRows.map((row, i) => (
               <KpiRow key={i} icon={row.icon} label={row.label} pct={row.pct} />
             ))}

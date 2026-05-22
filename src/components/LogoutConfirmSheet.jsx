@@ -21,7 +21,7 @@ export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
         <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto"></div>
 
         {/* السؤال */}
-        <h3 className="text-lg font-bold text-slate-800 text-center py-2">
+        <h3 className="text-lg font-bold text-tw-navy text-center py-2">
           تسجيل الخروج؟
         </h3>
 
@@ -35,7 +35,7 @@ export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
           </button>
           <button
             onClick={onCancel}
-            className="flex-1 bg-white border border-gray-200 hover:bg-gray-50 text-slate-700 font-bold py-3.5 rounded-2xl transition-colors text-base"
+            className="flex-1 bg-white border border-tw-line hover:bg-gray-50 text-tw-navy font-bold py-3.5 rounded-2xl transition-colors text-base"
           >
             إلغاء
           </button>

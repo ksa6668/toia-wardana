@@ -1,12 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
-  LogOut, Receipt, TrendingUp, TrendingDown,
+  Receipt, TrendingUp, TrendingDown,
   Settings, Camera, ChevronRight, Building2,
   BarChart3, Wallet, UploadCloud,
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
   Key, UserX, UserCheck, Trash2, Edit3,
-  Home, Bell
+  Home
 } from 'lucide-react';
 import {
   login, logout, watchAuth,
@@ -40,6 +40,8 @@ import ManagerReceipts from './components/ManagerReceipts';
 import LogoutConfirmSheet from './components/LogoutConfirmSheet';
 // Batch 6: Generic edit sheet for full forms
 import EditSheet from './components/EditSheet';
+// Batch 7: New unified white header
+import AppHeader from './components/AppHeader';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -187,47 +189,32 @@ export default function App() {
   const pageAlign = pageDir === 'rtl' ? 'text-right' : 'text-left';
 
   return (
-    <div className={`min-h-screen bg-[#f1f5f9] md:flex md:items-center md:justify-center md:p-4 font-sans ${pageAlign}`} dir={pageDir}>
+    <div className={`min-h-screen bg-tw-bg md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
+         dir={pageDir}
+         style={{ fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif" }}>
       <div className="w-full bg-white overflow-hidden flex flex-col
                       min-h-screen
                       md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
                       md:border-8 md:border-slate-900 md:h-[850px] md:relative">
 
         {currentView !== 'login' && !authLoading && (
-          <header className="bg-slate-900 text-white p-5 pt-12 md:pt-8 z-20 relative">
-            <div className="flex justify-between items-center">
-              <div>
-                <h1 className="text-xl font-bold tracking-wide">Toia &amp; Wardana</h1>
-                <p className="text-xs text-slate-400 mt-1 font-medium">
-                  {user?.displayName || 'Finance Control'}
-                </p>
-              </div>
-              <div className="flex items-center gap-2">
-                {/* زر الإشعارات — يفتح NotificationsCenter (Batch 5) */}
-                {isAdmin && (
-                  <button
-                    onClick={() => setShowNotifications(true)}
-                    className="p-2.5 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors relative"
-                    title={lang === 'en' ? 'Notifications' : 'الإشعارات'}
-                  >
-                    <Bell size={18} />
-                  </button>
-                )}
-                <button
-                  onClick={() => setShowLogoutConfirm(true)}
-                  className="p-2.5 bg-slate-800 rounded-full hover:bg-red-500 transition-colors"
-                  title={lang === 'en' ? 'Sign out' : 'تسجيل الخروج'}
-                >
-                  <LogOut size={18} />
-                </button>
-              </div>
-            </div>
-          </header>
+          <AppHeader
+            title="Toia & Wardana"
+            subtitle={
+              isAdmin
+                ? (user?.displayName ? `مرحباً، ${user.displayName}` : 'لوحة المدير')
+                : (branch ? `مرحباً، ${branch}` : (user?.displayName || ''))
+            }
+            notifCount={isAdmin ? 2 : 0}
+            onProfileClick={() => setShowLogoutConfirm(true)}
+            onNotifClick={() => isAdmin && setShowNotifications(true)}
+            rtl={pageDir === 'rtl'}
+          />
         )}
 
-        <main className="flex-1 overflow-y-auto bg-slate-50 relative z-10 pb-24 md:pb-0">
+        <main className="flex-1 overflow-y-auto bg-tw-bg relative z-10 pb-24 md:pb-0">
           {authLoading && (
-            <div className="h-full flex flex-col items-center justify-center text-slate-400 gap-3 pt-20">
+            <div className="h-full flex flex-col items-center justify-center text-tw-muted/70 gap-3 pt-20">
               <Loader2 size={32} className="animate-spin" />
               <p className="text-sm font-bold">{lang === 'en' ? 'Loading...' : 'جارٍ التحميل...'}</p>
             </div>
@@ -267,13 +254,24 @@ export default function App() {
         </main>
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
-          <nav className="fixed bottom-0 left-0 right-0 md:absolute bg-white border-t border-gray-200 flex justify-around items-center px-1 py-2 pb-5 md:pb-4 z-30 shadow-[0_-10px_20px_-5px_rgba(0,0,0,0.05)]">
+          <nav
+            className="fixed bottom-0 left-0 right-0 md:absolute bg-white border-t border-tw-line flex items-center px-2 py-2 pb-5 md:pb-3 z-30"
+            style={{
+              boxShadow: '0 -8px 24px rgba(6, 23, 66, 0.06)',
+              fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif",
+            }}
+          >
+            {/*
+              في RTL، أول عنصر بالـ array يظهر يمين.
+              ترتيب الـ prototype (يمين → يسار):
+                الإعدادات / المؤشرات / الرئيسية / نظرة عامة / كشف
+            */}
             {[
-              { key: 'monthly', icon: BarChart3, label: 'المؤشرات الشهرية' },
-              { key: 'overview', icon: PieChart, label: 'نظرة عامة' },
-              { key: 'home', icon: Home, label: 'الرئيسية' },
-              { key: 'kpis', icon: TrendingUp, label: 'المؤشرات' },
-              { key: 'settings', icon: Settings, label: 'الإعدادات' },
+              { key: 'settings', icon: Settings,   label: 'الإعدادات' },
+              { key: 'kpis',     icon: Activity,   label: 'المؤشرات' },
+              { key: 'home',     icon: Home,       label: 'الرئيسية' },
+              { key: 'overview', icon: PieChart,   label: 'نظرة عامة' },
+              { key: 'monthly',  icon: BarChart3,  label: 'كشف' },
             ].map((tab) => {
               const Icon = tab.icon;
               const active = adminTab === tab.key;
@@ -281,12 +279,12 @@ export default function App() {
                 <button
                   key={tab.key}
                   onClick={() => setAdminTab(tab.key)}
-                  className={`flex flex-col items-center justify-center flex-1 py-1 transition-all ${
-                    active ? 'text-blue-600 scale-110' : 'text-gray-400 hover:text-gray-600'
+                  className={`flex flex-col items-center justify-center flex-1 py-1.5 gap-1 transition-colors ${
+                    active ? 'text-tw-blue' : 'text-[#8A96AA] hover:text-tw-navy2'
                   }`}
                 >
-                  <Icon size={20} strokeWidth={active ? 2.4 : 1.8} />
-                  <span className={`text-[9px] mt-0.5 font-bold leading-tight text-center ${active ? '' : 'opacity-80'}`}>
+                  <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+                  <span className="text-[11px] font-bold leading-none">
                     {tab.label}
                   </span>
                 </button>
@@ -562,14 +560,14 @@ function SuperAdminDashboard() {
 
   return (
     <div className="flex flex-col h-full pb-20">
-      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 border-b border-gray-100">
+      <div className="bg-white p-4 shadow-sm z-10 sticky top-0 border-b border-tw-line">
         <div className="flex justify-between items-center">
-          <div className="flex items-center gap-2 text-slate-800 font-bold">
-            <Calendar size={18} className="text-blue-600" />
+          <div className="flex items-center gap-2 text-tw-navy font-bold">
+            <Calendar size={18} className="text-tw-blue" />
             <span>فترة التقرير:</span>
           </div>
           <select value={period} onChange={(e) => setPeriod(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-sm font-bold rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 text-blue-700">
+            className="bg-slate-50 border border-slate-200 text-sm font-bold rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 text-tw-blue">
             <option value="يومي">يومي</option>
             <option value="أسبوعي">أسبوعي</option>
             <option value="شهري">شهري (هذا الشهر)</option>
@@ -581,14 +579,14 @@ function SuperAdminDashboard() {
         {period === 'مخصص' && (
           <div className="mt-3 flex items-center gap-2">
             <div className="flex-1">
-              <label className="text-[10px] font-bold text-gray-500 block mb-1">من</label>
+              <label className="text-[10px] font-bold text-tw-muted block mb-1">من</label>
               <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
+                className="w-full p-2 bg-gray-50 border border-tw-line rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
             </div>
             <div className="flex-1">
-              <label className="text-[10px] font-bold text-gray-500 block mb-1">إلى</label>
+              <label className="text-[10px] font-bold text-tw-muted block mb-1">إلى</label>
               <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full p-2 bg-gray-50 border border-gray-200 rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
+                className="w-full p-2 bg-gray-50 border border-tw-line rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
             </div>
           </div>
         )}
@@ -604,9 +602,9 @@ function SuperAdminDashboard() {
               className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
                 branchFilter === b.v
                   ? b.v === 'all' ? 'bg-slate-900 text-white border-slate-900'
-                    : b.v === 'toia' ? 'bg-blue-600 text-white border-blue-600'
+                    : b.v === 'toia' ? 'bg-tw-blue text-white border-blue-600'
                     : 'bg-pink-600 text-white border-pink-600'
-                  : 'bg-white text-gray-500 border-gray-200'
+                  : 'bg-white text-tw-muted border-tw-line'
               }`}>
               {b.t}
             </button>
@@ -614,7 +612,7 @@ function SuperAdminDashboard() {
         </div>
       </div>
 
-      <div className="bg-white border-b border-gray-100 px-2 py-3 overflow-x-auto whitespace-nowrap flex gap-2">
+      <div className="bg-white border-b border-tw-line px-2 py-3 overflow-x-auto whitespace-nowrap flex gap-2">
         <ReportTab id="overview" current={activeReport} set={setActiveReport} icon={<Activity size={16} />} label="نظرة عامة" />
         <ReportTab id="branches" current={activeReport} set={setActiveReport} icon={<Store size={16} />} label="مقارنة الفروع" />
         <ReportTab id="averages" current={activeReport} set={setActiveReport} icon={<PieChart size={16} />} label="المتوسطات" />
@@ -625,7 +623,7 @@ function SuperAdminDashboard() {
       </div>
 
       {loading && (
-        <div className="flex-1 flex flex-col items-center justify-center text-slate-400 gap-3">
+        <div className="flex-1 flex flex-col items-center justify-center text-tw-muted/70 gap-3">
           <Loader2 size={28} className="animate-spin" />
           <p className="text-sm font-bold">جارٍ تحميل البيانات...</p>
         </div>
@@ -633,7 +631,7 @@ function SuperAdminDashboard() {
 
       {error && (
         <div className="p-4">
-          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
+          <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
         </div>
       )}
 
@@ -649,63 +647,63 @@ function SuperAdminDashboard() {
           {activeReport === 'overview' && (
             <div className="space-y-4">
               <div className="bg-slate-900 p-5 rounded-2xl shadow-lg text-white relative overflow-hidden">
-                <div className="absolute top-0 right-0 w-32 h-32 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
+                <div className="absolute top-0 right-0 w-32 h-32 bg-tw-soft0 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
                 <p className="text-slate-300 font-bold text-xs mb-2">{profitLabel} — {m.view.label}</p>
                 <p className="text-4xl font-bold font-mono text-emerald-400">
-                  {Math.round(m.view.profit).toLocaleString()} <SarSymbol className="text-sm text-slate-400" />
+                  {Math.round(m.view.profit).toLocaleString()} <SarSymbol className="text-sm text-tw-muted/70" />
                 </p>
-                <p className="text-[10px] text-slate-400 mt-2 bg-slate-800 w-fit px-2 py-1 rounded">
+                <p className="text-[10px] text-tw-muted/70 mt-2 bg-slate-800 w-fit px-2 py-1 rounded">
                   المبيعات − (المصاريف المتغيرة + نصيب الثابتة)
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <StatCard label="المبيعات" value={m.view.sales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
-                <StatCard label="المصاريف" value={m.view.totalExp} icon={<TrendingDown size={16} className="text-red-500" />} />
+                <StatCard label="المصاريف" value={m.view.totalExp} icon={<TrendingDown size={16} className="text-tw-red" />} />
                 <StatCard label="م. متغيرة" value={m.view.varExp} icon={<Receipt size={16} className="text-orange-500" />} />
                 <StatCard label="نصيب الثابتة" value={m.view.fixedExp} icon={<Building2 size={16} className="text-indigo-500" />} />
               </div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-4 text-sm flex items-center gap-2">
-                  <Globe size={16} className="text-blue-600" /> قنوات البيع (أون لاين / أوف لاين) — {m.view.label}
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-tw-line">
+                <h3 className="font-bold text-tw-navy mb-4 text-sm flex items-center gap-2">
+                  <Globe size={16} className="text-tw-blue" /> قنوات البيع (أون لاين / أوف لاين) — {m.view.label}
                 </h3>
                 <div className="flex justify-between text-xs font-bold mb-2">
-                  <span className="text-blue-700">أون لاين: {m.view.onlinePerc}%</span>
-                  <span className="text-slate-700">أوف لاين: {m.view.offlinePerc}%</span>
+                  <span className="text-tw-blue">أون لاين: {m.view.onlinePerc}%</span>
+                  <span className="text-tw-navy">أوف لاين: {m.view.offlinePerc}%</span>
                 </div>
                 <div className="h-3 w-full flex rounded-full overflow-hidden mb-3 bg-slate-100">
-                  <div style={{ width: `${m.view.onlinePerc}%` }} className="bg-blue-500"></div>
+                  <div style={{ width: `${m.view.onlinePerc}%` }} className="bg-tw-soft0"></div>
                   <div style={{ width: `${m.view.offlinePerc}%` }} className="bg-slate-300"></div>
                 </div>
-                <div className="flex justify-between text-[11px] text-gray-500">
+                <div className="flex justify-between text-[11px] text-tw-muted">
                   <span>التحويلات ({m.view.onlineSales.toLocaleString()})</span>
                   <span>النقد ومدى ({m.view.offlineSales.toLocaleString()})</span>
                 </div>
               </div>
-              <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-                <h3 className="font-bold text-gray-800 mb-3 text-sm flex items-center gap-2">
+              <div className="bg-white p-5 rounded-2xl shadow-sm border border-tw-line">
+                <h3 className="font-bold text-tw-navy mb-3 text-sm flex items-center gap-2">
                   <ShoppingCart size={16} className="text-pink-500" /> نسبة تكلفة الورد للمبيعات — {m.view.label}
                 </h3>
                 <div className="flex items-end gap-2">
                   <p className="text-3xl font-bold text-pink-600 font-mono">{m.view.flowerPerc}%</p>
-                  <p className="text-[11px] text-gray-400 mb-1">من إجمالي المبيعات</p>
+                  <p className="text-[11px] text-tw-muted/70 mb-1">من إجمالي المبيعات</p>
                 </div>
               </div>
             </div>
           )}
 
           {activeReport === 'branches' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-              <div className="bg-blue-50 border-b border-blue-100 p-3 font-bold text-sm text-blue-900 flex items-center gap-2">
+            <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
+              <div className="bg-tw-soft border-b border-blue-100 p-3 font-bold text-sm text-blue-900 flex items-center gap-2">
                 <Store size={18} /> مقارنة الأداء ({period})
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-right text-[11px]">
-                  <thead className="bg-white text-gray-500 border-b border-gray-100">
+                  <thead className="bg-white text-tw-muted border-b border-tw-line">
                     <tr>
                       <th className="p-3 font-bold">البيان</th>
-                      <th className="p-3 font-bold text-center border-r border-gray-100 text-blue-600">تويا</th>
-                      <th className="p-3 font-bold text-center border-r border-gray-100 text-blue-600">وردانة</th>
-                      <th className="p-3 font-bold text-center border-r border-gray-100 bg-gray-50">الإجمالي</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">تويا</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">وردانة</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line bg-gray-50">الإجمالي</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 font-mono">
@@ -715,15 +713,15 @@ function SuperAdminDashboard() {
                     <CompareRow label="إجمالي المصاريف" t={m.toiaTotalExp} w={m.wardanaTotalExp} total={m.totalExp} tone="red" />
                     <tr className="bg-emerald-50/40">
                       <td className="p-3 font-bold text-emerald-900 font-sans">صافي الربح</td>
-                      <td className="p-3 text-center font-bold text-emerald-700">{Math.round(m.toiaProfit).toLocaleString()}</td>
-                      <td className="p-3 text-center font-bold text-emerald-700 border-r border-gray-100">{Math.round(m.wardanaProfit).toLocaleString()}</td>
-                      <td className="p-3 text-center font-bold text-emerald-800 border-r border-gray-100 bg-emerald-50/60">{Math.round(m.totalProfit).toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-tw-green">{Math.round(m.toiaProfit).toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-tw-green border-r border-tw-line">{Math.round(m.wardanaProfit).toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-emerald-800 border-r border-tw-line bg-emerald-50/60">{Math.round(m.totalProfit).toLocaleString()}</td>
                     </tr>
                     <tr className="hover:bg-gray-50">
                       <td className="p-3 text-gray-600 font-sans font-bold">تكلفة الورد %</td>
-                      <td className="p-3 text-center text-gray-700 font-bold">{m.toiaFlowerPerc}%</td>
-                      <td className="p-3 text-center text-gray-700 font-bold border-r border-gray-100">{m.wardanaFlowerPerc}%</td>
-                      <td className="p-3 text-center text-gray-800 font-bold border-r border-gray-100 bg-gray-50">{m.totalFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold">{m.toiaFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line">{m.wardanaFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line bg-gray-50">{m.totalFlowerPerc}%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -733,13 +731,13 @@ function SuperAdminDashboard() {
 
           {activeReport === 'averages' && (
             <div className="space-y-3">
-              <div className="bg-blue-600 text-white p-4 rounded-2xl shadow-md">
+              <div className="bg-tw-blue text-white p-4 rounded-2xl shadow-md">
                 <h3 className="font-bold mb-1 text-sm flex items-center gap-2"><PieChart size={18} /> المتوسطات اليومية — {m.view.label}</h3>
                 <p className="text-blue-200 text-xs">محسوبة على أساس {m.data.days} يوم بناءً على فلتر ({period})</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <AverageCard title="متوسط المبيعات" amount={m.view.avgSales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
-                <AverageCard title="متوسط المصاريف" amount={m.view.avgExp} icon={<TrendingDown size={16} className="text-red-500" />} />
+                <AverageCard title="متوسط المصاريف" amount={m.view.avgExp} icon={<TrendingDown size={16} className="text-tw-red" />} />
                 <AverageCard title="متوسط الورد" amount={m.view.avgFlower} icon={<ShoppingCart size={16} className="text-pink-500" />} />
                 <AverageCard title="متوسط التوصيل" amount={m.view.avgDelivery} icon={<Car size={16} className="text-orange-500" />} />
                 <AverageCard title="متوسط التسويق" amount={m.view.avgMarketing} icon={<Megaphone size={16} className="text-purple-500" />} full />
@@ -758,12 +756,12 @@ function SuperAdminDashboard() {
           )}
 
           {activeReport === 'payments' && (
-            <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-100">
-              <h3 className="font-bold text-gray-800 mb-5 text-sm flex items-center gap-2">
-                <CreditCard size={18} className="text-blue-600" /> تحليل طرق الدفع — {m.view.label}
+            <div className="bg-white p-5 rounded-2xl shadow-sm border border-tw-line">
+              <h3 className="font-bold text-tw-navy mb-5 text-sm flex items-center gap-2">
+                <CreditCard size={18} className="text-tw-blue" /> تحليل طرق الدفع — {m.view.label}
               </h3>
               <div className="space-y-5">
-                <PaymentBar label="مدى (شبكة)" amount={m.view.mada} total={m.view.sales} color="bg-blue-500" />
+                <PaymentBar label="مدى (شبكة)" amount={m.view.mada} total={m.view.sales} color="bg-tw-soft0" />
                 <PaymentBar label="تحويل (أون لاين)" amount={m.view.transfer} total={m.view.sales} color="bg-purple-500" />
                 <PaymentBar label="نقدي (كاش)" amount={m.view.cash} total={m.view.sales} color="bg-emerald-500" />
               </div>
@@ -790,7 +788,7 @@ function SuperAdminDashboard() {
                     const withSales = m.dailyBreakdown.filter((d) => d.sales > 0);
                     if (!withSales.length) {
                       return (
-                        <div className="bg-white border border-gray-100 rounded-xl p-5 text-center text-gray-400 text-sm">
+                        <div className="bg-white border border-tw-line rounded-xl p-5 text-center text-tw-muted/70 text-sm">
                           لا توجد مبيعات مسجّلة في هذا الشهر بعد
                         </div>
                       );
@@ -801,26 +799,26 @@ function SuperAdminDashboard() {
                     return (
                       <div className="grid grid-cols-3 gap-2">
                         <div className="bg-white border border-emerald-100 rounded-xl p-3 text-center">
-                          <p className="text-[10px] text-gray-400 font-bold">أقوى يوم</p>
-                          <p className="text-lg font-bold text-emerald-600 font-mono">يوم {best.day}</p>
-                          <p className="text-xs font-mono text-emerald-700">{best.sales.toLocaleString()}</p>
+                          <p className="text-[10px] text-tw-muted/70 font-bold">أقوى يوم</p>
+                          <p className="text-lg font-bold text-tw-green font-mono">يوم {best.day}</p>
+                          <p className="text-xs font-mono text-tw-green">{best.sales.toLocaleString()}</p>
                         </div>
                         <div className="bg-white border border-blue-100 rounded-xl p-3 text-center">
-                          <p className="text-[10px] text-gray-400 font-bold">المتوسط</p>
-                          <p className="text-lg font-bold text-blue-600 font-mono">{avg.toLocaleString()}</p>
-                          <p className="text-[10px] text-gray-400">ريال/يوم</p>
+                          <p className="text-[10px] text-tw-muted/70 font-bold">المتوسط</p>
+                          <p className="text-lg font-bold text-tw-blue font-mono">{avg.toLocaleString()}</p>
+                          <p className="text-[10px] text-tw-muted/70">ريال/يوم</p>
                         </div>
                         <div className="bg-white border border-red-100 rounded-xl p-3 text-center">
-                          <p className="text-[10px] text-gray-400 font-bold">أضعف يوم</p>
-                          <p className="text-lg font-bold text-red-500 font-mono">يوم {worst.day}</p>
-                          <p className="text-xs font-mono text-red-600">{worst.sales.toLocaleString()}</p>
+                          <p className="text-[10px] text-tw-muted/70 font-bold">أضعف يوم</p>
+                          <p className="text-lg font-bold text-tw-red font-mono">يوم {worst.day}</p>
+                          <p className="text-xs font-mono text-tw-red">{worst.sales.toLocaleString()}</p>
                         </div>
                       </div>
                     );
                   })()}
 
                   {/* رسم أعمدة لكل يوم */}
-                  <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-4">
+                  <div className="bg-white rounded-2xl shadow-sm border border-tw-line p-4">
                     {(() => {
                       const maxSales = Math.max(1, ...m.dailyBreakdown.map((d) => d.sales));
                       return (
@@ -830,12 +828,12 @@ function SuperAdminDashboard() {
                             const isMax = d.sales === maxSales && d.sales > 0;
                             return (
                               <div key={d.day} className="flex items-center gap-2">
-                                <span className="text-[10px] font-mono w-6 text-gray-500 font-bold text-left">{d.day}</span>
+                                <span className="text-[10px] font-mono w-6 text-tw-muted font-bold text-left">{d.day}</span>
                                 <div className="flex-1 bg-gray-50 rounded h-5 overflow-hidden relative">
                                   <div className={`h-full ${isMax ? 'bg-emerald-500' : 'bg-blue-400'} rounded transition-all`}
                                     style={{ width: `${widthPerc}%` }} />
                                 </div>
-                                <span className="text-[10px] font-mono w-20 text-gray-700 font-bold text-left">
+                                <span className="text-[10px] font-mono w-20 text-tw-navy font-bold text-left">
                                   {d.sales > 0 ? d.sales.toLocaleString() : '—'}
                                 </span>
                               </div>
@@ -869,17 +867,17 @@ function SuperAdminDashboard() {
                     const total = m.weeklyBreakdown.reduce((s, b) => s + b.sales, 0);
                     const maxW = Math.max(1, ...m.weeklyBreakdown.map((b) => b.sales));
                     return (
-                      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+                      <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
                         {m.weeklyBreakdown.map((b, i) => {
                           const widthPerc = (b.sales / maxW) * 100;
                           const sharePerc = total > 0 ? Math.round((b.sales / total) * 100) : 0;
                           return (
-                            <div key={i} className="p-4 border-b border-gray-50 last:border-0">
+                            <div key={i} className="p-4 border-b border-tw-line/60 last:border-0">
                               <div className="flex justify-between items-center mb-2">
-                                <span className="font-bold text-sm text-gray-700">{b.label}</span>
+                                <span className="font-bold text-sm text-tw-navy">{b.label}</span>
                                 <div className="text-left">
-                                  <span className="font-mono font-bold text-slate-800">{b.sales.toLocaleString()}</span>
-                                  <span className="text-[11px] text-gray-400 mr-1">({sharePerc}%)</span>
+                                  <span className="font-mono font-bold text-tw-navy">{b.sales.toLocaleString()}</span>
+                                  <span className="text-[11px] text-tw-muted/70 mr-1">({sharePerc}%)</span>
                                 </div>
                               </div>
                               <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
@@ -890,7 +888,7 @@ function SuperAdminDashboard() {
                           );
                         })}
                         <div className="bg-slate-50 p-3 flex justify-between font-bold text-sm">
-                          <span className="text-slate-700">إجمالي الشهر:</span>
+                          <span className="text-tw-navy">إجمالي الشهر:</span>
                           <span className="font-mono text-slate-900">{total.toLocaleString()} <SarSymbol /></span>
                         </div>
                       </div>
@@ -902,18 +900,18 @@ function SuperAdminDashboard() {
           )}
 
           {activeReport === 'kpi' && (
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
               <div className="bg-slate-900 p-3 font-bold text-sm text-white flex items-center gap-2">
                 <Layers size={18} /> جدول المؤشرات الشامل ({period})
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-right text-[11px]">
-                  <thead className="bg-white text-gray-500 border-b border-gray-100">
+                  <thead className="bg-white text-tw-muted border-b border-tw-line">
                     <tr>
                       <th className="p-3 font-bold">المؤشر</th>
-                      <th className="p-3 font-bold text-center border-r border-gray-100 text-blue-600">Toia</th>
-                      <th className="p-3 font-bold text-center border-r border-gray-100 text-blue-600">Wardana</th>
-                      <th className="p-3 font-bold text-center border-r border-gray-100 bg-gray-50">Total</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">Toia</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">Wardana</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line bg-gray-50">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 font-mono">
@@ -928,18 +926,18 @@ function SuperAdminDashboard() {
                     <CompareRow label="Total Expenses" t={m.toiaTotalExp} w={m.wardanaTotalExp} total={m.totalExp} tone="red" />
                     <tr className="bg-emerald-50/40">
                       <td className="p-3 font-bold text-emerald-900 font-sans">Profit</td>
-                      <td className="p-3 text-center font-bold text-emerald-700">{Math.round(m.toiaProfit).toLocaleString()}</td>
-                      <td className="p-3 text-center font-bold text-emerald-700 border-r border-gray-100">{Math.round(m.wardanaProfit).toLocaleString()}</td>
-                      <td className="p-3 text-center font-bold text-emerald-800 border-r border-gray-100 bg-emerald-50/60">{Math.round(m.totalProfit).toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-tw-green">{Math.round(m.toiaProfit).toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-tw-green border-r border-tw-line">{Math.round(m.wardanaProfit).toLocaleString()}</td>
+                      <td className="p-3 text-center font-bold text-emerald-800 border-r border-tw-line bg-emerald-50/60">{Math.round(m.totalProfit).toLocaleString()}</td>
                     </tr>
                     <CompareRow label="Flower Exp." t={m.data.toia.flowerExp} w={m.data.wardana.flowerExp} total={m.data.toia.flowerExp + m.data.wardana.flowerExp} tone="pink" />
                     <CompareRow label="Delivery Fees" t={m.data.toia.deliveryExp} w={m.data.wardana.deliveryExp} total={m.data.toia.deliveryExp + m.data.wardana.deliveryExp} tone="orange" />
                     <CompareRow label="Marketing Exp." t={m.data.toia.marketingExp} w={m.data.wardana.marketingExp} total={m.data.toia.marketingExp + m.data.wardana.marketingExp} tone="purple" />
                     <tr className="hover:bg-gray-50">
                       <td className="p-3 text-gray-600 font-sans font-bold">Flower Cost %</td>
-                      <td className="p-3 text-center text-gray-700 font-bold">{m.toiaFlowerPerc}%</td>
-                      <td className="p-3 text-center text-gray-700 font-bold border-r border-gray-100">{m.wardanaFlowerPerc}%</td>
-                      <td className="p-3 text-center text-gray-800 font-bold border-r border-gray-100 bg-gray-50">{m.totalFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold">{m.toiaFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line">{m.wardanaFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line bg-gray-50">{m.totalFlowerPerc}%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -957,7 +955,7 @@ function ReportTab({ id, current, set, icon, label }) {
   const active = current === id;
   return (
     <button onClick={() => set(id)}
-      className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${active ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-gray-500 border-gray-200 hover:bg-gray-50'}`}>
+      className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${active ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-tw-muted border-tw-line hover:bg-gray-50'}`}>
       {icon} {label}
     </button>
   );
@@ -965,40 +963,40 @@ function ReportTab({ id, current, set, icon, label }) {
 
 function StatCard({ label, value, icon }) {
   return (
-    <div className="bg-white p-4 rounded-2xl shadow-sm border border-gray-100">
+    <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line">
       <div className="flex justify-between items-center mb-2">
-        <span className="text-xs font-bold text-gray-500">{label}</span>
+        <span className="text-xs font-bold text-tw-muted">{label}</span>
         {icon}
       </div>
-      <p className="text-lg font-bold text-gray-800 font-mono">{Math.round(value).toLocaleString()}</p>
+      <p className="text-lg font-bold text-tw-navy font-mono">{Math.round(value).toLocaleString()}</p>
     </div>
   );
 }
 
 const TONE = {
-  emerald: 'text-emerald-600', red: 'text-red-400', orange: 'text-orange-400',
-  slate: 'text-slate-600', blue: 'text-blue-500', pink: 'text-pink-500', purple: 'text-purple-500',
+  emerald: 'text-tw-green', red: 'text-red-400', orange: 'text-orange-400',
+  slate: 'text-tw-muted', blue: 'text-blue-500', pink: 'text-pink-500', purple: 'text-purple-500',
 };
 
 function CompareRow({ label, t, w, total, tone = 'slate', bold }) {
   const c = TONE[tone] || TONE.slate;
   return (
     <tr className="hover:bg-gray-50">
-      <td className={`p-3 font-sans ${bold ? 'font-bold text-gray-700' : 'text-gray-500'}`}>{label}</td>
+      <td className={`p-3 font-sans ${bold ? 'font-bold text-tw-navy' : 'text-tw-muted'}`}>{label}</td>
       <td className={`p-3 text-center ${c} ${bold ? 'font-bold' : ''}`}>{Math.round(t).toLocaleString()}</td>
-      <td className={`p-3 text-center ${c} ${bold ? 'font-bold' : ''} border-r border-gray-100`}>{Math.round(w).toLocaleString()}</td>
-      <td className={`p-3 text-center ${c} font-bold border-r border-gray-100 bg-gray-50`}>{Math.round(total).toLocaleString()}</td>
+      <td className={`p-3 text-center ${c} ${bold ? 'font-bold' : ''} border-r border-tw-line`}>{Math.round(w).toLocaleString()}</td>
+      <td className={`p-3 text-center ${c} font-bold border-r border-tw-line bg-gray-50`}>{Math.round(total).toLocaleString()}</td>
     </tr>
   );
 }
 
 function AverageCard({ title, amount, icon, full }) {
   return (
-    <div className={`bg-white p-4 rounded-2xl shadow-sm border border-gray-100 ${full ? 'col-span-2 flex justify-between items-center' : 'flex flex-col'}`}>
+    <div className={`bg-white p-4 rounded-2xl shadow-sm border border-tw-line ${full ? 'col-span-2 flex justify-between items-center' : 'flex flex-col'}`}>
       <div className="flex items-center gap-2 mb-2">
-        {icon} <span className="text-xs font-bold text-gray-500">{title}</span>
+        {icon} <span className="text-xs font-bold text-tw-muted">{title}</span>
       </div>
-      <p className="text-lg font-bold text-slate-800 font-mono">{amount.toLocaleString()}</p>
+      <p className="text-lg font-bold text-tw-navy font-mono">{amount.toLocaleString()}</p>
     </div>
   );
 }
@@ -1008,10 +1006,10 @@ function PaymentBar({ label, amount, total, color }) {
   return (
     <div>
       <div className="flex justify-between items-center text-xs mb-1.5">
-        <span className="font-bold text-gray-700">{label}</span>
+        <span className="font-bold text-tw-navy">{label}</span>
         <div className="text-left">
-          <span className="font-mono font-bold text-slate-800 ml-2">{amount.toLocaleString()}</span>
-          <span className="text-gray-400">({perc}%)</span>
+          <span className="font-mono font-bold text-tw-navy ml-2">{amount.toLocaleString()}</span>
+          <span className="text-tw-muted/70">({perc}%)</span>
         </div>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
@@ -1070,7 +1068,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
       className="relative min-h-full flex flex-col px-6 pt-10 pb-8 overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية ناعمة */}
@@ -1087,7 +1085,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
       <div className={`relative z-10 flex ${lang === 'en' ? 'justify-end' : 'justify-start'} mb-4`}>
         <button
           onClick={toggleLang}
-          className="bg-white/80 backdrop-blur-sm border border-blue-100 text-slate-700 px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-white hover:shadow-md transition-all"
+          className="bg-white/80 backdrop-blur-sm border border-blue-100 text-tw-navy px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-white hover:shadow-md transition-all"
           style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '0.5px' }}
         >
           {lang === 'ar' ? 'EN' : 'ع'}
@@ -1121,7 +1119,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
         <h1
           className="text-3xl mb-1"
           style={{
-            fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
+            fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, sans-serif',
             fontWeight: 800,
             color: '#061742',
             letterSpacing: '-0.5px',
@@ -1232,7 +1230,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
             background: loading
               ? 'linear-gradient(135deg, #4A5568, #2D3748)'
               : 'linear-gradient(135deg, #1E3A8A 0%, #005BFF 50%, #168BFF 100%)',
-            fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
+            fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, sans-serif',
             fontSize: '16px',
             fontWeight: 700,
             boxShadow: '0 10px 25px -5px rgba(0, 91, 255, 0.5), 0 4px 10px -2px rgba(0, 91, 255, 0.3)',
@@ -1304,7 +1302,7 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
       className="relative min-h-full flex flex-col px-5 pt-6 pb-8 overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية ناعمة — نفس طابع شاشة الدخول للاتساق البصري */}
@@ -1321,25 +1319,25 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
       <div className={`relative z-10 flex ${lang === 'en' ? 'justify-start' : 'justify-end'} mb-3`}>
         <button
           onClick={toggleLang}
-          className="bg-white/80 backdrop-blur-sm border border-blue-100 text-slate-700 px-3 py-1.5 rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 text-xs font-bold"
+          className="bg-white/80 backdrop-blur-sm border border-blue-100 text-tw-navy px-3 py-1.5 rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 text-xs font-bold"
         >
-          <Globe size={14} className="text-blue-600" />
+          <Globe size={14} className="text-tw-blue" />
           {t(lang, 'home.langToggle')}
         </button>
       </div>
 
       {/* بطاقة الترحيب — مدمجة وأنيقة */}
-      <div className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 text-center mb-3">
-        <p className="text-gray-500 text-sm mb-1">{t(lang, 'home.greeting')}</p>
+      <div className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-tw-line text-center mb-3">
+        <p className="text-tw-muted text-sm mb-1">{t(lang, 'home.greeting')}</p>
         <h2 className="text-2xl font-bold" style={{ color: '#061742' }}>
           {lang === 'en' ? branch : `فرع ${branch}`}
         </h2>
       </div>
 
       {/* شريط الشهر — قراءة فقط، يعطي السياق الزمني */}
-      <div className="relative z-10 flex items-center justify-center gap-2 bg-white border border-gray-100 rounded-xl py-2.5 px-4 mb-4 shadow-sm">
-        <Calendar size={16} className="text-blue-600" />
-        <span className="font-bold text-sm text-slate-700">{monthLabel}</span>
+      <div className="relative z-10 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-4 mb-4 shadow-sm">
+        <Calendar size={16} className="text-tw-blue" />
+        <span className="font-bold text-sm text-tw-navy">{monthLabel}</span>
       </div>
 
       {/* ============================================================
@@ -1451,21 +1449,21 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
       {/* كارت تسجيل المصروفات — أبيض ناعم */}
       <button
         onClick={() => setView('expenseForm')}
-        className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform mb-3"
+        className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-tw-line flex items-center gap-4 active:scale-95 transition-transform mb-3"
       >
-        <div className="bg-blue-50 text-blue-600 p-3.5 rounded-xl">
+        <div className="bg-tw-soft text-tw-blue p-3.5 rounded-xl">
           <Receipt size={28} />
         </div>
         <div className={`flex-1 ${align}`}>
-          <h3 className="font-bold text-gray-800 text-lg mb-0.5">{t(lang, 'home.recordExpense')}</h3>
-          <p className="text-gray-500 text-xs">{t(lang, 'home.recordExpenseD')}</p>
+          <h3 className="font-bold text-tw-navy text-lg mb-0.5">{t(lang, 'home.recordExpense')}</h3>
+          <p className="text-tw-muted text-xs">{t(lang, 'home.recordExpenseD')}</p>
         </div>
       </button>
 
       {/* زر "آخر 7 أيام" — مدمج صغير */}
       <button
         onClick={() => setView('employeeHistory')}
-        className="relative z-10 w-full flex items-center justify-center gap-2 bg-white/70 backdrop-blur-sm border border-blue-100 text-blue-700 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
+        className="relative z-10 w-full flex items-center justify-center gap-2 bg-white/70 backdrop-blur-sm border border-blue-100 text-tw-blue py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
       >
         <Calendar size={16} />
         {lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام'}
@@ -1528,22 +1526,22 @@ function SalesForm({ setView, branch, branchId, lang }) {
 
   return (
     <div className="flex flex-col h-full bg-white relative z-10">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={() => setView('employeeHome')} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+      <div className="flex items-center p-4 border-b border-tw-line">
+        <button onClick={() => setView('employeeHome')} className="p-2 text-tw-muted bg-slate-100 rounded-full">
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 px-8">{t(lang, 'sales.title')}</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">{t(lang, 'sales.title')}</h2>
       </div>
       <div className="p-6 space-y-6 flex-1">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'sales.date')}</label>
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'sales.date')}</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'sales.branch')}</label>
-            <div className="w-full p-3 bg-blue-50 border border-blue-100 rounded-xl text-sm font-bold text-blue-700">{branch}</div>
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'sales.branch')}</label>
+            <div className="w-full p-3 bg-tw-soft border border-blue-100 rounded-xl text-sm font-bold text-tw-blue">{branch}</div>
           </div>
         </div>
 
@@ -1553,14 +1551,14 @@ function SalesForm({ setView, branch, branchId, lang }) {
               <div className="w-1/3 text-gray-600 font-bold">{f.label}</div>
               <input type="number" placeholder="0.00" value={f.value}
                 onChange={(e) => f.set(e.target.value)}
-                className="w-2/3 p-4 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+                className="w-2/3 p-4 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
             </div>
           ))}
         </div>
 
-        <div className="bg-blue-50 p-6 rounded-2xl text-center border border-blue-100">
+        <div className="bg-tw-soft p-6 rounded-2xl text-center border border-blue-100">
           <p className="text-blue-800 font-bold mb-2">{t(lang, 'sales.total')}</p>
-          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} <SarSymbol /></p>
+          <p className="text-3xl font-bold text-tw-blue font-mono">{total.toLocaleString()} <SarSymbol /></p>
         </div>
 
         {/* حسبة رسوم مدى */}
@@ -1588,15 +1586,15 @@ function SalesForm({ setView, branch, branchId, lang }) {
           </div>
         )}
 
-        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> {t(lang, 'sales.saved')}
           </p>
         )}
 
         <button onClick={handleSave} disabled={saving || done}
-          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
+          className="w-full bg-tw-blue text-white font-bold py-4 rounded-xl shadow-md hover:bg-tw-blue transition-colors disabled:opacity-60 flex items-center justify-center gap-2">
           {saving && <Loader2 size={18} className="animate-spin" />}
           {saving ? t(lang, 'sales.saving') : t(lang, 'sales.save')}
         </button>
@@ -1700,27 +1698,27 @@ function ExpenseForm({ setView, branchId, lang }) {
 
   return (
     <div className="flex flex-col h-full bg-white relative z-10">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={() => setView('employeeHome')} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+      <div className="flex items-center p-4 border-b border-tw-line">
+        <button onClick={() => setView('employeeHome')} className="p-2 text-tw-muted bg-slate-100 rounded-full">
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 px-8">{t(lang, 'expense.title')}</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">{t(lang, 'expense.title')}</h2>
       </div>
       <div className="p-6 space-y-5 flex-1">
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'sales.date')}</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'sales.date')}</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+            className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.category')}</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.category')}</label>
           {loadingCats ? (
-            <div className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-400 flex items-center gap-2">
+            <div className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-sm text-tw-muted/70 flex items-center gap-2">
               <Loader2 size={16} className="animate-spin" /> {t(lang, 'expense.loading')}
             </div>
           ) : (
-            <select className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-blue-500"
+            <select className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl font-bold text-tw-navy outline-none focus:border-blue-500"
               value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">{t(lang, 'expense.chooseCat')}</option>
               {categories.map((c) => (
@@ -1733,17 +1731,17 @@ function ExpenseForm({ setView, branchId, lang }) {
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.amount')}</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.amount')}</label>
           <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.payMethod')}</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.payMethod')}</label>
           <div className="flex gap-2">
             {(methods.length ? methods : [{ id: 'Cash' }, { id: 'Mada' }, { id: 'Transfer' }]).map((p) => (
               <button key={p.id} onClick={() => setPayMethod(p.id)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${payMethod === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${payMethod === p.id ? 'bg-tw-blue text-white border-blue-600' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
                 {pmLabel(p.id)}
               </button>
             ))}
@@ -1753,7 +1751,7 @@ function ExpenseForm({ setView, branchId, lang }) {
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
           onChange={handleFileChange} className="hidden" />
 
-        <div className={`p-6 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+        <div className={`p-6 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-tw-line bg-gray-50'}`}>
           {imagePreview ? (
             <div className="text-center">
               <img src={imagePreview} alt="preview" className="max-h-40 mx-auto rounded-xl shadow mb-3 object-contain" />
@@ -1763,15 +1761,15 @@ function ExpenseForm({ setView, branchId, lang }) {
                   {t(lang, 'expense.change')}
                 </button>
                 <button onClick={() => { setImageFile(null); setImagePreview(''); }}
-                  className="bg-white border border-red-200 text-red-600 px-4 py-2 rounded-xl text-xs font-bold">
+                  className="bg-white border border-red-200 text-tw-red px-4 py-2 rounded-xl text-xs font-bold">
                   {t(lang, 'expense.remove')}
                 </button>
               </div>
             </div>
           ) : (
             <div className="text-center">
-              <Camera className={`mx-auto mb-3 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={32} />
-              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-4`}>
+              <Camera className={`mx-auto mb-3 ${requiresImage ? 'text-tw-red' : 'text-tw-muted/70'}`} size={32} />
+              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-tw-navy'} mb-4`}>
                 {requiresImage ? t(lang, 'expense.imageReq') : t(lang, 'expense.imageOpt')}
               </p>
               <button onClick={handlePickImage}
@@ -1782,15 +1780,15 @@ function ExpenseForm({ setView, branchId, lang }) {
           )}
         </div>
 
-        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> {t(lang, 'expense.saved')}
           </p>
         )}
 
         <button onClick={handleSave} disabled={saving || done}
-          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2">
+          className="w-full bg-tw-blue text-white font-bold py-4 rounded-xl shadow-md hover:bg-tw-blue transition-colors disabled:opacity-60 flex items-center justify-center gap-2 mt-2">
           {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
           {uploading ? t(lang, 'expense.uploading') : saving ? t(lang, 'expense.saving') : t(lang, 'expense.save')}
         </button>
@@ -1822,17 +1820,17 @@ function AdminSettings() {
 
   return (
     <div className="p-4 space-y-4 pb-20">
-      <h2 className="text-xl font-bold text-gray-800 px-1 mb-2">إعدادات النظام</h2>
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <h2 className="text-xl font-bold text-tw-navy px-1 mb-2">إعدادات النظام</h2>
+      <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
         {items.map((item) => (
           <button key={item.key} disabled={!item.enabled}
             onClick={() => item.enabled && setScreen(item.key)}
-            className={`w-full p-4 border-b border-gray-50 last:border-0 flex items-center justify-between text-right transition-colors ${item.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
+            className={`w-full p-4 border-b border-tw-line/60 last:border-0 flex items-center justify-between text-right transition-colors ${item.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
             <div>
-              <span className="font-bold text-sm text-gray-700 block">{item.label}</span>
-              <span className="text-[11px] text-gray-400">{item.desc}{!item.enabled && ' (قريباً)'}</span>
+              <span className="font-bold text-sm text-tw-navy block">{item.label}</span>
+              <span className="text-[11px] text-tw-muted/70">{item.desc}{!item.enabled && ' (قريباً)'}</span>
             </div>
-            <ChevronRight size={18} className="text-gray-400" />
+            <ChevronRight size={18} className="text-tw-muted/70" />
           </button>
         ))}
       </div>
@@ -2021,7 +2019,7 @@ function ManageUsers({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -2031,31 +2029,31 @@ function ManageUsers({ onBack }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">المستخدمون</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">المستخدمون</h2>
       </div>
 
       <div className="relative z-10 p-4 space-y-3">
         {/* form إضافة مستخدم */}
         {showForm && (
           <div className="bg-white border border-blue-200 rounded-2xl p-4 space-y-3 shadow-sm">
-            <h3 className="font-bold text-sm text-slate-800">مستخدم جديد</h3>
+            <h3 className="font-bold text-sm text-tw-navy">مستخدم جديد</h3>
             <input type="text" placeholder="اسم المستخدم (إنجليزي)" value={username}
               onChange={(e) => setUsername(e.target.value)} autoCapitalize="off"
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500" />
             <input type="text" placeholder="الاسم الظاهر" value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500" />
             <input type="password" inputMode="numeric" maxLength={4} placeholder="الرمز (4 أرقام)" value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 text-center tracking-[0.4em] font-mono" />
+              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500 text-center tracking-[0.4em] font-mono" />
             <div className="flex gap-2">
               {[{ v: 'employee', t: 'موظف' }, { v: 'admin', t: 'مدير' }].map((r) => (
                 <button key={r.v} onClick={() => setRole(r.v)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${role === r.v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${role === r.v ? 'bg-tw-blue text-white border-blue-600' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
                   {r.t}
                 </button>
               ))}
@@ -2063,12 +2061,12 @@ function ManageUsers({ onBack }) {
             <div className="flex gap-2">
               {[{ v: 'toia', t: 'تويا' }, { v: 'wardana', t: 'وردانة' }].map((b) => (
                 <button key={b.v} onClick={() => setBranchId(b.v)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${branchId === b.v ? 'bg-slate-800 text-white border-slate-800' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${branchId === b.v ? 'bg-slate-800 text-white border-slate-800' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
                   {b.t}
                 </button>
               ))}
             </div>
-            {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">{error}</p>}
+            {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">{error}</p>}
             <div className="flex gap-2">
               <button onClick={() => { setShowForm(false); setError(''); }}
                 className="flex-1 bg-white border border-gray-300 text-gray-600 font-bold py-2.5 rounded-xl text-sm">
@@ -2088,7 +2086,7 @@ function ManageUsers({ onBack }) {
         )}
 
         {!showForm && error && (
-          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
+          <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
         )}
 
         {loading ? (
@@ -2096,28 +2094,28 @@ function ManageUsers({ onBack }) {
         ) : (
           <>
             {/* قائمة المستخدمين بتصميم prototype - كل صف قابل للضغط لفتح modal التعديل */}
-            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
               {users.map((u, idx) => (
                 <button
                   key={u.uid}
                   onClick={() => openEdit(u)}
-                  className={`w-full p-4 flex items-center gap-3 text-right hover:bg-gray-50 transition-colors ${idx > 0 ? 'border-t border-gray-50' : ''}`}
+                  className={`w-full p-4 flex items-center gap-3 text-right hover:bg-gray-50 transition-colors ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
                 >
                   {/* شارة الحالة على اليسار (في RTL) */}
-                  <div className={`text-xs font-bold ${u.active === false ? 'text-gray-400' : 'text-emerald-600'}`}>
+                  <div className={`text-xs font-bold ${u.active === false ? 'text-tw-muted/70' : 'text-tw-green'}`}>
                     {u.active === false ? 'معطّل' : 'نشط'}
                   </div>
                   {/* النص في المنتصف */}
                   <div className="flex-1 min-w-0">
-                    <p className="font-bold text-base text-slate-800 truncate">
+                    <p className="font-bold text-base text-tw-navy truncate">
                       {u.displayName || u.username}
                     </p>
-                    <p className="text-xs text-slate-500 truncate">
+                    <p className="text-xs text-tw-muted truncate">
                       {u.role === 'admin' ? 'مدير' : 'موظف'} — {u.branchId === 'wardana' ? 'فرع وردانة' : u.branchId === 'toia' ? 'فرع تويا' : 'الكل'}
                     </p>
                   </div>
                   {/* أيقونة دائرية على اليمين */}
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                  <div className="w-12 h-12 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
                     <Users size={20} />
                   </div>
                 </button>
@@ -2145,19 +2143,19 @@ function ManageUsers({ onBack }) {
           <div className="space-y-4">
             {/* الاسم */}
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الاسم</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">الاسم</label>
               <input
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-blue-500"
               />
             </div>
 
             {/* كلمة المرور */}
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">
-                كلمة المرور <span className="font-normal text-slate-400">(اتركها فارغة لعدم التغيير)</span>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">
+                كلمة المرور <span className="font-normal text-tw-muted/70">(اتركها فارغة لعدم التغيير)</span>
               </label>
               <input
                 type="text"
@@ -2166,13 +2164,13 @@ function ManageUsers({ onBack }) {
                 placeholder="••••"
                 value={editPin}
                 onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
-                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500"
               />
             </div>
 
             {/* الدور */}
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الدور</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">الدور</label>
               <div className="flex gap-2">
                 {[
                   { v: 'admin', t: 'مدير' },
@@ -2183,8 +2181,8 @@ function ManageUsers({ onBack }) {
                     onClick={() => setEditRole(r.v)}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${
                       editRole === r.v
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-gray-100'
+                        ? 'bg-tw-blue text-white border-blue-600'
+                        : 'bg-gray-50 text-tw-muted border-tw-line hover:bg-gray-100'
                     }`}
                   >
                     {r.t}
@@ -2195,7 +2193,7 @@ function ManageUsers({ onBack }) {
 
             {/* الفرع */}
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الفرع</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">الفرع</label>
               <div className="flex gap-2">
                 {[
                   { v: 'all', t: 'الكل' },
@@ -2207,8 +2205,8 @@ function ManageUsers({ onBack }) {
                     onClick={() => setEditBranch(b.v)}
                     className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${
                       editBranch === b.v
-                        ? 'bg-blue-600 text-white border-blue-600'
-                        : 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-gray-100'
+                        ? 'bg-tw-blue text-white border-blue-600'
+                        : 'bg-gray-50 text-tw-muted border-tw-line hover:bg-gray-100'
                     }`}
                   >
                     {b.t}
@@ -2225,12 +2223,12 @@ function ManageUsers({ onBack }) {
               <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-emerald-500' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
               </div>
-              <span className="text-sm font-bold text-slate-800">المستخدم نشط</span>
+              <span className="text-sm font-bold text-tw-navy">المستخدم نشط</span>
             </button>
 
             {/* رسالة الخطأ */}
             {editError && (
-              <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+              <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
                 {editError}
               </p>
             )}
@@ -2240,7 +2238,7 @@ function ManageUsers({ onBack }) {
               <button
                 onClick={closeEdit}
                 disabled={editSaving}
-                className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
+                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
               >
                 إلغاء
               </button>
@@ -2262,7 +2260,7 @@ function ManageUsers({ onBack }) {
             <button
               onClick={handleDeleteFromEdit}
               disabled={editSaving}
-              className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
+              className="w-full bg-red-50 hover:bg-red-100 text-tw-red font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
             >
               حذف المستخدم
             </button>
@@ -2322,7 +2320,7 @@ function ManageFixedExpenses({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -2332,18 +2330,18 @@ function ManageFixedExpenses({ onBack }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">المصاريف الثابتة</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">المصاريف الثابتة</h2>
       </div>
 
       <div className="relative z-10 p-4 space-y-4">
         {/* بطاقة الشهر */}
-        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 text-center">
-          <p className="text-slate-800 font-bold text-sm">شهر {month}</p>
-          <p className="text-slate-400 text-[11px] mt-1">تُحتسب تلقائياً ضمن التقارير</p>
+        <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-3 text-center">
+          <p className="text-tw-navy font-bold text-sm">شهر {month}</p>
+          <p className="text-tw-muted/70 text-[11px] mt-1">تُحتسب تلقائياً ضمن التقارير</p>
         </div>
 
         {loading ? (
@@ -2351,44 +2349,44 @@ function ManageFixedExpenses({ onBack }) {
         ) : (
           <>
             {/* بطاقة فرع تويا */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <h4 className="text-sm font-bold text-slate-800 mb-3">فرع تويا</h4>
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">المبلغ الشهري الثابت</label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4">
+              <h4 className="text-sm font-bold text-tw-navy mb-3">فرع تويا</h4>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ الشهري الثابت</label>
+              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
                   value={toiaAmount}
                   onChange={(e) => setToiaAmount(e.target.value)}
-                  className="flex-1 text-lg font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-gray-300"
                   dir="ltr"
                 />
-                <SarSymbol className="text-slate-400 text-base" />
+                <SarSymbol className="text-tw-muted/70 text-base" />
               </div>
             </div>
 
             {/* بطاقة فرع وردانة */}
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <h4 className="text-sm font-bold text-slate-800 mb-3">فرع وردانة</h4>
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">المبلغ الشهري الثابت</label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4">
+              <h4 className="text-sm font-bold text-tw-navy mb-3">فرع وردانة</h4>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ الشهري الثابت</label>
+              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
                   value={wardanaAmount}
                   onChange={(e) => setWardanaAmount(e.target.value)}
-                  className="flex-1 text-lg font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-gray-300"
                   dir="ltr"
                 />
-                <SarSymbol className="text-slate-400 text-base" />
+                <SarSymbol className="text-tw-muted/70 text-base" />
               </div>
             </div>
 
-            {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+            {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
             {done && (
-              <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+              <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
                 <CheckCircle2 size={18} /> تم الحفظ
               </p>
             )}
@@ -2415,7 +2413,7 @@ function ManageFixedExpenses({ onBack }) {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onBack}
-                className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
               >
                 إلغاء
               </button>
@@ -2508,7 +2506,7 @@ function ManageCategories({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -2518,11 +2516,11 @@ function ManageCategories({ onBack }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">التصنيفات</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">التصنيفات</h2>
       </div>
 
       <div className="relative z-10 p-4 space-y-3">
@@ -2543,21 +2541,21 @@ function ManageCategories({ onBack }) {
         {/* form إضافة تصنيف جديد */}
         {showForm && (
           <div className="bg-white border border-blue-200 rounded-2xl p-4 space-y-3 shadow-sm">
-            <h3 className="font-bold text-sm text-slate-800">تصنيف جديد</h3>
+            <h3 className="font-bold text-sm text-tw-navy">تصنيف جديد</h3>
             <input
               type="text"
               placeholder="اسم التصنيف (مثل: كهرباء)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
             />
 
             <div>
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">نوع المصروف (لتقارير المدير)</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">نوع المصروف (لتقارير المدير)</label>
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
-                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm font-bold outline-none focus:border-blue-500"
               >
                 <option value="general">عام</option>
                 <option value="flower">ورد</option>
@@ -2568,25 +2566,25 @@ function ManageCategories({ onBack }) {
               </select>
             </div>
 
-            <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer">
+            <label className="flex items-center justify-between bg-gray-50 border border-tw-line rounded-xl p-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={newReq}
                 onChange={(e) => setNewReq(e.target.checked)}
                 className="w-5 h-5 accent-blue-600"
               />
-              <span className="text-sm font-bold text-slate-700">صورة الفاتورة إجبارية</span>
+              <span className="text-sm font-bold text-tw-navy">صورة الفاتورة إجبارية</span>
             </label>
 
             {error && (
-              <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">
+              <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">
                 {error}
               </p>
             )}
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowForm(false); setError(''); }}
-                className="flex-1 bg-white border border-gray-300 text-slate-700 font-bold py-2.5 rounded-xl text-sm hover:bg-gray-50"
+                className="flex-1 bg-white border border-gray-300 text-tw-navy font-bold py-2.5 rounded-xl text-sm hover:bg-gray-50"
               >
                 إلغاء
               </button>
@@ -2604,7 +2602,7 @@ function ManageCategories({ onBack }) {
         )}
 
         {!showForm && error && (
-          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
+          <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
         )}
 
         {/* قائمة التصنيفات — تصميم prototype مع toggles خضراء */}
@@ -2615,7 +2613,7 @@ function ManageCategories({ onBack }) {
         ) : (
           <div className="space-y-3">
             {cats.map((cat) => (
-              <div key={cat.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+              <div key={cat.id} className="bg-white border border-tw-line rounded-2xl p-4 flex items-center gap-3 shadow-sm">
                 {/* Toggle أخضر كبير على اليسار (لـ RTL) — مطابق للـ prototype */}
                 <button
                   onClick={() => toggleRequires(cat)}
@@ -2633,8 +2631,8 @@ function ManageCategories({ onBack }) {
 
                 {/* النص + نقطة ملوّنة */}
                 <div className="flex-1 text-right">
-                  <p className="font-bold text-base text-slate-800 mb-1">{translateCategory('ar', cat.name)}</p>
-                  <p className="text-xs text-slate-500 flex items-center gap-1.5 justify-end">
+                  <p className="font-bold text-base text-tw-navy mb-1">{translateCategory('ar', cat.name)}</p>
+                  <p className="text-xs text-tw-muted flex items-center gap-1.5 justify-end">
                     <span>{cat.requiresImage ? 'صورة إجبارية' : 'صورة اختيارية'}</span>
                     <span className={`w-2 h-2 rounded-full ${cat.requiresImage ? 'bg-red-500' : 'bg-gray-300'}`}></span>
                   </p>
@@ -2644,7 +2642,7 @@ function ManageCategories({ onBack }) {
                 <button
                   onClick={() => handleDelete(cat)}
                   disabled={busyId === cat.id}
-                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0"
+                  className="p-2 text-tw-red hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0"
                   title="حذف"
                 >
                   {busyId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
@@ -2696,48 +2694,48 @@ function ChangeMyPin({ onBack }) {
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+      <div className="flex items-center p-4 border-b border-tw-line">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">تغيير رمزي السري</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">تغيير رمزي السري</h2>
       </div>
 
       <div className="p-6 space-y-4 flex-1">
-        <div className="bg-blue-50 border border-blue-100 rounded-xl p-3 text-center">
-          <Key size={20} className="text-blue-600 mx-auto mb-2" />
+        <div className="bg-tw-soft border border-blue-100 rounded-xl p-3 text-center">
+          <Key size={20} className="text-tw-blue mx-auto mb-2" />
           <p className="text-blue-800 font-bold text-sm">تحديث الرمز السري لحسابك</p>
           <p className="text-blue-500 text-[11px] mt-1">سيتم التحقق من الرمز الحالي قبل التغيير</p>
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">الرمز الحالي</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">الرمز الحالي</label>
           <input type="password" inputMode="numeric" maxLength={4} value={currentPin}
             onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
-            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
         </div>
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">الرمز الجديد</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">الرمز الجديد</label>
           <input type="password" inputMode="numeric" maxLength={4} value={newPin}
             onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
-            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
         </div>
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">تأكيد الرمز الجديد</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">تأكيد الرمز الجديد</label>
           <input type="password" inputMode="numeric" maxLength={4} value={confirmPin}
             onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
-            className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
         </div>
 
-        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> تم تغيير الرمز بنجاح
           </p>
         )}
 
         <button onClick={handleSave} disabled={saving}
-          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          className="w-full bg-tw-blue text-white font-bold py-4 rounded-xl shadow-md hover:bg-tw-blue disabled:opacity-60 flex items-center justify-center gap-2">
           {saving && <Loader2 size={18} className="animate-spin" />}
           {saving ? 'جارٍ التحديث...' : 'حفظ الرمز الجديد'}
         </button>
@@ -2777,11 +2775,11 @@ function AdminDataEntry({ onBack }) {
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+      <div className="flex items-center p-4 border-b border-tw-line">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">تسجيل بيانات (مدير)</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">تسجيل بيانات (مدير)</h2>
       </div>
 
       <div className="p-6 space-y-4 flex-1">
@@ -2791,11 +2789,11 @@ function AdminDataEntry({ onBack }) {
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-2 block">اختر الفرع</label>
+          <label className="text-xs font-bold text-tw-muted mb-2 block">اختر الفرع</label>
           <div className="flex gap-2 flex-wrap">
             {(branches.length ? branches : [{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]).map((b) => (
               <button key={b.id} onClick={() => setChosenBranch(b.id)}
-                className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold border ${chosenBranch === b.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-gray-500 border-gray-200'}`}>
+                className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold border ${chosenBranch === b.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-tw-muted border-tw-line'}`}>
                 {b.name}
               </button>
             ))}
@@ -2804,7 +2802,7 @@ function AdminDataEntry({ onBack }) {
 
         <div className="pt-2 space-y-3">
           <button onClick={() => setStep('sales')}
-            className="w-full bg-blue-600 text-white p-5 rounded-2xl shadow-md flex items-center gap-4 active:scale-95 transition-transform">
+            className="w-full bg-tw-blue text-white p-5 rounded-2xl shadow-md flex items-center gap-4 active:scale-95 transition-transform">
             <div className="bg-white/20 p-3 rounded-xl"><TrendingUp size={24} /></div>
             <div className="text-right">
               <h3 className="font-bold text-base mb-0.5">تسجيل المبيعات</h3>
@@ -2812,11 +2810,11 @@ function AdminDataEntry({ onBack }) {
             </div>
           </button>
           <button onClick={() => setStep('expense')}
-            className="w-full bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform">
-            <div className="bg-blue-50 text-blue-600 p-3 rounded-xl"><Receipt size={24} /></div>
+            className="w-full bg-white p-5 rounded-2xl shadow-sm border border-tw-line flex items-center gap-4 active:scale-95 transition-transform">
+            <div className="bg-tw-soft text-tw-blue p-3 rounded-xl"><Receipt size={24} /></div>
             <div className="text-right">
-              <h3 className="font-bold text-gray-800 text-base mb-0.5">تسجيل مصروف</h3>
-              <p className="text-gray-500 text-xs">فرع {branchName}</p>
+              <h3 className="font-bold text-tw-navy text-base mb-0.5">تسجيل مصروف</h3>
+              <p className="text-tw-muted text-xs">فرع {branchName}</p>
             </div>
           </button>
         </div>
@@ -2862,21 +2860,21 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+      <div className="flex items-center p-4 border-b border-tw-line">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">مبيعات — {branchName}</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">مبيعات — {branchName}</h2>
       </div>
       <div className="p-6 space-y-5 flex-1">
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">التاريخ</label>
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">التاريخ</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
           </div>
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">الفرع</label>
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">الفرع</label>
             <div className="w-full p-3 bg-slate-900 text-white rounded-xl text-sm font-bold text-center">{branchName}</div>
           </div>
         </div>
@@ -2887,14 +2885,14 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
               <div className="w-1/3 text-gray-600 font-bold text-sm">{f.label}</div>
               <input type="number" placeholder="0.00" value={f.value}
                 onChange={(e) => f.set(e.target.value)}
-                className="w-2/3 p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+                className="w-2/3 p-3.5 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
             </div>
           ))}
         </div>
 
-        <div className="bg-blue-50 p-5 rounded-2xl text-center border border-blue-100">
+        <div className="bg-tw-soft p-5 rounded-2xl text-center border border-blue-100">
           <p className="text-blue-800 font-bold mb-1 text-sm">الإجمالي</p>
-          <p className="text-3xl font-bold text-blue-700 font-mono">{total.toLocaleString()} <SarSymbol /></p>
+          <p className="text-3xl font-bold text-tw-blue font-mono">{total.toLocaleString()} <SarSymbol /></p>
         </div>
 
         {Number(mada) > 0 && (
@@ -2915,15 +2913,15 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
           </div>
         )}
 
-        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> تم الحفظ بنجاح
           </p>
         )}
 
         <button onClick={handleSave} disabled={saving || done}
-          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          className="w-full bg-tw-blue text-white font-bold py-4 rounded-xl shadow-md hover:bg-tw-blue disabled:opacity-60 flex items-center justify-center gap-2">
           {saving && <Loader2 size={18} className="animate-spin" />}
           {saving ? 'جارٍ الحفظ...' : 'حفظ المبيعات'}
         </button>
@@ -3013,28 +3011,28 @@ function AdminExpenseForm({ onBack, branchId }) {
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+      <div className="flex items-center p-4 border-b border-tw-line">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">مصروف — {branchName}</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">مصروف — {branchName}</h2>
       </div>
       <div className="p-6 space-y-4 flex-1">
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">التاريخ</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">التاريخ</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+            className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">التصنيف</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">التصنيف</label>
           {loadingCats ? (
-            <div className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm text-gray-400 flex items-center gap-2">
+            <div className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm text-tw-muted/70 flex items-center gap-2">
               <Loader2 size={16} className="animate-spin" /> جارٍ التحميل...
             </div>
           ) : (
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-bold text-gray-700 outline-none focus:border-blue-500">
+              className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl font-bold text-tw-navy outline-none focus:border-blue-500">
               <option value="">اختر التصنيف...</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -3046,17 +3044,17 @@ function AdminExpenseForm({ onBack, branchId }) {
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">المبلغ</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ</label>
           <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+            className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
         </div>
 
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-1.5 block">طريقة الدفع</label>
+          <label className="text-xs font-bold text-tw-muted mb-1.5 block">طريقة الدفع</label>
           <div className="flex gap-2">
             {(methods.length ? methods : [{ id: 'Cash', labelAr: 'Cash' }, { id: 'Mada', labelAr: 'Mada' }, { id: 'Transfer', labelAr: 'Transfer' }]).map((p) => (
               <button key={p.id} onClick={() => setPayMethod(p.id)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p.id ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p.id ? 'bg-tw-blue text-white border-blue-600' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
                 {p.labelAr || p.name || p.id}
               </button>
             ))}
@@ -3066,7 +3064,7 @@ function AdminExpenseForm({ onBack, branchId }) {
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
           onChange={handleFileChange} className="hidden" />
 
-        <div className={`p-5 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-gray-200 bg-gray-50'}`}>
+        <div className={`p-5 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-tw-line bg-gray-50'}`}>
           {imagePreview ? (
             <div className="text-center">
               <img src={imagePreview} alt="معاينة" className="max-h-32 mx-auto rounded-xl shadow mb-2 object-contain" />
@@ -3075,15 +3073,15 @@ function AdminExpenseForm({ onBack, branchId }) {
                   تغيير
                 </button>
                 <button onClick={() => { setImageFile(null); setImagePreview(''); }}
-                  className="bg-white border border-red-200 text-red-600 px-4 py-1.5 rounded-lg text-xs font-bold">
+                  className="bg-white border border-red-200 text-tw-red px-4 py-1.5 rounded-lg text-xs font-bold">
                   حذف
                 </button>
               </div>
             </div>
           ) : (
             <div className="text-center">
-              <Camera className={`mx-auto mb-2 ${requiresImage ? 'text-red-500' : 'text-gray-400'}`} size={28} />
-              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-gray-700'} mb-3`}>
+              <Camera className={`mx-auto mb-2 ${requiresImage ? 'text-tw-red' : 'text-tw-muted/70'}`} size={28} />
+              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-tw-navy'} mb-3`}>
                 {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
               </p>
               <button onClick={handlePickImage}
@@ -3094,15 +3092,15 @@ function AdminExpenseForm({ onBack, branchId }) {
           )}
         </div>
 
-        {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
+        {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> تم الحفظ
           </p>
         )}
 
         <button onClick={handleSave} disabled={saving || done}
-          className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          className="w-full bg-tw-blue text-white font-bold py-4 rounded-xl shadow-md hover:bg-tw-blue disabled:opacity-60 flex items-center justify-center gap-2">
           {(saving || uploading) && <Loader2 size={18} className="animate-spin" />}
           {uploading ? 'جارٍ رفع الصورة...' : saving ? 'جارٍ الحفظ...' : 'حفظ المصروف'}
         </button>

@@ -187,30 +187,27 @@ export default function ManagerHome({ lang }) {
 
   return (
     <div
-      className="relative min-h-full px-5 pt-5 pb-8 overflow-hidden"
-      style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
-      }}
+      className="relative min-h-full px-5 pt-5 pb-8 overflow-hidden page-bg-soft"
+      style={{ fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif" }}
     >
       {/* تبويبات شهري/سنوي — مطابقة لـ .tabs في الـ prototype */}
-      <div className="flex bg-blue-50 p-1 rounded-2xl mb-4 relative z-10">
+      <div className="flex bg-tw-soft p-1 rounded-2xl mb-4 relative z-10">
         <button
           onClick={() => setPeriod('month')}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex-1 py-2.5 rounded-xl text-sm font-extrabold transition-all ${
             period === 'month'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-800'
+              ? 'bg-tw-blue text-white shadow-md'
+              : 'text-tw-muted hover:text-tw-navy'
           }`}
         >
           {lang === 'en' ? 'Monthly' : 'شهري'}
         </button>
         <button
           onClick={() => setPeriod('year')}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-bold transition-all ${
+          className={`flex-1 py-2.5 rounded-xl text-sm font-extrabold transition-all ${
             period === 'year'
-              ? 'bg-blue-600 text-white shadow-md'
-              : 'text-slate-600 hover:text-slate-800'
+              ? 'bg-tw-blue text-white shadow-md'
+              : 'text-tw-muted hover:text-tw-navy'
           }`}
         >
           {lang === 'en' ? 'Yearly' : 'سنوي'}
@@ -220,20 +217,20 @@ export default function ManagerHome({ lang }) {
       {/* منتقي الفترة */}
       <button
         onClick={openPicker}
-        className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 px-4 mb-5 shadow-sm hover:shadow-md transition-shadow relative z-10"
+        className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 mb-5 shadow-sm hover:shadow-md transition-shadow relative z-10"
       >
-        <Calendar size={16} className="text-blue-600" />
-        <span className="font-bold text-sm text-slate-700">{currentLabel}</span>
-        <ChevronDown size={14} className="text-gray-400" />
+        <Calendar size={16} className="text-tw-blue" />
+        <span className="font-extrabold text-sm text-tw-navy font-num">{currentLabel}</span>
+        <ChevronDown size={14} className="text-tw-muted" />
       </button>
 
       {loading && (
-        <div className="flex items-center justify-center py-10 text-slate-400">
+        <div className="flex items-center justify-center py-10 text-tw-muted">
           <Loader2 className="animate-spin" size={24} />
         </div>
       )}
       {error && (
-        <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3 mb-4">
+        <p className="text-tw-red text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3 mb-4">
           {error}
         </p>
       )}

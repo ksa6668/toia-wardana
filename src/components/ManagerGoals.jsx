@@ -101,7 +101,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -111,14 +111,14 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {lang === 'en' ? 'Monthly Goals' : 'الأهداف الشهرية'}
         </h2>
       </div>
@@ -127,15 +127,15 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
         {/* منتقي الشهر */}
         <button
           onClick={openMonthPicker}
-          className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
+          className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
         >
-          <Calendar size={16} className="text-blue-600" />
-          <span className="font-bold text-sm text-slate-700">{formatMonthLabel(selectedMonth, lang)}</span>
-          <ChevronDown size={14} className="text-gray-400" />
+          <Calendar size={16} className="text-tw-blue" />
+          <span className="font-bold text-sm text-tw-navy">{formatMonthLabel(selectedMonth, lang)}</span>
+          <ChevronDown size={14} className="text-tw-muted/70" />
         </button>
 
         {loading && (
-          <div className="flex items-center justify-center py-10 text-slate-400">
+          <div className="flex items-center justify-center py-10 text-tw-muted/70">
             <Loader2 className="animate-spin" size={24} />
           </div>
         )}
@@ -150,9 +150,9 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
             {/* عنوان الفرع */}
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-full">
-                <span className="text-blue-600">🌸</span>
-                <span className="text-sm font-bold text-slate-700">
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-tw-soft border border-tw-line rounded-full">
+                <span className="text-tw-blue">🌸</span>
+                <span className="text-sm font-bold text-tw-navy">
                   {lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`)}
                 </span>
               </div>
@@ -160,56 +160,56 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
             </div>
 
             {/* كارت الميزانية */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-tw-soft text-tw-blue flex items-center justify-center">
                   <Target size={18} />
                 </div>
-                <h4 className="text-sm font-bold text-slate-800">
+                <h4 className="text-sm font-bold text-tw-navy">
                   {lang === 'en' ? 'Sales target (budget)' : 'هدف المبيعات الشهرية'}
                 </h4>
               </div>
-              <label className="text-xs text-gray-500 font-bold mb-1.5 block">
+              <label className="text-xs text-tw-muted font-bold mb-1.5 block">
                 {lang === 'en' ? 'Target amount' : 'المبلغ المستهدف'}
               </label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
                   value={goals[b.id]?.budget || ''}
                   onChange={(e) => updateGoal(b.id, 'budget', e.target.value)}
-                  className="flex-1 text-lg font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                   dir="ltr"
                 />
-                <SarSymbol className="text-slate-400 text-base" />
+                <SarSymbol className="text-tw-muted/70 text-base" />
               </div>
             </div>
 
             {/* كارت التقييمات */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
+            <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line">
               <div className="flex items-center gap-2 mb-3">
                 <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
                   <Star size={18} />
                 </div>
-                <h4 className="text-sm font-bold text-slate-800">
+                <h4 className="text-sm font-bold text-tw-navy">
                   {lang === 'en' ? 'Google Maps reviews target' : 'هدف تقييمات قوقل ماب'}
                 </h4>
               </div>
-              <label className="text-xs text-gray-500 font-bold mb-1.5 block">
+              <label className="text-xs text-tw-muted font-bold mb-1.5 block">
                 {lang === 'en' ? 'Target review count' : 'عدد التقييمات المستهدف'}
               </label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
                   value={goals[b.id]?.reviewsTarget || ''}
                   onChange={(e) => updateGoal(b.id, 'reviewsTarget', e.target.value)}
-                  className="flex-1 text-lg font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                   dir="ltr"
                 />
-                <span className="text-slate-400 text-xs font-bold">
+                <span className="text-tw-muted/70 text-xs font-bold">
                   {lang === 'en' ? 'reviews' : 'تقييم'}
                 </span>
               </div>
@@ -228,7 +228,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
           <div className="flex gap-3 pt-2">
             <button
               onClick={onBack}
-              className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+              className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
             >
               {lang === 'en' ? 'Cancel' : 'إلغاء'}
             </button>

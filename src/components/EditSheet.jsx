@@ -46,7 +46,7 @@ export default function EditSheet({ open, onClose, title, children }) {
         {/* العنوان */}
         {title && (
           <div className="px-5 pb-3 sticky top-3 bg-white z-10">
-            <h3 className="font-bold text-lg text-slate-800 text-center">{title}</h3>
+            <h3 className="font-bold text-lg text-tw-navy text-center">{title}</h3>
           </div>
         )}
         {/* المحتوى */}

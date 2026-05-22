@@ -33,17 +33,17 @@ function todayStr() {
 // صف دفع واحد (label + input + unit)
 function PaymentRow({ icon: Icon, label, value, onChange, color = 'blue' }) {
   const colorMap = {
-    blue: 'bg-blue-50 text-blue-700 border-blue-200',
+    blue: 'bg-tw-soft text-tw-blue border-blue-200',
     amber: 'bg-amber-50 text-amber-700 border-amber-200',
     emerald: 'bg-emerald-50 text-emerald-700 border-emerald-200',
   };
   return (
-    <div className="flex items-center gap-3 py-3 border-b border-gray-100 last:border-0">
+    <div className="flex items-center gap-3 py-3 border-b border-tw-line last:border-0">
       <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${colorMap[color]}`}>
         <Icon size={18} />
       </div>
       <div className="flex-1">
-        <p className="text-xs text-gray-500 font-bold mb-0.5">{label}</p>
+        <p className="text-xs text-tw-muted font-bold mb-0.5">{label}</p>
         <div className="flex items-center gap-2">
           <input
             type="number"
@@ -51,10 +51,10 @@ function PaymentRow({ icon: Icon, label, value, onChange, color = 'blue' }) {
             placeholder="0"
             value={value}
             onChange={(e) => onChange(e.target.value)}
-            className="flex-1 text-xl font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+            className="flex-1 text-xl font-bold text-tw-navy outline-none bg-transparent placeholder:text-gray-300"
             dir="ltr"
           />
-          <SarSymbol className="text-slate-400 text-base" />
+          <SarSymbol className="text-tw-muted/70 text-base" />
         </div>
       </div>
     </div>
@@ -123,14 +123,14 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {t(lang, 'sales.title')}
         </h2>
       </div>
@@ -139,9 +139,9 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
         {/* Pills: التاريخ + الفرع */}
         <div className="flex gap-2">
           <div className="flex-1 relative">
-            <div className="flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm">
-              <Calendar size={14} className="text-blue-600" />
-              <span className="font-bold text-xs text-slate-700">{dateLabel}</span>
+            <div className="flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm">
+              <Calendar size={14} className="text-tw-blue" />
+              <span className="font-bold text-xs text-tw-navy">{dateLabel}</span>
             </div>
             <input
               type="date"
@@ -150,17 +150,17 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
               className="absolute inset-0 opacity-0 cursor-pointer"
             />
           </div>
-          <div className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm">
-            <MapPin size={14} className="text-blue-600" />
-            <span className="font-bold text-xs text-slate-700">
+          <div className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm">
+            <MapPin size={14} className="text-tw-blue" />
+            <span className="font-bold text-xs text-tw-navy">
               {lang === 'en' ? branch : `فرع ${branch}`}
             </span>
           </div>
         </div>
 
         {/* كارت تفاصيل المبيعات */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100">
-          <h4 className="text-sm font-bold text-slate-800 mb-3">
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line">
+          <h4 className="text-sm font-bold text-tw-navy mb-3">
             {lang === 'en'
               ? "Today's sales by payment method"
               : 'إجمالي مبيعات اليوم حسب طريقة الدفع'}
@@ -248,7 +248,7 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
         <div className="flex gap-3 pt-2">
           <button
             onClick={() => setView('employeeHome')}
-            className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
           >
             {lang === 'en' ? 'Cancel' : 'إلغاء'}
           </button>

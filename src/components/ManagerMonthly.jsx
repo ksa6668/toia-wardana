@@ -163,47 +163,47 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       className="min-h-full px-4 pt-4 pb-8"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* أزرار التحكم: الشهر + الفرع */}
       <div className="flex gap-2 mb-3">
         <button
           onClick={openMonthPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
-          <Calendar size={14} className="text-blue-600" />
-          <span className="font-bold text-xs text-slate-700">{formatMonthLabel(selectedMonth, lang)}</span>
-          <ChevronDown size={12} className="text-gray-400" />
+          <Calendar size={14} className="text-tw-blue" />
+          <span className="font-bold text-xs text-tw-navy">{formatMonthLabel(selectedMonth, lang)}</span>
+          <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
         <button
           onClick={openBranchPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
-          <MapPin size={14} className="text-blue-600" />
-          <span className="font-bold text-xs text-slate-700">
+          <MapPin size={14} className="text-tw-blue" />
+          <span className="font-bold text-xs text-tw-navy">
             {lang === 'en' ? `Branch: ${branchLabel}` : `الفرع: ${branchLabel}`}
           </span>
-          <ChevronDown size={12} className="text-gray-400" />
+          <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
       </div>
 
       {/* ملخص 3 كروت */}
       <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="bg-white p-3 rounded-xl border border-gray-100 text-center">
-          <p className="text-[10px] text-gray-500 mb-1">{lang === 'en' ? 'Sales' : 'إجمالي المبيعات'}</p>
-          <p className="text-sm font-bold text-blue-700 flex items-center justify-center gap-1">
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Sales' : 'إجمالي المبيعات'}</p>
+          <p className="text-sm font-bold text-tw-blue flex items-center justify-center gap-1">
             {Math.round(totals.sales).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-gray-100 text-center">
-          <p className="text-[10px] text-gray-500 mb-1">{lang === 'en' ? 'Expenses' : 'إجمالي المصاريف'}</p>
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Expenses' : 'إجمالي المصاريف'}</p>
           <p className="text-sm font-bold text-red-600 flex items-center justify-center gap-1">
             {Math.round(totals.expenses).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         </div>
-        <div className="bg-white p-3 rounded-xl border border-gray-100 text-center">
-          <p className="text-[10px] text-gray-500 mb-1">{lang === 'en' ? 'Net Profit' : 'صافي الربح'}</p>
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Net Profit' : 'صافي الربح'}</p>
           <p className="text-sm font-bold text-emerald-600 flex items-center justify-center gap-1">
             {Math.round(totals.profit).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
@@ -211,7 +211,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       </div>
 
       {/* تبويبات */}
-      <div className="flex bg-blue-50 p-1 rounded-xl mb-4">
+      <div className="flex bg-tw-soft p-1 rounded-xl mb-4">
         {[
           { key: 'sales', label: lang === 'en' ? 'Sales' : 'المبيعات' },
           { key: 'expenses', label: lang === 'en' ? 'Expenses' : 'المصاريف' },
@@ -221,7 +221,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
             key={tab.key}
             onClick={() => setActiveTab(tab.key)}
             className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-              activeTab === tab.key ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-600'
+              activeTab === tab.key ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
             }`}
           >
             {tab.label}
@@ -231,7 +231,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
 
       {/* المحتوى */}
       {loading && (
-        <div className="flex items-center justify-center py-10 text-slate-400">
+        <div className="flex items-center justify-center py-10 text-tw-muted/70">
           <Loader2 className="animate-spin" size={24} />
         </div>
       )}
@@ -242,29 +242,29 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       )}
 
       {!loading && !error && (
-        <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
+        <div className="bg-white rounded-2xl border border-tw-line overflow-hidden">
           {/* تبويب المبيعات */}
           {activeTab === 'sales' && (
             <table className="w-full text-xs">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-2 text-right font-bold text-slate-600">{lang === 'en' ? 'Day' : 'اليوم'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Cash' : 'كاش'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Mada' : 'مدى'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Transfer' : 'تحويل'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Total' : 'إجمالي'}</th>
+                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Cash' : 'كاش'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Mada' : 'مدى'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Transfer' : 'تحويل'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Total' : 'إجمالي'}</th>
                 </tr>
               </thead>
               <tbody>
                 {salesByDay.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center p-6 text-gray-400">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
+                  <tr><td colSpan={5} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
                 ) : salesByDay.map((row) => (
-                  <tr key={row.day} className="border-t border-gray-50">
-                    <td className="p-2 font-bold text-slate-700">{formatDayShort(row.day, lang)}</td>
-                    <td className="p-2 text-center text-slate-600">{Math.round(row.cash).toLocaleString()}</td>
-                    <td className="p-2 text-center text-slate-600">{Math.round(row.mada).toLocaleString()}</td>
-                    <td className="p-2 text-center text-slate-600">{Math.round(row.transfer).toLocaleString()}</td>
-                    <td className="p-2 text-center font-bold text-blue-700">{Math.round(row.total).toLocaleString()}</td>
+                  <tr key={row.day} className="border-t border-tw-line/60">
+                    <td className="p-2 font-bold text-tw-navy">{formatDayShort(row.day, lang)}</td>
+                    <td className="p-2 text-center text-tw-muted">{Math.round(row.cash).toLocaleString()}</td>
+                    <td className="p-2 text-center text-tw-muted">{Math.round(row.mada).toLocaleString()}</td>
+                    <td className="p-2 text-center text-tw-muted">{Math.round(row.transfer).toLocaleString()}</td>
+                    <td className="p-2 text-center font-bold text-tw-blue">{Math.round(row.total).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -276,18 +276,18 @@ export default function ManagerMonthly({ lang = 'ar' }) {
             <table className="w-full text-xs">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-2 text-right font-bold text-slate-600">{lang === 'en' ? 'Day' : 'اليوم'}</th>
-                  <th className="p-2 text-right font-bold text-slate-600">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
+                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
                 </tr>
               </thead>
               <tbody>
                 {expensesByDay.length === 0 ? (
-                  <tr><td colSpan={3} className="text-center p-6 text-gray-400">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
+                  <tr><td colSpan={3} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
                 ) : expensesByDay.map((row, i) => (
-                  <tr key={row.id || i} className="border-t border-gray-50">
-                    <td className="p-2 text-slate-700">{formatDayShort(row.date, lang)}</td>
-                    <td className="p-2 text-slate-700">{row.category || row.expenseType || '—'}</td>
+                  <tr key={row.id || i} className="border-t border-tw-line/60">
+                    <td className="p-2 text-tw-navy">{formatDayShort(row.date, lang)}</td>
+                    <td className="p-2 text-tw-navy">{row.category || row.expenseType || '—'}</td>
                     <td className="p-2 text-center font-bold text-red-600">{Math.round(row.amount).toLocaleString()}</td>
                   </tr>
                 ))}
@@ -300,19 +300,19 @@ export default function ManagerMonthly({ lang = 'ar' }) {
             <table className="w-full text-xs">
               <thead className="bg-gray-50">
                 <tr>
-                  <th className="p-2 text-right font-bold text-slate-600">{lang === 'en' ? 'Day' : 'اليوم'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Sales' : 'المبيعات'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Expenses' : 'المصاريف'}</th>
-                  <th className="p-2 text-center font-bold text-slate-600">{lang === 'en' ? 'Profit' : 'الربح'}</th>
+                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Sales' : 'المبيعات'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Expenses' : 'المصاريف'}</th>
+                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Profit' : 'الربح'}</th>
                 </tr>
               </thead>
               <tbody>
                 {profitByDay.length === 0 ? (
-                  <tr><td colSpan={4} className="text-center p-6 text-gray-400">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
+                  <tr><td colSpan={4} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
                 ) : profitByDay.map((row) => (
-                  <tr key={row.day} className="border-t border-gray-50">
-                    <td className="p-2 font-bold text-slate-700">{formatDayShort(row.day, lang)}</td>
-                    <td className="p-2 text-center text-blue-700">{Math.round(row.sales).toLocaleString()}</td>
+                  <tr key={row.day} className="border-t border-tw-line/60">
+                    <td className="p-2 font-bold text-tw-navy">{formatDayShort(row.day, lang)}</td>
+                    <td className="p-2 text-center text-tw-blue">{Math.round(row.sales).toLocaleString()}</td>
                     <td className="p-2 text-center text-red-600">{Math.round(row.expenses).toLocaleString()}</td>
                     <td className={`p-2 text-center font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
                       {Math.round(row.profit).toLocaleString()}

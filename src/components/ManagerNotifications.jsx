@@ -31,13 +31,13 @@ function ToggleSwitch({ value, onChange, disabled }) {
 // صف إعداد واحد
 function SettingRow({ title, desc, value, onChange, disabled }) {
   return (
-    <div className={`p-4 bg-white rounded-2xl border border-gray-100 shadow-sm flex items-center justify-between gap-3 ${
+    <div className={`p-4 bg-white rounded-2xl border border-tw-line shadow-sm flex items-center justify-between gap-3 ${
       disabled ? 'opacity-70' : ''
     }`}>
       <ToggleSwitch value={value} onChange={onChange} disabled={disabled} />
       <div className="flex-1 text-right min-w-0">
-        <h5 className="text-sm font-bold text-slate-800 mb-0.5">{title}</h5>
-        <p className="text-xs text-slate-500 truncate">{desc}</p>
+        <h5 className="text-sm font-bold text-tw-navy mb-0.5">{title}</h5>
+        <p className="text-xs text-tw-muted truncate">{desc}</p>
       </div>
     </div>
   );
@@ -127,7 +127,7 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -136,21 +136,21 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {lang === 'en' ? 'Notifications' : 'التنبيهات والإشعارات'}
         </h2>
       </div>
 
       {/* وصف القسم */}
       <div className="relative z-10 px-4 pt-4 pb-2">
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-tw-muted text-center">
           {lang === 'en'
             ? 'Enable and manage system and goal notifications'
             : 'تفعيل وإدارة تنبيهات النظام والأهداف'}
@@ -158,7 +158,7 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-10 text-slate-400">
+        <div className="flex items-center justify-center py-10 text-tw-muted/70">
           <Loader2 className="animate-spin" size={24} />
         </div>
       )}
@@ -167,10 +167,10 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
         <div className="relative z-10 px-4 pb-8 space-y-4">
           {/* قسم إعدادات التنبيهات */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-1">
+            <h4 className="text-sm font-bold text-tw-navy mb-1">
               {lang === 'en' ? 'Notification Settings' : 'إعدادات التنبيهات'}
             </h4>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-tw-muted mb-3">
               {lang === 'en'
                 ? 'Control notifications that appear inside the app.'
                 : 'تحكّم في الإشعارات التي تظهر داخل التطبيق.'}
@@ -198,7 +198,7 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
 
           {/* الرسائل */}
           {info && (
-            <p className="text-blue-700 text-sm font-bold bg-blue-50 border border-blue-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+            <p className="text-tw-blue text-sm font-bold bg-tw-soft border border-tw-line rounded-lg p-3 text-center flex items-center justify-center gap-2">
               <AlertCircle size={18} /> {info}
             </p>
           )}
@@ -208,20 +208,20 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
             </p>
           )}
           {saving && (
-            <p className="text-xs text-slate-500 text-center flex items-center justify-center gap-2">
+            <p className="text-xs text-tw-muted text-center flex items-center justify-center gap-2">
               <Loader2 size={12} className="animate-spin" /> {lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...'}
             </p>
           )}
 
           {/* فاصل */}
-          <div className="border-t border-gray-100 my-2" />
+          <div className="border-t border-tw-line my-2" />
 
           {/* اختبار التنبيهات */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-1">
+            <h4 className="text-sm font-bold text-tw-navy mb-1">
               {lang === 'en' ? 'Test Notifications' : 'اختبار التنبيهات'}
             </h4>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-tw-muted mb-3">
               {lang === 'en'
                 ? 'Send a test notification to verify the system works.'
                 : 'إرسال إشعار تجريبي للتأكد من عمل النظام.'}

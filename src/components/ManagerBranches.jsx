@@ -148,7 +148,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -157,14 +157,14 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {lang === 'en' ? 'Manage Branches' : 'إدارة الفروع'}
         </h2>
       </div>
@@ -191,14 +191,14 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
           <>
             {/* قائمة الفروع */}
             {branches.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-2xl p-8 text-center border border-tw-line shadow-sm">
                 <Store size={32} className="text-gray-300 mx-auto mb-3" />
-                <p className="text-sm font-bold text-gray-500">
+                <p className="text-sm font-bold text-tw-muted">
                   {lang === 'en' ? 'No branches yet' : 'لا توجد فروع بعد'}
                 </p>
               </div>
             ) : (
-              <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
                 {branches.map((b, idx) => {
                   const isPrimary = PRIMARY_BRANCH_IDS.includes(b.id);
                   const isActive = b.active !== false;
@@ -206,25 +206,25 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                     <button
                       key={b.id}
                       onClick={() => openEdit(b)}
-                      className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right ${idx > 0 ? 'border-t border-gray-50' : ''}`}
+                      className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
                     >
                       {/* شارة الحالة */}
-                      <div className={`text-xs font-bold ${isActive ? 'text-emerald-600' : 'text-gray-400'}`}>
+                      <div className={`text-xs font-bold ${isActive ? 'text-emerald-600' : 'text-tw-muted/70'}`}>
                         {isActive
                           ? (lang === 'en' ? 'Active' : 'نشط')
                           : (lang === 'en' ? 'Disabled' : 'معطّل')}
                       </div>
                       {/* النص */}
                       <div className="flex-1 min-w-0">
-                        <p className="text-base font-bold text-slate-800">{b.name}</p>
-                        <p className="text-xs text-slate-500">
+                        <p className="text-base font-bold text-tw-navy">{b.name}</p>
+                        <p className="text-xs text-tw-muted">
                           {isPrimary
                             ? (lang === 'en' ? 'Primary branch' : 'فرع أساسي')
                             : (b.nameEn || (lang === 'en' ? 'Custom branch' : 'فرع إضافي'))}
                         </p>
                       </div>
                       {/* أيقونة */}
-                      <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                      <div className="w-11 h-11 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
                         <Store size={18} />
                       </div>
                     </button>
@@ -248,11 +248,11 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               </button>
             ) : (
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-blue-200 space-y-3">
-                <h4 className="text-sm font-bold text-slate-800">
+                <h4 className="text-sm font-bold text-tw-navy">
                   {lang === 'en' ? 'Add new branch' : 'إضافة فرع جديد'}
                 </h4>
                 <div>
-                  <label className="text-xs text-gray-500 font-bold mb-1 block">
+                  <label className="text-xs text-tw-muted font-bold mb-1 block">
                     {lang === 'en' ? 'Name (Arabic)' : 'الاسم بالعربي'}
                   </label>
                   <input
@@ -260,11 +260,11 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder={lang === 'en' ? 'e.g. Riyadh Branch' : 'مثلاً: فرع الرياض'}
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                    className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-gray-500 font-bold mb-1 block">
+                  <label className="text-xs text-tw-muted font-bold mb-1 block">
                     {lang === 'en' ? 'Name (English) - optional' : 'الاسم بالإنجليزي (اختياري)'}
                   </label>
                   <input
@@ -272,14 +272,14 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                     value={newNameEn}
                     onChange={(e) => setNewNameEn(e.target.value)}
                     placeholder="e.g. Riyadh Branch"
-                    className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                    className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
                     dir="ltr"
                   />
                 </div>
                 <div className="flex gap-2">
                   <button
                     onClick={() => { setShowAdd(false); setNewName(''); setNewNameEn(''); setError(''); }}
-                    className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm"
+                    className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-2.5 rounded-xl text-sm"
                   >
                     {lang === 'en' ? 'Cancel' : 'إلغاء'}
                   </button>
@@ -321,20 +321,20 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
 
             {/* اسم الفرع */}
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">
                 {lang === 'en' ? 'Branch Name' : 'اسم الفرع'}
               </label>
               <input
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-blue-500"
               />
             </div>
 
             {/* الاسم بالإنجليزي */}
             <div>
-              <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">
                 {lang === 'en' ? 'Name (English)' : 'الاسم بالإنجليزية (اختياري)'}
               </label>
               <input
@@ -342,7 +342,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                 value={editNameEn}
                 onChange={(e) => setEditNameEn(e.target.value)}
                 placeholder="Toia Branch"
-                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-blue-500"
                 dir="ltr"
               />
             </div>
@@ -355,7 +355,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-emerald-500' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
               </div>
-              <span className="text-sm font-bold text-slate-800">
+              <span className="text-sm font-bold text-tw-navy">
                 {lang === 'en' ? 'Branch Active' : 'الفرع نشط'}
               </span>
             </button>
@@ -370,7 +370,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               <button
                 onClick={closeEdit}
                 disabled={savingEdit}
-                className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
+                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
               >
                 {lang === 'en' ? 'Cancel' : 'إلغاء'}
               </button>

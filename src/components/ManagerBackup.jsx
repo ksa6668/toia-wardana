@@ -25,9 +25,9 @@ import BottomSheet from './BottomSheet';
 // بطاقة إحصائية واحدة
 function StatCard({ value, label }) {
   return (
-    <div className="bg-white rounded-2xl p-4 border border-gray-100 shadow-sm flex flex-col items-center justify-center min-h-[90px]">
-      <p className="text-2xl font-extrabold text-blue-600 mb-1">{value}</p>
-      <p className="text-xs text-slate-500 font-bold">{label}</p>
+    <div className="bg-white rounded-2xl p-4 border border-tw-line shadow-sm flex flex-col items-center justify-center min-h-[90px]">
+      <p className="text-2xl font-extrabold text-tw-blue mb-1">{value}</p>
+      <p className="text-xs text-tw-muted font-bold">{label}</p>
     </div>
   );
 }
@@ -221,7 +221,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -230,21 +230,21 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {lang === 'en' ? 'Backup' : 'النسخ الاحتياطي'}
         </h2>
       </div>
 
       {/* وصف */}
       <div className="relative z-10 px-4 pt-4 pb-2">
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-tw-muted text-center">
           {lang === 'en'
             ? 'Export and import data by branch or all'
             : 'تصدير واستيراد البيانات بالفرع أو الكل'}
@@ -252,7 +252,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-10 text-slate-400">
+        <div className="flex items-center justify-center py-10 text-tw-muted/70">
           <Loader2 className="animate-spin" size={24} />
         </div>
       )}
@@ -260,9 +260,9 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       {!loading && (
         <div className="relative z-10 px-4 pb-8 space-y-5">
           {/* ملاحظة الاستخدام */}
-          <div className="bg-blue-50 border border-blue-100 rounded-2xl p-3 flex items-start gap-2">
+          <div className="bg-tw-soft border border-tw-line rounded-2xl p-3 flex items-start gap-2">
             <Lightbulb size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
-            <p className="text-xs text-slate-700 leading-relaxed">
+            <p className="text-xs text-tw-navy leading-relaxed">
               {lang === 'en'
                 ? 'For best experience, use backup from desktop or directly from the browser (Chrome / Safari).'
                 : 'للحصول على أفضل تجربة، استخدم النسخ الاحتياطي من سطح المكتب أو من المتصفح مباشرة (Chrome / Safari).'}
@@ -271,10 +271,10 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
 
           {/* ============ تصدير البيانات ============ */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-1">
+            <h4 className="text-sm font-bold text-tw-navy mb-1">
               {lang === 'en' ? 'Export Data' : 'تصدير البيانات'}
             </h4>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-tw-muted mb-3">
               {lang === 'en'
                 ? 'Save a backup of all data on your device.'
                 : 'حفظ نسخة احتياطية من جميع البيانات على جهازك.'}
@@ -282,15 +282,15 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
 
             {/* منتقي نطاق التصدير */}
             <div className="mb-3">
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">
                 {lang === 'en' ? 'Export scope' : 'نطاق التصدير'}
               </label>
               <button
                 onClick={openScopePicker}
-                className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
+                className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
               >
-                <MapPin size={14} className="text-blue-600" />
-                <span className="font-bold text-sm text-slate-700">{scopeLabel}</span>
+                <MapPin size={14} className="text-tw-blue" />
+                <span className="font-bold text-sm text-tw-navy">{scopeLabel}</span>
               </button>
             </div>
 
@@ -327,7 +327,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
             {/* تنبيه عن Excel vs JSON */}
             <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2">
               <AlertTriangle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
-              <p className="text-[11px] text-slate-700 leading-relaxed">
+              <p className="text-[11px] text-tw-navy leading-relaxed">
                 {lang === 'en'
                   ? 'Excel file does not save invoice photos. For full backup use JSON.'
                   : 'ملف Excel لا يحفظ صور الفواتير. للنسخة الكاملة استخدم JSON.'}
@@ -348,23 +348,23 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
           )}
 
           {/* ============ استيراد البيانات ============ */}
-          <div className="border-t border-gray-100 pt-5">
-            <h4 className="text-sm font-bold text-slate-800 mb-1">
+          <div className="border-t border-tw-line pt-5">
+            <h4 className="text-sm font-bold text-tw-navy mb-1">
               {lang === 'en' ? 'Import Data' : 'استيراد البيانات'}
             </h4>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-tw-muted mb-3">
               {lang === 'en'
                 ? 'Restore data from a backup file. Current data will be replaced.'
                 : 'استعادة البيانات من ملف نسخة احتياطية. سيتم استبدال البيانات الحالية.'}
             </p>
 
             <div className="mb-3">
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">
                 {lang === 'en' ? 'Import method' : 'طريقة الاستيراد'}
               </label>
-              <div className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 px-4 shadow-sm">
-                <Cloud size={14} className="text-blue-600" />
-                <span className="font-bold text-sm text-slate-700">
+              <div className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 shadow-sm">
+                <Cloud size={14} className="text-tw-blue" />
+                <span className="font-bold text-sm text-tw-navy">
                   {lang === 'en' ? 'Replace current data' : 'استبدال البيانات الحالية'}
                 </span>
               </div>
@@ -380,7 +380,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
 
             <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2">
               <AlertTriangle size={14} className="text-red-600 flex-shrink-0 mt-0.5" />
-              <p className="text-[11px] text-slate-700 leading-relaxed">
+              <p className="text-[11px] text-tw-navy leading-relaxed">
                 {lang === 'en'
                   ? 'Warning: Import will completely replace current data.'
                   : 'تنبيه: الاستيراد سيستبدل البيانات الحالية بالكامل.'}
@@ -389,8 +389,8 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
           </div>
 
           {/* ============ إحصائيات البيانات ============ */}
-          <div className="border-t border-gray-100 pt-5">
-            <h4 className="text-sm font-bold text-slate-800 mb-3">
+          <div className="border-t border-tw-line pt-5">
+            <h4 className="text-sm font-bold text-tw-navy mb-3">
               {lang === 'en' ? 'Data Statistics' : 'إحصائيات البيانات'}
             </h4>
             <div className="grid grid-cols-2 gap-3">

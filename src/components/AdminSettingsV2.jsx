@@ -24,12 +24,16 @@ import ManagerReceipts from './ManagerReceipts';
 //   icon: من lucide
 //   color: نمط الأيقونة
 //   enabled: هل الميزة جاهزة؟
+// عناصر القائمة بترتيب الـ prototype:
+// المبيعات والمصروفات / الأهداف الشهرية / المصاريف الثابتة / الإيصالات والفواتير
+// النسخ الاحتياطي / التنبيهات والإشعارات / المستخدمون والصلاحيات / إدارة الفروع
+// التصنيفات / تغيير رمزي السري / الإعدادات العامة
 const ITEMS = [
   {
     key: 'adminEntry',
-    icon: Activity, color: 'cyan',
-    label: { ar: 'تسجيل مبيعات/مصاريف', en: 'Record sales/expenses' },
-    desc: { ar: 'إدخال لأي فرع كمدير', en: 'Enter data for any branch as admin' },
+    icon: PieChart, color: 'cyan',
+    label: { ar: 'المبيعات والمصروفات', en: 'Sales & Expenses' },
+    desc: { ar: 'تسجيل وتعديل وحذف عمليات آخر 7 أيام', en: 'Record, edit and delete operations from last 7 days' },
     enabled: true,
   },
   {
@@ -41,51 +45,58 @@ const ITEMS = [
   },
   {
     key: 'fixed',
-    icon: Wallet, color: 'emerald',
+    icon: Wallet, color: 'blue',
     label: { ar: 'المصاريف الثابتة', en: 'Fixed Expenses' },
     desc: { ar: 'إيجار ورواتب وتأمين لكل فرع شهرياً', en: 'Rent, salaries, insurance per branch monthly' },
     enabled: true,
   },
   {
-    key: 'categories',
-    icon: Receipt, color: 'amber',
-    label: { ar: 'التصنيفات والفواتير', en: 'Categories & Invoices' },
-    desc: { ar: 'تحديد التصنيفات وإلزامية الصورة', en: 'Configure categories and image requirements' },
-    enabled: true,
-  },
-  {
     key: 'receipts',
-    icon: FileText, color: 'indigo',
+    icon: Receipt, color: 'blue',
     label: { ar: 'الإيصالات والفواتير', en: 'Receipts & Invoices' },
     desc: { ar: 'سجل المصاريف مع الصور وكامل التفاصيل', en: 'Expense log with photos and full details' },
     enabled: true,
   },
   {
     key: 'backup',
-    icon: Cloud, color: 'sky',
+    icon: Cloud, color: 'blue',
     label: { ar: 'النسخ الاحتياطي', en: 'Backup' },
     desc: { ar: 'تصدير واستيراد البيانات بالفرع أو الكل', en: 'Export and import data by branch or all' },
     enabled: true,
   },
   {
     key: 'notif',
-    icon: Bell, color: 'rose',
+    icon: Bell, color: 'blue',
     label: { ar: 'التنبيهات والإشعارات', en: 'Notifications' },
     desc: { ar: 'تفعيل وإدارة تنبيهات النظام والأهداف', en: 'Enable and manage system notifications' },
     enabled: true,
   },
   {
     key: 'users',
-    icon: Users, color: 'violet',
+    icon: Users, color: 'blue',
     label: { ar: 'المستخدمون والصلاحيات', en: 'Users & Permissions' },
     desc: { ar: 'إضافة وتعديل المستخدمين والصلاحيات', en: 'Add and edit users and permissions' },
     enabled: true,
   },
   {
     key: 'branches',
-    icon: Store, color: 'orange',
+    icon: Store, color: 'blue',
     label: { ar: 'إدارة الفروع', en: 'Manage Branches' },
     desc: { ar: 'إضافة الفروع وتسميتها بالعربية والإنجليزية', en: 'Add branches and label them' },
+    enabled: true,
+  },
+  {
+    key: 'categories',
+    icon: FileText, color: 'blue',
+    label: { ar: 'التصنيفات', en: 'Categories' },
+    desc: { ar: 'تحديد التصنيفات وإلزامية الصورة', en: 'Configure categories and image requirements' },
+    enabled: true,
+  },
+  {
+    key: 'general',
+    icon: Gear, color: 'blue',
+    label: { ar: 'الإعدادات العامة', en: 'General Settings' },
+    desc: { ar: 'اللغة، العملة، نظام التاريخ، اسم النشاط', en: 'Language, currency, date system, business name' },
     enabled: true,
   },
   {
@@ -93,13 +104,6 @@ const ITEMS = [
     icon: Key, color: 'slate',
     label: { ar: 'تغيير رمزي السري', en: 'Change My PIN' },
     desc: { ar: 'تحديث رمزك أنت', en: 'Update your own PIN' },
-    enabled: true,
-  },
-  {
-    key: 'general',
-    icon: Gear, color: 'gray',
-    label: { ar: 'الإعدادات العامة', en: 'General Settings' },
-    desc: { ar: 'اللغة، العملة، نظام التاريخ', en: 'Language, currency, date system' },
     enabled: true,
   },
 ];
@@ -153,17 +157,14 @@ export default function AdminSettingsV2({
 
   return (
     <div
-      className="min-h-full px-4 pt-4 pb-8"
-      style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
-      }}
+      className="min-h-full px-4 pt-4 pb-8 page-bg-soft"
+      style={{ fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif" }}
     >
-      <h2 className="text-lg font-bold text-slate-800 mb-3 px-1">
-        {lang === 'en' ? 'System Settings' : 'إعدادات النظام'}
+      <h2 className="text-lg font-extrabold text-tw-navy mb-3 px-1">
+        {lang === 'en' ? 'System Settings' : 'الإعدادات'}
       </h2>
 
-      <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+      <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
         {ITEMS.map((item) => {
           const Icon = item.icon;
           const isActive = item.enabled;
@@ -172,38 +173,31 @@ export default function AdminSettingsV2({
               key={item.key}
               disabled={!isActive}
               onClick={() => isActive && setScreen(item.key)}
-              className={`w-full p-3.5 border-b border-gray-50 last:border-0 flex items-center gap-3 transition-colors ${
+              className={`w-full p-4 border-b border-tw-line/60 last:border-0 flex items-center gap-3 transition-colors ${
                 isActive
-                  ? 'hover:bg-gray-50 cursor-pointer'
+                  ? 'hover:bg-tw-soft cursor-pointer'
                   : 'opacity-50 cursor-not-allowed'
               }`}
             >
-              <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${colorMap[item.color]}`}>
-                <Icon size={18} />
-              </div>
+              {/* السهم — يسار في RTL */}
+              <ChevronRight size={18} className={`text-tw-muted flex-shrink-0 ${lang === 'en' ? '' : 'rotate-180'}`} />
+              {/* النص في الوسط — اتجاه يميني */}
               <div className={`flex-1 ${lang === 'en' ? 'text-left' : 'text-right'} min-w-0`}>
-                <p className="text-sm font-bold text-slate-800 truncate">
+                <p className="text-base font-extrabold text-tw-navy truncate">
                   {item.label[lang]}
-                  {!isActive && <span className="text-xs text-gray-400 font-normal mr-2">
+                  {!isActive && <span className="text-xs text-tw-muted font-normal mr-2">
                     ({lang === 'en' ? 'soon' : 'قريباً'})
                   </span>}
                 </p>
-                <p className="text-[11px] text-gray-500 truncate">{item.desc[lang]}</p>
+                <p className="text-xs text-tw-muted truncate mt-0.5">{item.desc[lang]}</p>
               </div>
-              <ChevronRight size={16} className={`text-gray-300 flex-shrink-0 ${lang === 'en' ? '' : 'rotate-180'}`} />
+              {/* الأيقونة — يمين في RTL */}
+              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorMap[item.color]}`}>
+                <Icon size={20} strokeWidth={2} />
+              </div>
             </button>
           );
         })}
-      </div>
-
-      {/* رسالة معلوماتية للميزات قيد التطوير */}
-      <div className="mt-4 p-3 bg-blue-50 border border-blue-100 rounded-xl">
-        <p className="text-[11px] text-blue-700 leading-relaxed">
-          <span className="font-bold">ℹ️ {lang === 'en' ? 'Note:' : 'ملاحظة:'}</span>{' '}
-          {lang === 'en'
-            ? 'Features marked "soon" are under development and will be enabled in upcoming updates.'
-            : 'الميزات المعلّمة "قريباً" قيد التطوير وسيتم تفعيلها في التحديثات القادمة.'}
-        </p>
       </div>
     </div>
   );

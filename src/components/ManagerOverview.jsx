@@ -20,15 +20,15 @@ import { yearRange, getAvailableYears } from '../utils/periodHelpers';
 // كارت متري واحد في الشبكة السفلية
 function MetricCard({ icon: Icon, label, value, alt }) {
   return (
-    <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+    <div className="bg-white p-3 rounded-2xl border border-tw-line shadow-sm">
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${
-        alt ? 'bg-red-50 text-red-600' : 'bg-blue-50 text-blue-600'
+        alt ? 'bg-red-50 text-red-600' : 'bg-tw-soft text-tw-blue'
       }`}>
         <Icon size={18} />
       </div>
-      <p className="text-[10px] text-gray-500 mb-1 font-bold">{label}</p>
-      <p className="text-sm font-bold text-slate-800 flex items-center gap-1">
-        {value.toLocaleString()} <SarSymbol className="text-xs text-slate-500" />
+      <p className="text-[10px] text-tw-muted mb-1 font-bold">{label}</p>
+      <p className="text-sm font-bold text-tw-navy flex items-center gap-1">
+        {value.toLocaleString()} <SarSymbol className="text-xs text-tw-muted" />
       </p>
     </div>
   );
@@ -115,33 +115,33 @@ export default function ManagerOverview({ lang = 'ar' }) {
       className="min-h-full px-4 pt-4 pb-8"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* أزرار التحكم */}
       <div className="flex gap-2 mb-4">
         <button
           onClick={openYearPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
-          <Calendar size={14} className="text-blue-600" />
-          <span className="font-bold text-xs text-slate-700">{selectedYear}</span>
-          <ChevronDown size={12} className="text-gray-400" />
+          <Calendar size={14} className="text-tw-blue" />
+          <span className="font-bold text-xs text-tw-navy">{selectedYear}</span>
+          <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
         <button
           onClick={openBranchPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm"
+          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
-          <MapPin size={14} className="text-blue-600" />
-          <span className="font-bold text-xs text-slate-700">
+          <MapPin size={14} className="text-tw-blue" />
+          <span className="font-bold text-xs text-tw-navy">
             {lang === 'en' ? `Branch: ${branchLabel}` : `الفرع: ${branchLabel}`}
           </span>
-          <ChevronDown size={12} className="text-gray-400" />
+          <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-10 text-slate-400">
+        <div className="flex items-center justify-center py-10 text-tw-muted/70">
           <Loader2 className="animate-spin" size={24} />
         </div>
       )}

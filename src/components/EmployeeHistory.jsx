@@ -85,14 +85,14 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام'}
         </h2>
       </div>
@@ -100,20 +100,20 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
       <div className="relative z-10 p-4 space-y-4 pb-8">
         {/* ملخص 3 كروت */}
         <div className="grid grid-cols-3 gap-2">
-          <div className="bg-white p-3 rounded-xl border border-gray-100 text-center shadow-sm">
-            <p className="text-[10px] text-gray-500 mb-1">{lang === 'en' ? 'Sales' : 'المبيعات'}</p>
-            <p className="text-sm font-bold text-blue-700 flex items-center justify-center gap-1">
+          <div className="bg-white p-3 rounded-xl border border-tw-line text-center shadow-sm">
+            <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Sales' : 'المبيعات'}</p>
+            <p className="text-sm font-bold text-tw-blue flex items-center justify-center gap-1">
               {Math.round(totals.sales).toLocaleString()} <SarSymbol className="text-xs" />
             </p>
           </div>
-          <div className="bg-white p-3 rounded-xl border border-gray-100 text-center shadow-sm">
-            <p className="text-[10px] text-gray-500 mb-1">{lang === 'en' ? 'Expenses' : 'المصاريف'}</p>
+          <div className="bg-white p-3 rounded-xl border border-tw-line text-center shadow-sm">
+            <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Expenses' : 'المصاريف'}</p>
             <p className="text-sm font-bold text-red-600 flex items-center justify-center gap-1">
               {Math.round(totals.expenses).toLocaleString()} <SarSymbol className="text-xs" />
             </p>
           </div>
-          <div className="bg-white p-3 rounded-xl border border-gray-100 text-center shadow-sm">
-            <p className="text-[10px] text-gray-500 mb-1">{lang === 'en' ? 'Net' : 'الصافي'}</p>
+          <div className="bg-white p-3 rounded-xl border border-tw-line text-center shadow-sm">
+            <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Net' : 'الصافي'}</p>
             <p className="text-sm font-bold text-emerald-600 flex items-center justify-center gap-1">
               {Math.round(totals.net).toLocaleString()} <SarSymbol className="text-xs" />
             </p>
@@ -121,7 +121,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
         </div>
 
         {loading && (
-          <div className="flex items-center justify-center py-10 text-slate-400">
+          <div className="flex items-center justify-center py-10 text-tw-muted/70">
             <Loader2 className="animate-spin" size={24} />
           </div>
         )}
@@ -134,23 +134,23 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
         {!loading && !error && (
           <>
             {/* عنوان القسم */}
-            <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-gray-100 shadow-sm">
-              <span className="text-sm font-bold text-slate-700">
+            <div className="flex items-center justify-between bg-white rounded-xl p-3 border border-tw-line shadow-sm">
+              <span className="text-sm font-bold text-tw-navy">
                 {lang === 'en' ? 'Recent entries' : 'العمليات الأخيرة'}
               </span>
-              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-full">
+              <span className="text-xs font-bold text-tw-blue bg-tw-soft px-2 py-1 rounded-full">
                 {allEntries.length}
               </span>
             </div>
 
             {/* القائمة */}
             {allEntries.length === 0 ? (
-              <div className="bg-white rounded-2xl p-8 text-center border border-gray-100 shadow-sm">
+              <div className="bg-white rounded-2xl p-8 text-center border border-tw-line shadow-sm">
                 <Calendar size={32} className="text-gray-300 mx-auto mb-3" />
-                <p className="text-sm font-bold text-gray-500 mb-1">
+                <p className="text-sm font-bold text-tw-muted mb-1">
                   {lang === 'en' ? 'No entries yet' : 'لا توجد عمليات بعد'}
                 </p>
-                <p className="text-xs text-gray-400">
+                <p className="text-xs text-tw-muted/70">
                   {lang === 'en'
                     ? 'Record your first sale or expense from the home screen.'
                     : 'سجّل أول مبيعات أو مصروف من الشاشة الرئيسية.'}
@@ -161,12 +161,12 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
                 {allEntries.map((entry, i) => (
                   <div
                     key={entry.id || i}
-                    className="bg-white rounded-xl p-3 border border-gray-100 shadow-sm flex items-center gap-3"
+                    className="bg-white rounded-xl p-3 border border-tw-line shadow-sm flex items-center gap-3"
                   >
                     {/* أيقونة النوع */}
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                       entry.kind === 'sale'
-                        ? 'bg-blue-50 text-blue-600'
+                        ? 'bg-tw-soft text-tw-blue'
                         : 'bg-red-50 text-red-600'
                     }`}>
                       {entry.kind === 'sale' ? <TrendingUp size={18} /> : <Receipt size={18} />}
@@ -174,12 +174,12 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
 
                     {/* التفاصيل */}
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-bold text-slate-800 truncate">
+                      <p className="text-sm font-bold text-tw-navy truncate">
                         {entry.kind === 'sale'
                           ? (lang === 'en' ? 'Daily sales' : 'مبيعات اليوم')
                           : translateCategory(lang, entry.categoryName || entry.category || '—')}
                       </p>
-                      <p className="text-[11px] text-gray-500">
+                      <p className="text-[11px] text-tw-muted">
                         {formatDayShort(entry.date, lang)}
                         {entry.notes && ` • ${entry.notes}`}
                       </p>
@@ -191,7 +191,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
                         href={entry.invoiceUrl}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg"
+                        className="p-1.5 text-tw-blue hover:bg-tw-soft rounded-lg"
                         title={lang === 'en' ? 'View invoice' : 'عرض الفاتورة'}
                       >
                         <ImageIcon size={16} />
@@ -200,7 +200,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
 
                     {/* المبلغ */}
                     <div className={`text-sm font-bold flex items-center gap-1 ${
-                      entry.kind === 'sale' ? 'text-blue-700' : 'text-red-600'
+                      entry.kind === 'sale' ? 'text-tw-blue' : 'text-red-600'
                     }`}>
                       {entry.kind === 'sale'
                         ? `+${Math.round(entry.total || 0).toLocaleString()}`

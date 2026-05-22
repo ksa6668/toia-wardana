@@ -129,7 +129,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -139,13 +139,13 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <div className="flex-1 text-center px-8">
-          <h2 className="text-lg font-bold text-slate-800">الإشعارات</h2>
-          <p className="text-xs text-slate-400 mt-0.5">كل التنبيهات والتذكيرات</p>
+          <h2 className="text-lg font-bold text-tw-navy">الإشعارات</h2>
+          <p className="text-xs text-tw-muted/70 mt-0.5">كل التنبيهات والتذكيرات</p>
         </div>
       </div>
 
@@ -160,7 +160,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
           </button>
           <button
             onClick={markAllRead}
-            className="text-blue-600 font-bold text-sm hover:underline"
+            className="text-tw-blue font-bold text-sm hover:underline"
           >
             تعليم الكل كمقروء
           </button>
@@ -174,18 +174,18 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
           </div>
         ) : notifs.length === 0 ? (
           <div className="text-center py-16">
-            <div className="w-20 h-20 mx-auto rounded-full bg-blue-50 flex items-center justify-center mb-4">
+            <div className="w-20 h-20 mx-auto rounded-full bg-tw-soft flex items-center justify-center mb-4">
               <Bell size={32} className="text-blue-300" />
             </div>
-            <p className="text-slate-500 font-bold">لا توجد إشعارات حالياً</p>
-            <p className="text-slate-400 text-xs mt-1">سيظهر هنا أي تنبيه أو تذكير</p>
+            <p className="text-tw-muted font-bold">لا توجد إشعارات حالياً</p>
+            <p className="text-tw-muted/70 text-xs mt-1">سيظهر هنا أي تنبيه أو تذكير</p>
           </div>
         ) : (
           Object.entries(groups).map(([groupName, items]) => {
             if (items.length === 0) return null;
             return (
               <div key={groupName} className="space-y-3">
-                <h3 className="text-sm font-bold text-slate-500 text-right">{groupName}</h3>
+                <h3 className="text-sm font-bold text-tw-muted text-right">{groupName}</h3>
                 {items.map((n) => (
                   <NotificationCard key={n.id} notif={n} onDismiss={() => dismissOne(n.id)} />
                 ))}
@@ -200,11 +200,11 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
 
 function NotificationCard({ notif, onDismiss }) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3 relative">
+    <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 flex items-center gap-3 relative">
       {/* زر الإغلاق X على اليسار */}
       <button
         onClick={onDismiss}
-        className="p-1.5 text-gray-400 hover:bg-gray-100 rounded-lg flex-shrink-0 transition-colors"
+        className="p-1.5 text-tw-muted/70 hover:bg-gray-100 rounded-lg flex-shrink-0 transition-colors"
         title="حذف الإشعار"
       >
         <X size={16} />
@@ -212,20 +212,20 @@ function NotificationCard({ notif, onDismiss }) {
 
       {/* المحتوى */}
       <div className="flex-1 min-w-0 text-right">
-        <p className="font-bold text-sm text-slate-800 mb-1">{notif.title}</p>
+        <p className="font-bold text-sm text-tw-navy mb-1">{notif.title}</p>
         {notif.body && (
-          <p className="text-xs text-slate-500 leading-relaxed">{notif.body}</p>
+          <p className="text-xs text-tw-muted leading-relaxed">{notif.body}</p>
         )}
-        <p className="text-[11px] text-slate-400 mt-1.5">{formatRelative(notif.createdAt)}</p>
+        <p className="text-[11px] text-tw-muted/70 mt-1.5">{formatRelative(notif.createdAt)}</p>
       </div>
 
       {/* أيقونة الإيموجي + النقطة الزرقاء */}
       <div className="relative flex-shrink-0">
-        <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-xl">
+        <div className="w-11 h-11 rounded-xl bg-tw-soft flex items-center justify-center text-xl">
           {notif.emoji || '🔔'}
         </div>
         {!notif.read && (
-          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-blue-500 rounded-full border-2 border-white"></span>
+          <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-tw-soft0 rounded-full border-2 border-white"></span>
         )}
       </div>
     </div>

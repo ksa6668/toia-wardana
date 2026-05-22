@@ -84,7 +84,7 @@ export default function ManagerReceipts({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -94,13 +94,13 @@ export default function ManagerReceipts({ onBack }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <div className="flex-1 text-center px-8">
-          <h2 className="text-lg font-bold text-slate-800">الإيصالات والفواتير</h2>
-          <p className="text-xs text-slate-400 mt-0.5">Toia &amp; Wardana</p>
+          <h2 className="text-lg font-bold text-tw-navy">الإيصالات والفواتير</h2>
+          <p className="text-xs text-tw-muted/70 mt-0.5">Toia &amp; Wardana</p>
         </div>
       </div>
 
@@ -110,29 +110,29 @@ export default function ManagerReceipts({ onBack }) {
           {/* فلتر الفترة */}
           <button
             onClick={() => setShowFilters(true)}
-            className="flex-1 bg-white rounded-xl border border-gray-200 p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            className="flex-1 bg-white rounded-xl border border-tw-line p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
           >
             <Calendar size={16} className="text-blue-500" />
-            <span className="text-sm font-bold text-slate-700">{currentPeriodLabel}</span>
+            <span className="text-sm font-bold text-tw-navy">{currentPeriodLabel}</span>
           </button>
           {/* فلتر الفرع */}
           <button
             onClick={() => setShowFilters(true)}
-            className="flex-1 bg-white rounded-xl border border-gray-200 p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            className="flex-1 bg-white rounded-xl border border-tw-line p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
           >
             <MapPin size={16} className="text-blue-500" />
-            <span className="text-sm font-bold text-slate-700">{currentBranchLabel}</span>
+            <span className="text-sm font-bold text-tw-navy">{currentBranchLabel}</span>
           </button>
         </div>
 
         {/* بطاقات الإحصائيات */}
         <div className="grid grid-cols-2 gap-3">
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-            <p className="text-xs text-slate-500 mb-1">عدد الفواتير</p>
-            <p className="text-2xl font-extrabold text-blue-600">{filtered.length}</p>
+          <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 text-center">
+            <p className="text-xs text-tw-muted mb-1">عدد الفواتير</p>
+            <p className="text-2xl font-extrabold text-tw-blue">{filtered.length}</p>
           </div>
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 text-center">
-            <p className="text-xs text-slate-500 mb-1">الإجمالي</p>
+          <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 text-center">
+            <p className="text-xs text-tw-muted mb-1">الإجمالي</p>
             <p className="text-2xl font-extrabold text-red-500 flex items-center justify-center gap-1">
               {totalAmount.toLocaleString()} <SarSymbol className="text-base" />
             </p>
@@ -150,13 +150,13 @@ export default function ManagerReceipts({ onBack }) {
           </p>
         ) : filtered.length === 0 ? (
           <div className="text-center py-12">
-            <div className="w-20 h-20 mx-auto rounded-full bg-blue-50 flex items-center justify-center mb-4">
+            <div className="w-20 h-20 mx-auto rounded-full bg-tw-soft flex items-center justify-center mb-4">
               <Receipt size={32} className="text-blue-300" />
             </div>
-            <p className="text-slate-500 font-bold text-sm">
+            <p className="text-tw-muted font-bold text-sm">
               لا توجد فواتير {branch !== 'all' ? `لـ${currentBranchLabel}` : ''} خلال {currentPeriodLabel.toLowerCase()}.
             </p>
-            <p className="text-slate-400 text-xs mt-1">
+            <p className="text-tw-muted/70 text-xs mt-1">
               الفواتير التي يرفع الموظف صورتها ستظهر هنا
             </p>
           </div>
@@ -212,7 +212,7 @@ function ReceiptCard({ expense, onViewImage }) {
   const branchLabel = expense.branchId === 'wardana' ? 'فرع وردانة' : expense.branchId === 'toia' ? 'فرع تويا' : '—';
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex items-center gap-3">
+    <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 flex items-center gap-3">
       {/* صورة الفاتورة (thumbnail) */}
       <button
         onClick={onViewImage}
@@ -227,21 +227,21 @@ function ReceiptCard({ expense, onViewImage }) {
           />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
-            <ImageIcon size={20} className="text-gray-400" />
+            <ImageIcon size={20} className="text-tw-muted/70" />
           </div>
         )}
       </button>
 
       {/* التفاصيل */}
       <div className="flex-1 min-w-0 text-right">
-        <p className="font-bold text-sm text-slate-800 truncate">
+        <p className="font-bold text-sm text-tw-navy truncate">
           {expense.category || 'مصروف'}
         </p>
-        <p className="text-xs text-slate-500 mt-0.5">
+        <p className="text-xs text-tw-muted mt-0.5">
           {branchLabel} · {formatDate(expense.date)}
         </p>
         {expense.notes && (
-          <p className="text-[11px] text-slate-400 truncate mt-1">{expense.notes}</p>
+          <p className="text-[11px] text-tw-muted/70 truncate mt-1">{expense.notes}</p>
         )}
       </div>
 
@@ -268,11 +268,11 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
         {/* مقبض السحب */}
         <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto"></div>
 
-        <h3 className="text-lg font-bold text-slate-800 text-center">تصفية الفواتير</h3>
+        <h3 className="text-lg font-bold text-tw-navy text-center">تصفية الفواتير</h3>
 
         {/* الفترة */}
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-2 block">الفترة</label>
+          <label className="text-xs font-bold text-tw-muted mb-2 block">الفترة</label>
           <div className="grid grid-cols-3 gap-2">
             {PERIOD_OPTIONS.map((p) => (
               <button
@@ -280,8 +280,8 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
                 onClick={() => setPeriod(p.id)}
                 className={`py-3 rounded-xl text-sm font-bold border ${
                   period === p.id
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-gray-50 text-gray-500 border-gray-200'
+                    ? 'bg-tw-blue text-white border-blue-600'
+                    : 'bg-gray-50 text-tw-muted border-tw-line'
                 }`}
               >
                 {p.label}
@@ -292,7 +292,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
 
         {/* الفرع */}
         <div>
-          <label className="text-xs font-bold text-gray-500 mb-2 block">الفرع</label>
+          <label className="text-xs font-bold text-tw-muted mb-2 block">الفرع</label>
           <div className="grid grid-cols-3 gap-2">
             {BRANCH_OPTIONS.map((b) => (
               <button
@@ -300,8 +300,8 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
                 onClick={() => setBranch(b.id)}
                 className={`py-3 rounded-xl text-sm font-bold border ${
                   branch === b.id
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-gray-50 text-gray-500 border-gray-200'
+                    ? 'bg-tw-blue text-white border-blue-600'
+                    : 'bg-gray-50 text-tw-muted border-tw-line'
                 }`}
               >
                 {b.label}

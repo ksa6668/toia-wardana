@@ -119,7 +119,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -128,21 +128,21 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {lang === 'en' ? 'General Settings' : 'الإعدادات العامة'}
         </h2>
       </div>
 
       {/* وصف القسم */}
       <div className="relative z-10 px-4 pt-4 pb-2">
-        <p className="text-xs text-slate-500 text-center">
+        <p className="text-xs text-tw-muted text-center">
           {lang === 'en'
             ? 'Language, currency, date system, business name'
             : 'اللغة، العملة، نظام التاريخ، اسم النشاط'}
@@ -150,7 +150,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
       </div>
 
       {loading && (
-        <div className="flex items-center justify-center py-10 text-slate-400">
+        <div className="flex items-center justify-center py-10 text-tw-muted/70">
           <Loader2 className="animate-spin" size={24} />
         </div>
       )}
@@ -159,53 +159,53 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
         <div className="relative z-10 px-4 pb-8 space-y-5">
           {/* اللغة */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-2">{lang === 'en' ? 'Language' : 'اللغة'}</h4>
+            <h4 className="text-sm font-bold text-tw-navy mb-2">{lang === 'en' ? 'Language' : 'اللغة'}</h4>
             <button
               onClick={openLangPicker}
-              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
+              className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
             >
-              <Gear size={16} className="text-blue-600" />
-              <span className="font-bold text-sm text-slate-700">{langLabel}</span>
+              <Gear size={16} className="text-tw-blue" />
+              <span className="font-bold text-sm text-tw-navy">{langLabel}</span>
             </button>
           </div>
 
           {/* العملة */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-1">{lang === 'en' ? 'Currency' : 'العملة'}</h4>
-            <p className="text-xs text-slate-500 mb-2">
+            <h4 className="text-sm font-bold text-tw-navy mb-1">{lang === 'en' ? 'Currency' : 'العملة'}</h4>
+            <p className="text-xs text-tw-muted mb-2">
               {lang === 'en' ? 'Applied to all amounts in the app.' : 'تُطبَّق على جميع المبالغ في التطبيق.'}
             </p>
             <button
               onClick={openCurrencyPicker}
-              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
+              className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
             >
-              <Gear size={16} className="text-blue-600" />
-              <span className="font-bold text-sm text-slate-700">{currencyLabel}</span>
-              <SarSymbol className="text-blue-600 text-sm" />
+              <Gear size={16} className="text-tw-blue" />
+              <span className="font-bold text-sm text-tw-navy">{currencyLabel}</span>
+              <SarSymbol className="text-tw-blue text-sm" />
             </button>
           </div>
 
           {/* نظام التاريخ */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-2">{lang === 'en' ? 'Date System' : 'نظام التاريخ'}</h4>
+            <h4 className="text-sm font-bold text-tw-navy mb-2">{lang === 'en' ? 'Date System' : 'نظام التاريخ'}</h4>
             <button
               onClick={openDateSystemPicker}
-              className="w-full flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
+              className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
             >
-              <Calendar size={16} className="text-blue-600" />
-              <span className="font-bold text-sm text-slate-700">{dateSystemLabel}</span>
+              <Calendar size={16} className="text-tw-blue" />
+              <span className="font-bold text-sm text-tw-navy">{dateSystemLabel}</span>
             </button>
           </div>
 
           {/* فاصل */}
-          <div className="border-t border-gray-100 my-2" />
+          <div className="border-t border-tw-line my-2" />
 
           {/* معلومات النشاط */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-3">{lang === 'en' ? 'Business Info' : 'معلومات النشاط'}</h4>
+            <h4 className="text-sm font-bold text-tw-navy mb-3">{lang === 'en' ? 'Business Info' : 'معلومات النشاط'}</h4>
             <div className="space-y-3">
               <div>
-                <label className="text-xs font-bold text-gray-500 mb-1.5 block">
+                <label className="text-xs font-bold text-tw-muted mb-1.5 block">
                   {lang === 'en' ? 'Business name' : 'اسم النشاط'}
                 </label>
                 <input
@@ -213,11 +213,11 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Toia & Wardana"
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                  className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm font-bold outline-none focus:border-blue-500"
                 />
               </div>
               <div>
-                <label className="text-xs font-bold text-gray-500 mb-1.5 block">
+                <label className="text-xs font-bold text-tw-muted mb-1.5 block">
                   {lang === 'en' ? 'Contact number' : 'رقم التواصل'}
                 </label>
                 <input
@@ -225,7 +225,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="+966 5XX XXX XXXX"
-                  className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+                  className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
                   dir="ltr"
                 />
               </div>
@@ -260,29 +260,29 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
           </button>
 
           {/* فاصل */}
-          <div className="border-t border-gray-100 my-4" />
+          <div className="border-t border-tw-line my-4" />
 
           {/* معلومات التطبيق */}
           <div>
-            <h4 className="text-sm font-bold text-slate-800 mb-3">{lang === 'en' ? 'App Info' : 'معلومات التطبيق'}</h4>
-            <div className="bg-white rounded-2xl border border-gray-100 overflow-hidden">
-              <div className="p-3 flex items-center justify-between border-b border-gray-50">
-                <span className="text-xs text-gray-500">{lang === 'en' ? 'App Name' : 'اسم التطبيق'}</span>
-                <span className="text-sm font-bold text-slate-800">Toia & Wardana</span>
+            <h4 className="text-sm font-bold text-tw-navy mb-3">{lang === 'en' ? 'App Info' : 'معلومات التطبيق'}</h4>
+            <div className="bg-white rounded-2xl border border-tw-line overflow-hidden">
+              <div className="p-3 flex items-center justify-between border-b border-tw-line/60">
+                <span className="text-xs text-tw-muted">{lang === 'en' ? 'App Name' : 'اسم التطبيق'}</span>
+                <span className="text-sm font-bold text-tw-navy">Toia & Wardana</span>
               </div>
-              <div className="p-3 flex items-center justify-between border-b border-gray-50">
-                <span className="text-xs text-gray-500">{lang === 'en' ? 'Version' : 'الإصدار'}</span>
-                <span className="text-sm font-bold text-slate-800" dir="ltr">{APP_VERSION}</span>
+              <div className="p-3 flex items-center justify-between border-b border-tw-line/60">
+                <span className="text-xs text-tw-muted">{lang === 'en' ? 'Version' : 'الإصدار'}</span>
+                <span className="text-sm font-bold text-tw-navy" dir="ltr">{APP_VERSION}</span>
               </div>
               <div className="p-3 flex items-center justify-between">
-                <span className="text-xs text-gray-500">{lang === 'en' ? 'Build' : 'رقم البناء'}</span>
-                <span className="text-sm font-bold text-slate-800" dir="ltr">{APP_BUILD}</span>
+                <span className="text-xs text-tw-muted">{lang === 'en' ? 'Build' : 'رقم البناء'}</span>
+                <span className="text-sm font-bold text-tw-navy" dir="ltr">{APP_BUILD}</span>
               </div>
             </div>
           </div>
 
           {/* فاصل */}
-          <div className="border-t border-gray-100 my-4" />
+          <div className="border-t border-tw-line my-4" />
 
           {/* منطقة خطرة */}
           <div>
@@ -290,7 +290,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
               <AlertTriangle size={16} />
               {lang === 'en' ? 'Danger Zone' : 'منطقة خطرة'}
             </h4>
-            <p className="text-xs text-slate-500 mb-3">
+            <p className="text-xs text-tw-muted mb-3">
               {lang === 'en'
                 ? 'Irreversible operation. Make sure you have a backup before proceeding.'
                 : 'عملية لا يمكن التراجع عنها. تأكد من وجود نسخة احتياطية قبل المتابعة.'}

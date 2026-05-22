@@ -162,14 +162,14 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
-          className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">
+        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
           {t(lang, 'expense.title')}
         </h2>
       </div>
@@ -178,9 +178,9 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
         {/* Pills: التاريخ + الفرع */}
         <div className="flex gap-2">
           <div className="flex-1 relative">
-            <div className="flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm">
-              <Calendar size={14} className="text-blue-600" />
-              <span className="font-bold text-xs text-slate-700">{dateLabel}</span>
+            <div className="flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm">
+              <Calendar size={14} className="text-tw-blue" />
+              <span className="font-bold text-xs text-tw-navy">{dateLabel}</span>
             </div>
             <input
               type="date"
@@ -189,9 +189,9 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
               className="absolute inset-0 opacity-0 cursor-pointer"
             />
           </div>
-          <div className="flex-1 flex items-center justify-center gap-2 bg-white border border-gray-200 rounded-xl py-2.5 px-3 shadow-sm">
-            <MapPin size={14} className="text-blue-600" />
-            <span className="font-bold text-xs text-slate-700">
+          <div className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm">
+            <MapPin size={14} className="text-tw-blue" />
+            <span className="font-bold text-xs text-tw-navy">
               {lang === 'en' ? branch : `فرع ${branch}`}
             </span>
           </div>
@@ -199,9 +199,9 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
 
         {/* التصنيف — chips */}
         <div>
-          <h4 className="text-sm font-bold text-slate-800 mb-2">{t(lang, 'expense.category')}</h4>
+          <h4 className="text-sm font-bold text-tw-navy mb-2">{t(lang, 'expense.category')}</h4>
           {loadingCats ? (
-            <div className="bg-white border border-gray-200 rounded-xl p-4 text-sm text-gray-400 flex items-center gap-2">
+            <div className="bg-white border border-tw-line rounded-xl p-4 text-sm text-tw-muted/70 flex items-center gap-2">
               <Loader2 size={16} className="animate-spin" /> {t(lang, 'expense.loading')}
             </div>
           ) : (
@@ -215,10 +215,10 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
                     onClick={() => setCategoryId(c.id)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                       isActive
-                        ? 'bg-blue-600 text-white border-blue-600 shadow-md scale-105'
+                        ? 'bg-tw-blue text-white border-blue-600 shadow-md scale-105'
                         : isPrimary
                         ? 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100'
-                        : 'bg-white text-slate-600 border-gray-200 hover:bg-gray-50'
+                        : 'bg-white text-tw-muted border-tw-line hover:bg-gray-50'
                     }`}
                   >
                     {translateCategory(lang, c.name)}
@@ -230,29 +230,29 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
         </div>
 
         {/* تفاصيل المصروف — كارت */}
-        <div className="bg-white rounded-2xl p-4 shadow-sm border border-gray-100 space-y-3">
-          <h4 className="text-sm font-bold text-slate-800">{lang === 'en' ? 'Expense details' : 'تفاصيل المصروف'}</h4>
+        <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line space-y-3">
+          <h4 className="text-sm font-bold text-tw-navy">{lang === 'en' ? 'Expense details' : 'تفاصيل المصروف'}</h4>
 
           {/* المبلغ */}
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.amount')}</label>
-            <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.amount')}</label>
+            <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
               <input
                 type="number"
                 inputMode="decimal"
                 placeholder="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="flex-1 text-lg font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+                className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-gray-300"
                 dir="ltr"
               />
-              <SarSymbol className="text-slate-400 text-base" />
+              <SarSymbol className="text-tw-muted/70 text-base" />
             </div>
           </div>
 
           {/* طريقة الدفع */}
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">{t(lang, 'expense.payMethod')}</label>
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.payMethod')}</label>
             <div className="flex gap-2">
               {(methods.length ? methods : [{ id: 'Cash' }, { id: 'Mada' }, { id: 'Transfer' }]).map((p) => (
                 <button
@@ -260,8 +260,8 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
                   onClick={() => setPayMethod(p.id)}
                   className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
                     payMethod === p.id
-                      ? 'bg-blue-600 text-white border-blue-600'
-                      : 'bg-gray-50 text-gray-600 border-gray-200'
+                      ? 'bg-tw-blue text-white border-blue-600'
+                      : 'bg-gray-50 text-gray-600 border-tw-line'
                   }`}
                 >
                   {pmLabel(p.id)}
@@ -272,7 +272,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
 
           {/* الملاحظات */}
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">
               {lang === 'en' ? 'Notes (optional)' : 'الملاحظات (اختياري)'}
             </label>
             <input
@@ -280,13 +280,13 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
               placeholder={lang === 'en' ? 'Short description' : 'وصف مختصر'}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-gray-50 border border-gray-200 rounded-xl p-3 text-sm outline-none focus:border-blue-500"
+              className="w-full bg-gray-50 border border-tw-line rounded-xl p-3 text-sm outline-none focus:border-blue-500"
             />
           </div>
 
           {/* صورة الفاتورة */}
           <div>
-            <label className="text-xs font-bold text-gray-500 mb-1.5 block">
+            <label className="text-xs font-bold text-tw-muted mb-1.5 block">
               {lang === 'en' ? 'Invoice photo' : 'صورة الفاتورة'}
               {requiresImage && <span className="text-red-500 mr-1">*</span>}
             </label>
@@ -310,7 +310,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
                 <img
                   src={imagePreview}
                   alt="preview"
-                  className="w-full max-h-48 object-cover rounded-xl border border-gray-200"
+                  className="w-full max-h-48 object-cover rounded-xl border border-tw-line"
                 />
                 <button
                   type="button"
@@ -360,7 +360,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
         <div className="flex gap-3 pt-2">
           <button
             onClick={() => setView('employeeHome')}
-            className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
           >
             {lang === 'en' ? 'Cancel' : 'إلغاء'}
           </button>
