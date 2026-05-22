@@ -9,13 +9,14 @@
 import { useState } from 'react';
 import {
   ChevronRight, Target, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
-  Activity, Key, PieChart,
+  Activity, Key, PieChart, FileText,
 } from 'lucide-react';
 import ManagerGoals from './ManagerGoals';
 import ManagerBranches from './ManagerBranches';
 import ManagerGeneralSettings from './ManagerGeneralSettings';
 import ManagerNotifications from './ManagerNotifications';
 import ManagerBackup from './ManagerBackup';
+import ManagerReceipts from './ManagerReceipts';
 
 // عناصر القائمة — كل عنصر له:
 //   key: للتنقل
@@ -50,6 +51,13 @@ const ITEMS = [
     icon: Receipt, color: 'amber',
     label: { ar: 'التصنيفات والفواتير', en: 'Categories & Invoices' },
     desc: { ar: 'تحديد التصنيفات وإلزامية الصورة', en: 'Configure categories and image requirements' },
+    enabled: true,
+  },
+  {
+    key: 'receipts',
+    icon: FileText, color: 'indigo',
+    label: { ar: 'الإيصالات والفواتير', en: 'Receipts & Invoices' },
+    desc: { ar: 'سجل المصاريف مع الصور وكامل التفاصيل', en: 'Expense log with photos and full details' },
     enabled: true,
   },
   {
@@ -107,6 +115,7 @@ const colorMap = {
   slate: 'bg-slate-100 text-slate-600',
   gray: 'bg-gray-100 text-gray-600',
   cyan: 'bg-cyan-50 text-cyan-600',
+  indigo: 'bg-indigo-50 text-indigo-600',
 };
 
 /**
@@ -140,6 +149,7 @@ export default function AdminSettingsV2({
   if (screen === 'general') return <ManagerGeneralSettings onBack={goBack} lang={lang} />;
   if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;
   if (screen === 'backup') return <ManagerBackup onBack={goBack} lang={lang} />;
+  if (screen === 'receipts') return <ManagerReceipts onBack={goBack} />;
 
   return (
     <div

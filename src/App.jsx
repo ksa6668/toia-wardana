@@ -34,6 +34,10 @@ import ExpenseFormV2 from './components/ExpenseFormV2';
 import EmployeeHistory from './components/EmployeeHistory';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
+// Batch 5: Notifications + Receipts + Logout confirm
+import NotificationsCenter, { addNotification } from './components/NotificationsCenter';
+import ManagerReceipts from './components/ManagerReceipts';
+import LogoutConfirmSheet from './components/LogoutConfirmSheet';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -124,6 +128,10 @@ export default function App() {
   const [adminTab, setAdminTab] = useState('home');
   // ✨ اللغة — تخص شاشات الموظف فقط، لكن نقرأها للجميع لاتساق شاشة الدخول
   const [lang, setLang] = useState(readSavedLang());
+  // Batch 5: حالات الإشعارات + تأكيد الخروج + الإيصالات
+  const [showNotifications, setShowNotifications] = useState(false);
+  const [showReceipts, setShowReceipts] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const userRole = user?.role || null;
   const branchId = user?.branchId || 'toia';
@@ -193,17 +201,21 @@ export default function App() {
                 </p>
               </div>
               <div className="flex items-center gap-2">
-                {/* زر الإشعارات — placeholder حالياً، نظام كامل في الدفعة 3 */}
+                {/* زر الإشعارات — يفتح NotificationsCenter (Batch 5) */}
                 {isAdmin && (
                   <button
-                    onClick={() => alert(lang === 'en' ? 'Notifications coming soon' : 'الإشعارات قريباً')}
+                    onClick={() => setShowNotifications(true)}
                     className="p-2.5 bg-slate-800 rounded-full hover:bg-slate-700 transition-colors relative"
                     title={lang === 'en' ? 'Notifications' : 'الإشعارات'}
                   >
                     <Bell size={18} />
                   </button>
                 )}
-                <button onClick={handleLogout} className="p-2.5 bg-slate-800 rounded-full hover:bg-red-500 transition-colors">
+                <button
+                  onClick={() => setShowLogoutConfirm(true)}
+                  className="p-2.5 bg-slate-800 rounded-full hover:bg-red-500 transition-colors"
+                  title={lang === 'en' ? 'Sign out' : 'تسجيل الخروج'}
+                >
                   <LogOut size={18} />
                 </button>
               </div>
@@ -279,6 +291,34 @@ export default function App() {
               );
             })}
           </nav>
+        )}
+
+        {/* Batch 5: مركز الإشعارات (overlay) */}
+        {showNotifications && (
+          <div className="fixed inset-0 z-40 md:absolute bg-white overflow-y-auto">
+            <NotificationsCenter
+              onBack={() => setShowNotifications(false)}
+              userName={user?.displayName || user?.username || 'أحمد'}
+            />
+          </div>
+        )}
+
+        {/* Batch 5: شاشة الإيصالات والفواتير (overlay) */}
+        {showReceipts && (
+          <div className="fixed inset-0 z-40 md:absolute bg-white overflow-y-auto">
+            <ManagerReceipts onBack={() => setShowReceipts(false)} />
+          </div>
+        )}
+
+        {/* Batch 5: bottom sheet تأكيد الخروج */}
+        {showLogoutConfirm && (
+          <LogoutConfirmSheet
+            onConfirm={async () => {
+              setShowLogoutConfirm(false);
+              await handleLogout();
+            }}
+            onCancel={() => setShowLogoutConfirm(false)}
+          />
         )}
       </div>
     </div>
