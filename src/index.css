@@ -1459,3 +1459,29 @@ body {
   z-index: 10;
   position: relative;
 }
+
+/* =================================================================
+   GLOBAL FIX: أي bottom sheet في التطبيق (BottomSheet.jsx, sheets أخرى)
+   يجب أن يكون فوق Bottom Nav بـ z-index عالي
+   نستهدف:
+     - أي fixed inset-x-0 bottom-0 (Tailwind classes للـ sheet)
+     - أي عنصر بكلاس يحتوي 'bottom-sheet' أو 'sheet-panel'
+     - rounded-t-* داخل phone-frame
+   ================================================================= */
+.tw-app-frame [class*="fixed"][class*="bottom-0"],
+.tw-app-frame [class*="bottom-sheet"],
+.tw-app-frame [class*="BottomSheet"],
+[class*="bottom-sheet-panel"],
+[class*="sheet-panel"]:not(.tw-sheet-panel) {
+  z-index: 100 !important;
+  /* padding-bottom كافٍ لتجاوز Bottom Nav (64px) + safe-area + 16px margin */
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 22px) !important;
+}
+
+/* Overlay أي sheet — تأكد أنه فوق Bottom Nav أيضاً */
+.tw-app-frame [class*="fixed"][class*="inset-0"][class*="bg-black"],
+.tw-app-frame [class*="backdrop"],
+[class*="sheet-overlay"]:not(.tw-sheet-overlay) {
+  z-index: 90 !important;
+}
+
