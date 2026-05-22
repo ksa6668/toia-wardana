@@ -1,7 +1,7 @@
 // src/components/AppHeader.jsx
-// Header مطابق 100% لـ .phone-head في الـ prototype:
-//   padding 8px 16px 12px, h3 15px/700, p 11px/500, circle-btn 36×36 radius:12
-//   ترتيب DOM: notif+profile على اليمين في الـ HTML → في RTL يظهر يسار بصرياً
+// Header مطابق لـ .phone-head في الـ prototype:
+//   - notif+profile في DOM على اليمين → في RTL يظهر يسار بصرياً
+//   - langButton (Batch 17) في DOM على اليسار → في RTL يظهر يمين بصرياً (الجهة العكسية للتنبيهات والمستخدم)
 // ----------------------------------------------------------
 export default function AppHeader({
   title = 'Toia & Wardana',
@@ -10,11 +10,19 @@ export default function AppHeader({
   onProfileClick,
   onNotifClick,
   hideProfileGroup = false,
+  langButton = null, // عنصر React اختياري — يُعرض في الجهة العكسية للتنبيهات (للموظف)
 }) {
+  // عرض المجموعة اليمنى من DOM (تظهر يسار في RTL)
+  const rightWidth = hideProfileGroup ? '36px' : '88px';
+  // العرض اليسرى من DOM (تظهر يمين في RTL) — إذا langButton موجود نحجز نفس العرض، وإلا 0
+  const leftWidth = langButton ? '36px' : rightWidth;
+
   return (
     <header className="tw-phone-head">
-      {/* Spacer left — same width as right group for centered title */}
-      <div style={{ width: hideProfileGroup ? '36px' : '88px', flexShrink: 0 }} />
+      {/* Left in DOM = Right in RTL — مكان زر اللغة للموظف */}
+      <div style={{ width: leftWidth, flexShrink: 0, display: 'flex', justifyContent: 'flex-start' }}>
+        {langButton}
+      </div>
 
       {/* Title centered */}
       <div style={{ flex: 1 }}>
@@ -22,10 +30,9 @@ export default function AppHeader({
         {subtitle && <p>{subtitle}</p>}
       </div>
 
-      {/* Notif + profile group — في DOM على اليمين، يقلبه RTL ليظهر يسار */}
+      {/* Right in DOM = Left in RTL — مجموعة التنبيهات والمستخدم */}
       {!hideProfileGroup && (
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
-          {/* Bell */}
           <button
             onClick={onNotifClick}
             className="tw-circle-btn"
@@ -41,7 +48,6 @@ export default function AppHeader({
             )}
           </button>
 
-          {/* Profile */}
           <button
             onClick={onProfileClick}
             className="tw-circle-btn"

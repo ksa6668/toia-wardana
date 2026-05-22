@@ -234,6 +234,23 @@ export default function App() {
             onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
             onNotifClick={() => isAdmin && setShowNotifications(true)}
             rtl={pageDir === 'rtl'}
+            langButton={
+              !isAdmin ? (
+                <button
+                  onClick={() => changeLang(lang === 'ar' ? 'en' : 'ar')}
+                  className="tw-circle-btn"
+                  aria-label={lang === 'en' ? 'Change language' : 'تغيير اللغة'}
+                  type="button"
+                  title={lang === 'en' ? 'العربية' : 'English'}
+                >
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                    <circle cx="12" cy="12" r="10" />
+                    <line x1="2" y1="12" x2="22" y2="12" />
+                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                  </svg>
+                </button>
+              ) : null
+            }
           />
         )}
 
@@ -1360,19 +1377,6 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* شريط اللغة — في الأقصى اليمين (نفس تصميم زر التنبيهات الدائري) */}
-      <div className="relative z-10 flex justify-end mb-3">
-        <button
-          onClick={toggleLang}
-          className="tw-circle-btn"
-          aria-label={lang === 'en' ? 'Change language' : 'تغيير اللغة'}
-          type="button"
-          title={t(lang, 'home.langToggle')}
-        >
-          <Globe size={18} strokeWidth={1.8} />
-        </button>
-      </div>
-
       {/* بطاقة الترحيب */}
       <div className="relative z-10 bg-white p-4 rounded-2xl shadow-sm border border-tw-line text-center mb-3">
         <p className="text-tw-muted text-sm mb-1">{t(lang, 'home.greeting')}</p>
