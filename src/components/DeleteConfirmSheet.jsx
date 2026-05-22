@@ -1,5 +1,5 @@
 // src/components/DeleteConfirmSheet.jsx
-// Bottom sheet لتأكيد حذف سجل (مبيعة أو مصروف)
+// Bottom sheet لتأكيد حذف سجل — يستخدم .tw-sheet-* (absolute, prototype-style)
 import { useState, useEffect } from 'react';
 import { Trash2, Loader2 } from 'lucide-react';
 
@@ -20,9 +20,9 @@ export default function DeleteConfirmSheet({
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose, deleting]);
 
-  useEffect(() => {
-    if (!open) setDeleting(false);
-  }, [open]);
+  useEffect(() => { if (!open) setDeleting(false); }, [open]);
+
+  if (!open) return null;
 
   const handleConfirm = async () => {
     setDeleting(true);
@@ -41,35 +41,50 @@ export default function DeleteConfirmSheet({
 
   return (
     <>
-      <div
-        className={`tw-sheet-overlay${open ? ' show' : ''}`}
-        onClick={() => !deleting && onClose?.()}
-        aria-hidden={!open}
-      />
-      <div className={`tw-sheet-panel${open ? ' show' : ''}`} role="alertdialog" aria-modal="true">
+      <div className="tw-sheet-overlay show" onClick={() => !deleting && onClose?.()} />
+      <div className="tw-sheet-panel show" role="alertdialog" aria-modal="true">
         <div className="tw-sheet-grab" />
-        <div className="tw-confirm-dialog">
-          <div className="icon">
-            <Trash2 />
+        <div style={{ padding: '14px 0' }}>
+          <div style={{
+            width: 56, height: 56, borderRadius: '50%',
+            background: 'rgba(240,68,68,.12)', color: 'var(--tw-red)',
+            display: 'grid', placeItems: 'center', margin: '0 auto 14px',
+          }}>
+            <Trash2 size={28} />
           </div>
-          <h4>{title || defaultTitle}</h4>
-          <p>{message || defaultMessage}</p>
-          <div className="btns">
+          <h4 style={{ textAlign: 'center', fontSize: 16, fontWeight: 800, color: 'var(--tw-navy)', margin: '0 0 6px' }}>
+            {title || defaultTitle}
+          </h4>
+          <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--tw-muted)', margin: '0 0 18px', fontWeight: 500 }}>
+            {message || defaultMessage}
+          </p>
+          <div style={{ display: 'flex', gap: 10 }}>
             <button
               type="button"
-              className="cancel"
               onClick={onClose}
               disabled={deleting}
+              style={{
+                flex: 1, padding: 12, borderRadius: 12,
+                fontWeight: 800, fontSize: 13, cursor: 'pointer',
+                background: '#fff', border: '1.5px solid var(--tw-line)',
+                color: 'var(--tw-navy)', fontFamily: 'inherit',
+              }}
             >
               {lang === 'en' ? 'Cancel' : 'إلغاء'}
             </button>
             <button
               type="button"
-              className="delete"
               onClick={handleConfirm}
               disabled={deleting}
+              style={{
+                flex: 1, padding: 12, borderRadius: 12,
+                fontWeight: 800, fontSize: 13, cursor: deleting ? 'not-allowed' : 'pointer',
+                background: 'var(--tw-red)', color: '#fff', border: 'none',
+                opacity: deleting ? 0.6 : 1, fontFamily: 'inherit',
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+              }}
             >
-              {deleting && <Loader2 size={14} className="animate-spin inline-block ml-1" />}
+              {deleting && <Loader2 size={14} className="animate-spin" />}
               {deleting
                 ? (lang === 'en' ? 'Deleting…' : 'جارٍ الحذف…')
                 : (lang === 'en' ? 'Delete' : 'حذف')}

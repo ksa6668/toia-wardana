@@ -1,8 +1,11 @@
 // src/components/ExpenseFormV2.jsx
-// نموذج تسجيل/تعديل المصروف — تصميم 1:1 مع الـ prototype
-// FIX (Batch 12.3):
-//   - التاريخ مُصلَح: label يحوي input absolute بكامل الـ pill
-//   - padding-bottom كافي عشان الزرّين ما يختفون خلف Bottom Nav
+// نموذج تسجيل/تعديل المصروف — تصميم 1:1 مع الـ prototype (screen-addExpense)
+// Batch 12.6:
+//   - pill التاريخ يفتح DateSheet
+//   - pill الفرع يفتح BranchPickerSheet
+//   - .tw-chips للتصنيفات
+//   - .tw-photo-up + الكاميرا الإجبارية
+//   - وضع التعديل + الصورة القديمة
 import { useState, useEffect, useRef } from 'react';
 import {
   Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronRight, ChevronDown, X, Image as ImageIcon,
@@ -13,10 +16,27 @@ import {
 import { t, translateCategory, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
+import DateSheet from './DateSheet';
 
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dateLabelFor(dateStr, lang) {
+  if (!dateStr) return '—';
+  const T = todayStr();
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+  const t2 = new Date(); t2.setDate(t2.getDate() - 2);
+  const t2Str = `${t2.getFullYear()}-${String(t2.getMonth() + 1).padStart(2, '0')}-${String(t2.getDate()).padStart(2, '0')}`;
+  if (dateStr === T) return lang === 'en' ? 'Today' : 'اليوم';
+  if (dateStr === yStr) return lang === 'en' ? 'Yesterday' : 'أمس';
+  if (dateStr === t2Str) return lang === 'en' ? '2 days ago' : 'قبل يومين';
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
 }
 
 const PRIMARY_TYPES = ['flower', 'delivery', 'customerOrders', 'supplies'];
@@ -36,7 +56,8 @@ export default function ExpenseFormV2({
   const [categories, setCategories] = useState([]);
   const [methods, setMethods] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [branchSheetOpen, setBranchSheetOpen] = useState(false);
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
   const [loadingCats, setLoadingCats] = useState(true);
   const [categoryId, setCategoryId] = useState(existingRecord?.categoryId || '');
   const [amount, setAmount] = useState(existingRecord?.amount != null ? String(existingRecord.amount) : '');
@@ -178,10 +199,6 @@ export default function ExpenseFormV2({
     return m?.labelAr || id;
   };
 
-  const dateLabel = date === todayStr()
-    ? (lang === 'en' ? 'Today' : 'اليوم')
-    : date;
-
   const screenTitle = isEdit
     ? (lang === 'en' ? 'Edit expense' : 'تعديل المصروف')
     : t(lang, 'expense.title');
@@ -212,41 +229,33 @@ export default function ExpenseFormV2({
         <div style={{ width: 36 }} />
       </div>
 
-      {/* FIX: pb-24 ليضمن أن الزرّين لا يختفون خلف Bottom Nav */}
-      <div className="relative z-10 p-4 pb-24">
+      <div className="relative z-10 p-4 pb-8">
         <div className="tw-controls-row">
-          <label className="tw-pill" style={{ position: 'relative', cursor: 'pointer', flex: 1 }}>
+          <div
+            className="tw-pill"
+            onClick={() => setDateSheetOpen(true)}
+            role="button"
+            tabIndex={0}
+            style={{ cursor: 'pointer', flex: 1 }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDateSheetOpen(true); }
+            }}
+          >
             <Calendar size={14} />
-            <span>{dateLabel}</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                opacity: 0,
-                cursor: 'pointer',
-                border: 0,
-                padding: 0,
-                margin: 0,
-              }}
-              aria-label={lang === 'en' ? 'Select date' : 'اختر التاريخ'}
-            />
-          </label>
+            <span>{dateLabelFor(date, lang)}</span>
+            <ChevronDown size={12} style={{ marginInlineStart: 'auto', opacity: 0.5 }} />
+          </div>
 
           <div
             className="tw-pill"
-            onClick={() => allowBranchSwitch && setSheetOpen(true)}
+            onClick={() => allowBranchSwitch && setBranchSheetOpen(true)}
             role={allowBranchSwitch ? 'button' : undefined}
             tabIndex={allowBranchSwitch ? 0 : undefined}
             style={{ cursor: allowBranchSwitch ? 'pointer' : 'default', flex: 1 }}
             onKeyDown={(e) => {
               if (allowBranchSwitch && (e.key === 'Enter' || e.key === ' ')) {
                 e.preventDefault();
-                setSheetOpen(true);
+                setBranchSheetOpen(true);
               }
             }}
           >
@@ -295,10 +304,8 @@ export default function ExpenseFormV2({
 
           <label>{t(lang, 'expense.amount')}</label>
           <div className="tw-field">
-            <input
-              type="number" inputMode="decimal" placeholder="0"
-              value={amount} onChange={(e) => setAmount(e.target.value)} dir="ltr"
-            />
+            <input type="number" inputMode="decimal" placeholder="0"
+              value={amount} onChange={(e) => setAmount(e.target.value)} dir="ltr" />
             <span className="tw-field-suffix">{t(lang, 'sales.currency')}</span>
           </div>
 
@@ -408,21 +415,10 @@ export default function ExpenseFormV2({
         )}
 
         <div className="tw-btn-row" style={{ marginTop: 14 }}>
-          <button
-            onClick={() => setView('employeeHome')}
-            className="tw-btn secondary"
-            type="button"
-            style={{ flex: 0.6 }}
-          >
+          <button onClick={() => setView('employeeHome')} className="tw-btn secondary" type="button" style={{ flex: 0.6 }}>
             {lang === 'en' ? 'Cancel' : 'إلغاء'}
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || done || uploading}
-            className="tw-btn"
-            type="button"
-            style={{ flex: 1 }}
-          >
+          <button onClick={handleSave} disabled={saving || done || uploading} className="tw-btn" type="button" style={{ flex: 1 }}>
             {(saving || uploading) && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
             {uploading
               ? (lang === 'en' ? 'Uploading...' : 'جارٍ رفع الصورة...')
@@ -433,13 +429,21 @@ export default function ExpenseFormV2({
         </div>
       </div>
 
+      <DateSheet
+        open={dateSheetOpen}
+        currentDate={date}
+        onPick={(newDate) => setDate(newDate)}
+        onClose={() => setDateSheetOpen(false)}
+        lang={lang}
+      />
+
       {allowBranchSwitch && (
         <BranchPickerSheet
-          open={sheetOpen}
+          open={branchSheetOpen}
           branches={branches}
           currentBranchId={branchId}
           onPick={(id) => onBranchChange?.(id)}
-          onClose={() => setSheetOpen(false)}
+          onClose={() => setBranchSheetOpen(false)}
           lang={lang}
         />
       )}

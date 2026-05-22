@@ -1,46 +1,58 @@
 // src/components/BottomSheet.jsx
 // ----------------------------------------------------------
-// قائمة منبثقة من الأسفل — تستخدم في pickers (الشهر، السنة، الفرع).
-// تصميم مطابق لـ openSheet() في الـ prototype.
+// قائمة منبثقة من الأسفل — مطابقة لـ openSheet() في الـ prototype.
 //
-// FIX (Batch 12.5):
-//   - z-index رُفع: overlay z-90, panel z-100 (فوق Bottom Nav)
-//   - padding-bottom للـ panel = safe-area + 22px ليبقى المحتوى مرئياً
-//     ولا يختفي خلف Bottom Nav (64px)
+// تصميم البروتوتايب (Batch 12.6 — exact match):
+//   .sheet-bg → position:absolute; inset:0; z-index:30
+//   .sheet    → position:absolute; bottom:0; z-index:31; max-height:80%
+// (داخل .phone بـ position:relative)
+//
+// CSS مكتوب inline ليتجاوز قواعد Tailwind ولا يحتاج index.css.
 // ----------------------------------------------------------
 export default function BottomSheet({ open, title, options = [], current, onPick, onClose }) {
   if (!open) return null;
 
   return (
     <>
-      {/* خلفية شفافة قابلة للنقر للإغلاق */}
+      {/* Overlay (sheet-bg) */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 backdrop-blur-sm"
-        style={{ animation: 'fadeIn 0.2s ease', zIndex: 90 }}
-      />
-      {/* اللوحة السفلية */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl max-h-[80vh] overflow-y-auto"
         style={{
-          animation: 'slideUp 0.25s ease',
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(6, 23, 66, 0.55)',
+          zIndex: 50,
+          animation: 'twSheetFadeIn 0.2s ease',
+        }}
+      />
+      {/* Panel (sheet) */}
+      <div
+        style={{
+          position: 'absolute',
+          left: 0,
+          right: 0,
+          bottom: 0,
+          background: '#fff',
+          borderRadius: '24px 24px 0 0',
+          padding: '18px 18px 26px',
+          zIndex: 51,
+          maxHeight: '80%',
+          overflowY: 'auto',
           boxShadow: '0 -10px 30px rgba(0,0,0,0.15)',
-          zIndex: 100,
-          // padding-bottom = safe-area + 22px ليتجاوز Bottom Nav (64px) + هامش
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 22px)',
+          animation: 'twSheetSlideUp 0.25s ease',
           overscrollBehavior: 'contain',
         }}
       >
-        {/* مقبض السحب */}
-        <div className="flex justify-center pt-3 pb-2">
-          <div className="w-12 h-1 bg-gray-300 rounded-full" />
-        </div>
-        {/* العنوان */}
-        <div className="px-5 pb-3 border-b border-tw-line">
-          <h3 className="font-bold text-base text-tw-navy text-center">{title}</h3>
-        </div>
-        {/* الخيارات */}
-        <div className="p-3 space-y-1">
+        {/* Grab handle */}
+        <div style={{ width: 40, height: 4, background: '#D6DEEB', borderRadius: 99, margin: '0 auto 12px' }} />
+
+        {/* Title */}
+        <h3 style={{ margin: '0 0 14px', fontSize: 16, fontWeight: 800, textAlign: 'center', color: 'var(--tw-navy)' }}>
+          {title}
+        </h3>
+
+        {/* Options */}
+        <div>
           {options.map((opt) => {
             const value = typeof opt === 'object' ? opt.value : opt;
             const label = typeof opt === 'object' ? opt.label : opt;
@@ -49,22 +61,35 @@ export default function BottomSheet({ open, title, options = [], current, onPick
               <div
                 key={value}
                 onClick={() => onPick(value)}
-                className={`flex items-center justify-between p-3 rounded-xl cursor-pointer transition-colors ${
-                  isCurrent
-                    ? 'bg-tw-soft border border-tw-blue/40 text-tw-blue font-bold'
-                    : 'hover:bg-tw-soft/40 text-tw-navy'
-                }`}
+                style={{
+                  padding: 14,
+                  border: '1.5px solid var(--tw-line)',
+                  borderRadius: 12,
+                  marginBottom: 8,
+                  fontWeight: 700,
+                  fontSize: 13,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  cursor: 'pointer',
+                  color: isCurrent ? 'var(--tw-blue)' : 'var(--tw-navy)',
+                  background: isCurrent ? 'var(--tw-soft)' : '#fff',
+                  borderColor: isCurrent ? 'var(--tw-blue)' : 'var(--tw-line)',
+                  transition: 'background .15s, border-color .15s',
+                }}
               >
                 <span>{label}</span>
-                <span className="text-tw-muted/70">›</span>
+                <span style={{ color: isCurrent ? 'var(--tw-blue)' : 'var(--tw-muted)', opacity: 0.7 }}>
+                  {isCurrent ? '✓' : '›'}
+                </span>
               </div>
             );
           })}
         </div>
       </div>
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes twSheetFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes twSheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       `}</style>
     </>
   );

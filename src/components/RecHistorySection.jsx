@@ -48,7 +48,10 @@ export default function RecHistorySection({
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
         const iso = (d) => d.toISOString().slice(0, 10);
-        const [s, e] = await Promise.all([getSales(iso(sevenDaysAgo), iso(today)), getExpenses(iso(sevenDaysAgo), iso(today))]);
+        const [s, e] = await Promise.all([
+          getSales(iso(sevenDaysAgo), iso(today)),
+          getExpenses(iso(sevenDaysAgo), iso(today)),
+        ]);
         if (!cancelled) {
           setSales(s.filter((x) => x.branchId === branchId));
           setExpenses(e.filter((x) => x.branchId === branchId));

@@ -1,8 +1,14 @@
 // src/components/SalesFormV2.jsx
-// نموذج تسجيل/تعديل المبيعات — تصميم 1:1 مع الـ prototype
-// FIX (Batch 12.3):
-//   - التاريخ مُصلَح: label يحوي input absolute بكامل الـ pill
-//   - padding-bottom للـ container كافي عشان الزرّين ما يختفون خلف Bottom Nav
+// ----------------------------------------------------------
+// نموذج تسجيل/تعديل المبيعات — تصميم 1:1 مع الـ prototype (screen-addSale)
+//
+// Batch 12.6 — مطابق للبروتوتايب 100%:
+//   - pill التاريخ يفتح DateSheet (اليوم/أمس/قبل يومين/مخصص) — مثل openSheet('date')
+//   - pill الفرع يفتح BranchPickerSheet (للمدير)
+//   - .tw-payment-row للـ 3 طرق دفع
+//   - .tw-total-strip
+//   - .tw-btn-row (إلغاء + حفظ)
+// ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
   Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronRight, ChevronDown,
@@ -14,10 +20,28 @@ import {
 import { t, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
+import DateSheet from './DateSheet';
 
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+function dateLabelFor(dateStr, lang) {
+  if (!dateStr) return '—';
+  const T = todayStr();
+  const y = new Date(); y.setDate(y.getDate() - 1);
+  const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
+  const t2 = new Date(); t2.setDate(t2.getDate() - 2);
+  const t2Str = `${t2.getFullYear()}-${String(t2.getMonth() + 1).padStart(2, '0')}-${String(t2.getDate()).padStart(2, '0')}`;
+  if (dateStr === T) return lang === 'en' ? 'Today' : 'اليوم';
+  if (dateStr === yStr) return lang === 'en' ? 'Yesterday' : 'أمس';
+  if (dateStr === t2Str) return lang === 'en' ? '2 days ago' : 'قبل يومين';
+  // تنسيق التاريخ المخصص
+  const d = new Date(dateStr + 'T00:00:00');
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
+    day: 'numeric', month: 'short', year: 'numeric',
+  });
 }
 
 export default function SalesFormV2({
@@ -37,7 +61,8 @@ export default function SalesFormV2({
   const [transfer, setTransfer] = useState(existingRecord?.transfer != null ? String(existingRecord.transfer) : '');
   const [methods, setMethods] = useState([]);
   const [branches, setBranches] = useState([]);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [branchSheetOpen, setBranchSheetOpen] = useState(false);
+  const [dateSheetOpen, setDateSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -87,10 +112,6 @@ export default function SalesFormV2({
     }
   };
 
-  const dateLabel = date === todayStr()
-    ? (lang === 'en' ? 'Today' : 'اليوم')
-    : date;
-
   const screenTitle = isEdit
     ? (lang === 'en' ? 'Edit sales' : 'تعديل المبيعات')
     : t(lang, 'sales.title');
@@ -121,42 +142,34 @@ export default function SalesFormV2({
         <div style={{ width: 36 }} />
       </div>
 
-      {/* FIX: pb-24 ليضمن أن زر الحفظ لا يختفي خلف Bottom Nav */}
-      <div className="relative z-10 p-4 pb-24">
-        {/* Pills: التاريخ + الفرع — التاريخ مُصلَح */}
+      <div className="relative z-10 p-4 pb-8">
+        {/* Pills: التاريخ + الفرع — كلاهما يفتح bottom sheet */}
         <div className="tw-controls-row">
-          <label className="tw-pill" style={{ position: 'relative', cursor: 'pointer', flex: 1 }}>
+          <div
+            className="tw-pill"
+            onClick={() => setDateSheetOpen(true)}
+            role="button"
+            tabIndex={0}
+            style={{ cursor: 'pointer', flex: 1 }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setDateSheetOpen(true); }
+            }}
+          >
             <Calendar size={14} />
-            <span>{dateLabel}</span>
-            <input
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              style={{
-                position: 'absolute',
-                inset: 0,
-                width: '100%',
-                height: '100%',
-                opacity: 0,
-                cursor: 'pointer',
-                border: 0,
-                padding: 0,
-                margin: 0,
-              }}
-              aria-label={lang === 'en' ? 'Select date' : 'اختر التاريخ'}
-            />
-          </label>
+            <span>{dateLabelFor(date, lang)}</span>
+            <ChevronDown size={12} style={{ marginInlineStart: 'auto', opacity: 0.5 }} />
+          </div>
 
           <div
             className="tw-pill"
-            onClick={() => allowBranchSwitch && setSheetOpen(true)}
+            onClick={() => allowBranchSwitch && setBranchSheetOpen(true)}
             role={allowBranchSwitch ? 'button' : undefined}
             tabIndex={allowBranchSwitch ? 0 : undefined}
             style={{ cursor: allowBranchSwitch ? 'pointer' : 'default', flex: 1 }}
             onKeyDown={(e) => {
               if (allowBranchSwitch && (e.key === 'Enter' || e.key === ' ')) {
                 e.preventDefault();
-                setSheetOpen(true);
+                setBranchSheetOpen(true);
               }
             }}
           >
@@ -180,10 +193,8 @@ export default function SalesFormV2({
               <Wallet />
               <span>{labelFor('Cash', t(lang, 'sales.cash'))}</span>
             </label>
-            <input
-              type="number" inputMode="decimal" placeholder="0"
-              value={cash} onChange={(e) => setCash(e.target.value)} dir="ltr"
-            />
+            <input type="number" inputMode="decimal" placeholder="0"
+              value={cash} onChange={(e) => setCash(e.target.value)} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
 
@@ -192,10 +203,8 @@ export default function SalesFormV2({
               <CreditCard />
               <span>{labelFor('Mada', t(lang, 'sales.mada'))}</span>
             </label>
-            <input
-              type="number" inputMode="decimal" placeholder="0"
-              value={mada} onChange={(e) => setMada(e.target.value)} dir="ltr"
-            />
+            <input type="number" inputMode="decimal" placeholder="0"
+              value={mada} onChange={(e) => setMada(e.target.value)} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
 
@@ -204,10 +213,8 @@ export default function SalesFormV2({
               <Send />
               <span>{labelFor('Transfer', t(lang, 'sales.transfer'))}</span>
             </label>
-            <input
-              type="number" inputMode="decimal" placeholder="0"
-              value={transfer} onChange={(e) => setTransfer(e.target.value)} dir="ltr"
-            />
+            <input type="number" inputMode="decimal" placeholder="0"
+              value={transfer} onChange={(e) => setTransfer(e.target.value)} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
         </div>
@@ -267,36 +274,33 @@ export default function SalesFormV2({
         )}
 
         <div className="tw-btn-row" style={{ marginTop: 14 }}>
-          <button
-            onClick={() => setView('employeeHome')}
-            className="tw-btn secondary"
-            type="button"
-            style={{ flex: 0.6 }}
-          >
+          <button onClick={() => setView('employeeHome')} className="tw-btn secondary" type="button" style={{ flex: 0.6 }}>
             {lang === 'en' ? 'Cancel' : 'إلغاء'}
           </button>
-          <button
-            onClick={handleSave}
-            disabled={saving || done}
-            className="tw-btn"
-            type="button"
-            style={{ flex: 1 }}
-          >
+          <button onClick={handleSave} disabled={saving || done} className="tw-btn" type="button" style={{ flex: 1 }}>
             {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
-            {saving
-              ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...')
-              : saveBtnLabel}
+            {saving ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...') : saveBtnLabel}
           </button>
         </div>
       </div>
 
+      {/* DateSheet — يفتح من pill التاريخ */}
+      <DateSheet
+        open={dateSheetOpen}
+        currentDate={date}
+        onPick={(newDate) => setDate(newDate)}
+        onClose={() => setDateSheetOpen(false)}
+        lang={lang}
+      />
+
+      {/* BranchPickerSheet — للمدير فقط */}
       {allowBranchSwitch && (
         <BranchPickerSheet
-          open={sheetOpen}
+          open={branchSheetOpen}
           branches={branches}
           currentBranchId={branchId}
           onPick={(id) => onBranchChange?.(id)}
-          onClose={() => setSheetOpen(false)}
+          onClose={() => setBranchSheetOpen(false)}
           lang={lang}
         />
       )}

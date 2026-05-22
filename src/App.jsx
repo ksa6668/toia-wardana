@@ -196,10 +196,10 @@ export default function App() {
     <div className={`min-h-screen bg-tw-bg md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
          dir={pageDir}
          style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}>
-      <div className="w-full bg-white overflow-hidden flex flex-col tw-app-frame
+      <div className="w-full bg-white overflow-hidden flex flex-col tw-app-frame relative
                       min-h-screen
                       md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
-                      md:border-8 md:border-slate-900 md:h-[850px] md:relative">
+                      md:border-8 md:border-slate-900 md:h-[850px]">
 
         {currentView !== 'login' && !authLoading && (
           <AppHeader
@@ -218,7 +218,7 @@ export default function App() {
           />
         )}
 
-        <main className="flex-1 overflow-y-auto bg-tw-bg relative z-10 pb-24 md:pb-0">
+        <main className="flex-1 overflow-y-auto bg-tw-bg pb-24">
           {authLoading && (
             <div className="h-full flex flex-col items-center justify-center text-tw-muted/70 gap-3 pt-20">
               <Loader2 size={32} className="animate-spin" />
@@ -261,7 +261,7 @@ export default function App() {
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
           <nav
-            className="fixed bottom-0 left-0 right-0 md:absolute bg-white border-t border-tw-line flex items-center px-2 py-2 pb-5 md:pb-3 z-30"
+            className="absolute bottom-0 left-0 right-0 bg-white border-t border-tw-line flex items-center px-2 py-2 pb-5 md:pb-3 z-10"
             style={{
               boxShadow: '0 -8px 24px rgba(6, 23, 66, 0.06)',
               fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
@@ -301,7 +301,7 @@ export default function App() {
 
         {/* Batch 5: مركز الإشعارات (overlay) */}
         {showNotifications && (
-          <div className="fixed inset-0 z-40 md:absolute bg-white overflow-y-auto">
+          <div className="absolute inset-0 z-40 bg-white overflow-y-auto">
             <NotificationsCenter
               onBack={() => setShowNotifications(false)}
               userName={user?.displayName || user?.username || 'أحمد'}
@@ -311,7 +311,7 @@ export default function App() {
 
         {/* Batch 5: شاشة الإيصالات والفواتير (overlay) */}
         {showReceipts && (
-          <div className="fixed inset-0 z-40 md:absolute bg-white overflow-y-auto">
+          <div className="absolute inset-0 z-40 bg-white overflow-y-auto">
             <ManagerReceipts
               onBack={() => setShowReceipts(false)}
               onOpenCategories={() => setShowReceiptsCategories(true)}
@@ -321,7 +321,7 @@ export default function App() {
 
         {/* Batch 11: شاشة التصنيفات المفتوحة من داخل الإيصالات */}
         {showReceiptsCategories && (
-          <div className="fixed inset-0 z-50 md:absolute bg-white overflow-y-auto">
+          <div className="absolute inset-0 z-50 bg-white overflow-y-auto">
             <ManageCategories onBack={() => setShowReceiptsCategories(false)} />
           </div>
         )}
