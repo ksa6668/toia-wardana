@@ -506,3 +506,91 @@ export async function uploadInvoiceImage(file) {
   }
   return res.json(); // { invoiceUrl, invoicePath }
 }
+
+// ========================================================
+// Goals (§Batch 3) — أهداف الميزانية والتقييمات الشهرية لكل فرع
+// المسار في Firestore:
+//   goals/{branchId}_{YYYY-MM}  →  { budget, reviewsTarget, updatedAt }
+// مثال:
+//   goals/toia_2026-05  →  { budget: 45000, reviewsTarget: 30 }
+// ========================================================
+
+/**
+ * يجلب هدف فرع لشهر معين. لو الـ doc غير موجود يرجع defaults.
+ */
+export async function getMonthlyGoal(branchId, monthStr) {
+  const goalId = `${branchId}_${monthStr}`;
+  const ref = doc(db, "goals", goalId);
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    return { budget: 0, reviewsTarget: 0, exists: false };
+  }
+  return { ...snap.data(), exists: true };
+}
+
+/**
+ * يحفظ هدف فرع لشهر معين. الـ data: { budget, reviewsTarget }
+ */
+export async function setMonthlyGoal(branchId, monthStr, data) {
+  const goalId = `${branchId}_${monthStr}`;
+  const ref = doc(db, "goals", goalId);
+  await setDoc(
+    ref,
+    {
+      budget: Number(data.budget) || 0,
+      reviewsTarget: Number(data.reviewsTarget) || 0,
+      branchId,
+      month: monthStr,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+/**
+ * يجلب أهداف كل الفروع لشهر معين دفعة واحدة (أكفأ من استدعاءات متعددة).
+ * يستخدمه ManagerHome لعرض KPIs.
+ */
+export async function getAllGoalsForMonth(monthStr) {
+  const branches = await getBranches();
+  const promises = branches.map((b) =>
+    getMonthlyGoal(b.id, monthStr).then((g) => ({ branchId: b.id, ...g }))
+  );
+  return Promise.all(promises);
+}
+
+// ========================================================
+// Branches CRUD الكاملة (§Batch 3)
+// addBranch و deleteBranch — getBranches و updateBranch موجودان أعلاه
+// ========================================================
+
+/**
+ * إضافة فرع جديد. الـ id يُولّد من الاسم بالإنجليزية slug.
+ */
+export async function addBranch({ name, nameEn, order }) {
+  if (!name || !name.trim()) throw new Error("اسم الفرع مطلوب");
+  // ولّد ID من الاسم الإنجليزي إن وُجد، وإلا من timestamp
+  let id = (nameEn || name).toLowerCase().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+  if (!id) id = `branch_${Date.now()}`;
+  // تأكد عدم التكرار
+  const existing = await getDoc(doc(db, "branches", id));
+  if (existing.exists()) {
+    id = `${id}_${Date.now()}`;
+  }
+  await setDoc(doc(db, "branches", id), {
+    name: name.trim(),
+    nameEn: (nameEn || "").trim() || null,
+    active: true,
+    order: Number(order) || 99,
+    createdAt: serverTimestamp(),
+  });
+  return id;
+}
+
+/**
+ * حذف فرع. ⚠️ يُعطّل (active=false) بدل الحذف الفعلي
+ * للحفاظ على تكامل البيانات التاريخية.
+ */
+export async function deleteBranch(id) {
+  await updateDoc(doc(db, "branches", id), { active: false });
+}

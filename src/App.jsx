@@ -18,6 +18,8 @@ import {
   getBranches, getPaymentMethods,
   madaFees, madaNet, MADA_FEE_RATE,
   saveUserLanguage,
+  getMonthlyGoal, setMonthlyGoal, getAllGoalsForMonth,
+  addBranch, deleteBranch, updateBranch,
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 import SarSymbol from './components/SarSymbol';
@@ -30,6 +32,8 @@ import ManagerKpis from './components/ManagerKpis';
 import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
 import EmployeeHistory from './components/EmployeeHistory';
+// Admin settings + Goals + Branches (Batch 3)
+import AdminSettingsV2 from './components/AdminSettingsV2';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -218,7 +222,7 @@ export default function App() {
             <LoginView onLoginSuccess={handleLoginSuccess} lang={lang} setLang={changeLang} />
           )}
           {!authLoading && currentView === 'employeeHome' && (
-            <EmployeeHome setView={setCurrentView} branch={branch} lang={lang} setLang={changeLang} />
+            <EmployeeHome setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} setLang={changeLang} />
           )}
           {!authLoading && currentView === 'salesForm' && (
             <SalesFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
@@ -234,7 +238,16 @@ export default function App() {
           {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && <ManagerMonthly lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'overview' && <ManagerOverview lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && <AdminSettings />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
+            <AdminSettingsV2
+              lang="ar"
+              ManageUsersComponent={ManageUsers}
+              ManageFixedExpensesComponent={ManageFixedExpenses}
+              ManageCategoriesComponent={ManageCategories}
+              ChangeMyPinComponent={ChangeMyPin}
+              AdminDataEntryComponent={AdminDataEntry}
+            />
+          )}
           {/* Dashboard القديم: متاح للرجوع إن أردت — adminTab === 'dashboard' */}
           {!authLoading && currentView === 'adminHome' && adminTab === 'dashboard' && <SuperAdminDashboard />}
         </main>
@@ -1195,16 +1208,54 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
 // ==========================================
 // الصفحة الرئيسية للموظف
 // ==========================================
-function EmployeeHome({ setView, branch, lang, setLang }) {
+function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
   const align = lang === 'en' ? 'text-left' : 'text-right';
   const toggleLang = () => setLang(lang === 'ar' ? 'en' : 'ar');
 
-  // اسم الشهر الحالي بتنسيق "مايو 2026" / "May 2026" — قراءة فقط حالياً.
-  // لاحقاً يمكن جعله picker إذا قررنا السماح للموظف باستعراض شهور أخرى.
+  // اسم الشهر الحالي بتنسيق "مايو 2026" / "May 2026"
   const monthLabel = new Date().toLocaleDateString(
     lang === 'en' ? 'en-US' : 'ar-SA',
     { month: 'long', year: 'numeric' }
   );
+
+  // ====== KPIs الحقيقية من Firestore (Batch 3) ======
+  const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, loaded: false });
+  useEffect(() => {
+    if (!branchId) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        // الشهر الحالي بصيغة YYYY-MM
+        const d = new Date();
+        const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+        // نطاق الشهر
+        const from = `${monthStr}-01`;
+        const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
+        const to = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
+        // جلب الهدف + المبيعات بالتوازي
+        const [goal, allSales] = await Promise.all([
+          getMonthlyGoal(branchId, monthStr),
+          getSales(from, to),
+        ]);
+        // فلتر مبيعات هذا الفرع
+        const branchSales = allSales.filter((s) => s.branchId === branchId);
+        const totalSales = branchSales.reduce((sum, s) => sum + (s.total || 0), 0);
+        const budgetPct = goal.budget > 0
+          ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
+          : 0;
+        // التقييمات: نقرأها من الـ goal (لا يوجد API لقراءتها من Google Maps حالياً)
+        // ⚠️ TODO: ربط Google Places API لاحقاً.
+        // الآن: الـ goal يحوي reviewsTarget فقط، نعرض 0% حتى يتم الربط.
+        const reviewsPct = 0;
+        if (!cancelled) {
+          setKpis({ budgetPct, reviewsPct, loaded: true, hasGoal: goal.exists });
+        }
+      } catch {
+        if (!cancelled) setKpis({ budgetPct: 0, reviewsPct: 0, loaded: true, error: true });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [branchId]);
 
   return (
     <div
@@ -1266,13 +1317,9 @@ function EmployeeHome({ setView, branch, lang, setLang }) {
          الآن: أرقام تجريبية لاستعراض التصميم.
          ============================================================ */}
       {(() => {
-        // أرقام تجريبية — استبدلها بقراءات حقيقية لاحقاً
-        const budgetAchieved = 39000;
-        const budgetTarget = 50000;
-        const reviewsAchieved = 92;
-        const reviewsTarget = 100;
-        const budgetPct = Math.min(100, Math.round((budgetAchieved / budgetTarget) * 100));
-        const reviewsPct = Math.min(100, Math.round((reviewsAchieved / reviewsTarget) * 100));
+        // أرقام حقيقية من Firestore عبر useEffect أعلاه
+        const budgetPct = kpis.budgetPct;
+        const reviewsPct = kpis.reviewsPct;
         return (
           <div className="relative z-10 space-y-3 mb-4">
             {/* كارت تحقيق الميزانية */}

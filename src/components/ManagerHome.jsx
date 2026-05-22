@@ -3,19 +3,20 @@
 // شاشة المدير الرئيسية — كروت KPI لكل فرع
 // مطابقة لتصميم index.html الـ prototype في شاشة 'home' للمدير.
 //
-// ⚠️ TODO (ربط Firestore):
-//   الأرقام (78%, 92%, 68%, 84%) تجريبية. للربط:
-//     1) أنشئ collection 'goals' في Firestore:
-//          goals/{branchId}_{YYYY-MM}  →  { budget, reviewsTarget }
-//     2) أضف في firebase.js:
-//          export async function getMonthlyGoal(branchId, monthStr) {...}
-//     3) احسب: budgetPct = (monthSales / goal.budget) * 100
-//   راجع التعليق المفصّل في EmployeeHome داخل App.jsx.
+// Batch 3: تربط بـ Firestore الحقيقي:
+//   - تجلب الفروع من getBranches()
+//   - تجلب الأهداف للشهر/السنة عبر getAllGoalsForMonth() / getMonthlyGoal()
+//   - تجلب المبيعات وتحسب نسبة تحقيق الميزانية فعلياً
+// التقييمات: placeholder حالياً (يحتاج Google Places API)
 // ----------------------------------------------------------
-import { useState } from 'react';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Calendar, ChevronDown, Loader2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
-import { getAvailableMonths, getAvailableYears, formatMonthLabel } from '../utils/periodHelpers';
+import { getBranches, getAllGoalsForMonth, getMonthlyGoal, getSales } from '../firebase';
+import {
+  getAvailableMonths, getAvailableYears, formatMonthLabel,
+  monthRange, yearRange,
+} from '../utils/periodHelpers';
 
 const NAVY_GRADIENT = {
   background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
@@ -85,11 +86,82 @@ export default function ManagerHome({ lang }) {
   // للقائمة المنبثقة
   const [sheet, setSheet] = useState(null);
 
-  // ⚠️ أرقام تجريبية — تستبدل بقراءات حقيقية من Firestore
-  const mockData = {
-    toia: { budget: 78, reviews: 92 },
-    wardana: { budget: 68, reviews: 84 },
-  };
+  // ====== البيانات الحقيقية من Firestore ======
+  const [branches, setBranches] = useState([]);
+  // map: { [branchId]: { budgetPct, reviewsPct, hasGoal } }
+  const [branchKpis, setBranchKpis] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  // تحميل البيانات عند تغيير الفترة
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError('');
+      try {
+        // 1) الفروع
+        const brs = await getBranches();
+        if (cancelled) return;
+
+        // 2) النطاق الزمني
+        const { from, to } = period === 'month'
+          ? monthRange(selectedMonth)
+          : yearRange(selectedYear);
+
+        // 3) المبيعات لكل الفروع
+        const allSales = await getSales(from, to);
+        if (cancelled) return;
+
+        // 4) الأهداف لكل فرع
+        // للسنة: نحتاج جمع أهداف 12 شهر — تبسيط: نضرب هدف الشهر الحالي × 12
+        // للشهر: نقرأ الأهداف مباشرة
+        const goalsPromises = brs.map(async (b) => {
+          if (period === 'month') {
+            const g = await getMonthlyGoal(b.id, selectedMonth);
+            return { branchId: b.id, budget: g.budget, reviewsTarget: g.reviewsTarget, exists: g.exists };
+          } else {
+            // سنوي: مجموع أهداف 12 شهر
+            let totalBudget = 0;
+            let totalReviews = 0;
+            let anyExists = false;
+            for (let m = 1; m <= 12; m++) {
+              const monthStr = `${selectedYear}-${String(m).padStart(2, '0')}`;
+              const g = await getMonthlyGoal(b.id, monthStr);
+              if (g.exists) anyExists = true;
+              totalBudget += g.budget || 0;
+              totalReviews += g.reviewsTarget || 0;
+            }
+            return { branchId: b.id, budget: totalBudget, reviewsTarget: totalReviews, exists: anyExists };
+          }
+        });
+        const goals = await Promise.all(goalsPromises);
+        if (cancelled) return;
+
+        // 5) حساب KPIs لكل فرع
+        const kpisMap = {};
+        for (const b of brs) {
+          const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0 };
+          const branchSales = allSales.filter((s) => s.branchId === b.id);
+          const totalSales = branchSales.reduce((sum, s) => sum + (s.total || 0), 0);
+          const budgetPct = goal.budget > 0
+            ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
+            : 0;
+          // التقييمات: placeholder حتى نضيف Google Places API
+          const reviewsPct = 0;
+          kpisMap[b.id] = { budgetPct, reviewsPct, hasGoal: goal.exists };
+        }
+        setBranches(brs);
+        setBranchKpis(kpisMap);
+      } catch (err) {
+        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    load();
+    return () => { cancelled = true; };
+  }, [period, selectedMonth, selectedYear]);
 
   const openPicker = () => {
     if (period === 'month') {
@@ -155,21 +227,39 @@ export default function ManagerHome({ lang }) {
         <ChevronDown size={14} className="text-gray-400" />
       </button>
 
-      {/* فرع تويا */}
-      <BranchSection
-        name={lang === 'en' ? 'Toia Branch' : 'فرع تويا'}
-        budgetPct={mockData.toia.budget}
-        reviewsPct={mockData.toia.reviews}
-        lang={lang}
-      />
+      {loading && (
+        <div className="flex items-center justify-center py-10 text-slate-400">
+          <Loader2 className="animate-spin" size={24} />
+        </div>
+      )}
+      {error && (
+        <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3 mb-4">
+          {error}
+        </p>
+      )}
 
-      {/* فرع وردانة */}
-      <BranchSection
-        name={lang === 'en' ? 'Wardana Branch' : 'فرع وردانة'}
-        budgetPct={mockData.wardana.budget}
-        reviewsPct={mockData.wardana.reviews}
-        lang={lang}
-      />
+      {/* قائمة الفروع الديناميكية من Firestore */}
+      {!loading && !error && branches.map((b) => {
+        const k = branchKpis[b.id] || { budgetPct: 0, reviewsPct: 0, hasGoal: false };
+        return (
+          <BranchSection
+            key={b.id}
+            name={lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`)}
+            budgetPct={k.budgetPct}
+            reviewsPct={k.reviewsPct}
+            lang={lang}
+          />
+        );
+      })}
+
+      {/* رسالة لو ما فيه أهداف محددة */}
+      {!loading && !error && branches.length > 0 && Object.values(branchKpis).every((k) => !k.hasGoal) && (
+        <p className="text-amber-700 text-xs text-center bg-amber-50 border border-amber-100 rounded-lg p-3 mt-2">
+          {lang === 'en'
+            ? 'No goals set yet. Set monthly goals from Settings.'
+            : 'لم يتم تحديد أهداف بعد. حدّد الأهداف الشهرية من الإعدادات.'}
+        </p>
+      )}
 
       {/* القائمة المنبثقة */}
       <BottomSheet
