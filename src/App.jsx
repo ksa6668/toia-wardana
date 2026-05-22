@@ -191,7 +191,7 @@ export default function App() {
   return (
     <div className={`min-h-screen bg-tw-bg md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
          dir={pageDir}
-         style={{ fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif" }}>
+         style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}>
       <div className="w-full bg-white overflow-hidden flex flex-col
                       min-h-screen
                       md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
@@ -260,7 +260,7 @@ export default function App() {
             className="fixed bottom-0 left-0 right-0 md:absolute bg-white border-t border-tw-line flex items-center px-2 py-2 pb-5 md:pb-3 z-30"
             style={{
               boxShadow: '0 -8px 24px rgba(6, 23, 66, 0.06)',
-              fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif",
+              fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
             }}
           >
             {/*
@@ -1070,7 +1070,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
       className="relative min-h-full flex flex-col px-6 pt-10 pb-8 overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية ناعمة */}
@@ -1121,7 +1121,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
         <h1
           className="text-3xl mb-1"
           style={{
-            fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, sans-serif',
+            fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
             fontWeight: 800,
             color: '#061742',
             letterSpacing: '-0.5px',
@@ -1232,7 +1232,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
             background: loading
               ? 'linear-gradient(135deg, #4A5568, #2D3748)'
               : 'linear-gradient(135deg, #1E3A8A 0%, #005BFF 50%, #168BFF 100%)',
-            fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, sans-serif',
+            fontFamily: '"IBM Plex Sans Arabic", system-ui, sans-serif',
             fontSize: '16px',
             fontWeight: 700,
             boxShadow: '0 10px 25px -5px rgba(0, 91, 255, 0.5), 0 4px 10px -2px rgba(0, 91, 255, 0.3)',
@@ -1304,7 +1304,7 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
       className="relative min-h-full flex flex-col px-5 pt-6 pb-8 overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية ناعمة — نفس طابع شاشة الدخول للاتساق البصري */}
@@ -2021,7 +2021,7 @@ function ManageUsers({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -2322,7 +2322,7 @@ function ManageFixedExpenses({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -2508,7 +2508,7 @@ function ManageCategories({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}

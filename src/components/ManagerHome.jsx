@@ -48,21 +48,11 @@ function KpiCard({ label, percent, showStars }) {
 }
 
 // SVG شعار صغير يطابق الـ prototype: 4 ورقات أزرق
-// أيقونة الفرع — مطابقة لـ #i-flower symbol في الـ prototype
-// شكل دوّار بأربع أذرع منحنية متعامدة، خطوط زرقاء stroke فقط
-function WindmillIcon({ size = 16 }) {
+// أيقونة الفرع — مطابقة #i-flower symbol في الـ prototype
+// الـ styling (size/stroke/color) يأتي من .tw-branch-divider .branch-name svg
+function WindmillIcon() {
   return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="#005BFF"
-      strokeWidth="1.8"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 24 24">
       <circle cx="12" cy="12" r="2.5" />
       <path d="M12 9.5V4a3 3 0 1 1 3 3" />
       <path d="M14.5 12H20a3 3 0 1 1-3 3" />
@@ -75,27 +65,15 @@ function WindmillIcon({ size = 16 }) {
 // قسم لكل فرع (عنوان + شبكة 2×1)
 function BranchSection({ name, budgetPct, reviewsPct, lang }) {
   return (
-    <div className="mb-7">
-      {/* فاصل اسم الفرع — خطين مع chip في المنتصف */}
-      <div className="flex items-center gap-2.5 mb-4">
-        <div
-          className="flex-1 h-px opacity-50"
-          style={{ background: 'linear-gradient(90deg, transparent, #005BFF, transparent)' }}
-        />
-        <div
-          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full whitespace-nowrap"
-          style={{
-            background: '#EEF5FF',
-            border: '1.5px solid #005BFF',
-          }}
-        >
-          <WindmillIcon size={14} />
-          <span className="text-sm font-extrabold text-tw-navy2">{name}</span>
-        </div>
-        <div
-          className="flex-1 h-px opacity-50"
-          style={{ background: 'linear-gradient(90deg, transparent, #005BFF, transparent)' }}
-        />
+    <div className="mb-5">
+      {/* فاصل اسم الفرع — مطابق .branch-divider في الـ prototype */}
+      <div className="tw-branch-divider">
+        <span className="line" />
+        <span className="branch-name">
+          <WindmillIcon />
+          <span>{name}</span>
+        </span>
+        <span className="line" />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <KpiCard
@@ -242,42 +220,36 @@ export default function ManagerHome({ lang }) {
 
   return (
     <div
-      className="relative min-h-full px-5 pt-5 pb-8 overflow-hidden page-bg-soft"
-      style={{ fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif" }}
+      className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
+      style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
       {/* تبويبات شهري/سنوي — مطابقة لـ .tabs في الـ prototype */}
-      <div className="flex bg-tw-soft p-1 rounded-2xl mb-4 relative z-10">
-        <button
+      <div className="tw-tabs relative z-10">
+        <span
           onClick={() => setPeriod('month')}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-extrabold transition-all ${
-            period === 'month'
-              ? 'bg-tw-blue text-white shadow-md'
-              : 'text-tw-muted hover:text-tw-navy'
-          }`}
+          className={period === 'month' ? 'active' : ''}
         >
           {lang === 'en' ? 'Monthly' : 'شهري'}
-        </button>
-        <button
+        </span>
+        <span
           onClick={() => setPeriod('year')}
-          className={`flex-1 py-2.5 rounded-xl text-sm font-extrabold transition-all ${
-            period === 'year'
-              ? 'bg-tw-blue text-white shadow-md'
-              : 'text-tw-muted hover:text-tw-navy'
-          }`}
+          className={period === 'year' ? 'active' : ''}
         >
           {lang === 'en' ? 'Yearly' : 'سنوي'}
-        </button>
+        </span>
       </div>
 
-      {/* منتقي الفترة */}
-      <button
-        onClick={openPicker}
-        className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 mb-5 shadow-sm hover:shadow-md transition-shadow relative z-10"
-      >
-        <Calendar size={16} className="text-tw-blue" />
-        <span className="font-extrabold text-sm text-tw-navy font-num">{currentLabel}</span>
+      {/* منتقي الفترة — مطابق لـ .period-picker في الـ prototype */}
+      <div onClick={openPicker} className="tw-period-picker relative z-10">
+        <svg viewBox="0 0 24 24">
+          <rect x="3" y="4" width="18" height="18" rx="2" />
+          <line x1="16" y1="2" x2="16" y2="6" />
+          <line x1="8" y1="2" x2="8" y2="6" />
+          <line x1="3" y1="10" x2="21" y2="10" />
+        </svg>
+        <span className="font-num">{currentLabel}</span>
         <ChevronDown size={14} className="text-tw-muted" />
-      </button>
+      </div>
 
       {loading && (
         <div className="flex items-center justify-center py-10 text-tw-muted">

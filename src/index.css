@@ -1,10 +1,9 @@
 @import "tailwindcss";
 
 /* =================================================================
-   Design Tokens - Toia & Wardana (Mirrors Prototype)
+   Design Tokens — Toia & Wardana (1:1 mirror of prototype index.html)
    ================================================================= */
 :root {
-  /* Brand colors - matching prototype index.html :root */
   --tw-navy: #061742;
   --tw-navy2: #082765;
   --tw-blue: #005BFF;
@@ -14,36 +13,34 @@
   --tw-red: #F04444;
   --tw-orange: #FF9F43;
   --tw-yellow: #FFC842;
-
-  /* Surfaces & text */
-  --tw-text: #071A3D;       /* main text */
-  --tw-muted: #7E8AA3;      /* secondary text */
-  --tw-line: #E6ECF6;       /* borders */
-  --tw-card: #FFFFFF;       /* card bg */
-  --tw-soft: #EEF5FF;       /* soft tint bg */
-  --tw-bg: #F2F8FF;         /* page bg subtle */
+  --tw-text: #071A3D;
+  --tw-muted: #7E8AA3;
+  --tw-line: #E6ECF6;
+  --tw-card: #FFFFFF;
+  --tw-soft: #EEF5FF;
+  --tw-bg: #F7FAFF;
 }
 
-/* =================================================================
-   Typography - Almarai (clean Arabic SaaS look)
-   ================================================================= */
+/* Body styling — exact prototype */
 html, body, #root {
-  font-family: 'Almarai', 'IBM Plex Sans Arabic', system-ui, -apple-system, sans-serif;
+  font-family: 'IBM Plex Sans Arabic', system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
   color: var(--tw-text);
+  font-weight: 500;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
 }
+body {
+  background:
+    radial-gradient(circle at 4% 8%, rgba(0,91,255,.10), transparent 23%),
+    radial-gradient(circle at 93% 5%, rgba(40,223,255,.08), transparent 22%),
+    #F7FAFF;
+}
 
-/* Numbers should always be LTR even in Arabic context */
 .font-num {
   font-feature-settings: 'tnum';
   font-variant-numeric: tabular-nums;
 }
 
-/* =================================================================
-   Tailwind v4 @theme - exposes tokens as Tailwind colors
-   Usage: bg-tw-blue, text-tw-navy, border-tw-line, etc.
-   ================================================================= */
 @theme {
   --color-tw-navy: #061742;
   --color-tw-navy2: #082765;
@@ -59,71 +56,214 @@ html, body, #root {
   --color-tw-line: #E6ECF6;
   --color-tw-card: #FFFFFF;
   --color-tw-soft: #EEF5FF;
-  --color-tw-bg: #F2F8FF;
-
-  /* Font family helper */
-  --font-arabic: 'Almarai', 'IBM Plex Sans Arabic', system-ui, sans-serif;
+  --color-tw-bg: #F7FAFF;
+  --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
 }
 
 /* =================================================================
-   Reusable utilities matching prototype patterns
+   Prototype-exact components
    ================================================================= */
 
-/* The main "blue button" pattern from prototype:
-   background: linear-gradient(145deg, var(--blue), var(--navy2)) */
-.btn-primary-gradient {
-  background: linear-gradient(145deg, #005BFF, #082765);
-  color: #fff;
-}
-
-/* The "navy hero" gradient used in big totals */
-.hero-navy-gradient {
-  background: linear-gradient(135deg, #082765 0%, #061742 60%, #1E3A8A 100%);
-  color: #fff;
-}
-
-/* Page subtle gradient bg used across screens */
-.page-bg-soft {
-  background: radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%);
-}
-
-/* The cyan decorative blob seen in prototype headers */
-.decor-cyan-blob {
-  position: absolute;
-  top: -5rem;
-  right: -5rem;
-  width: 18rem;
-  height: 18rem;
-  border-radius: 9999px;
-  background: radial-gradient(circle, rgba(40, 223, 255, 0.3), transparent 70%);
-  opacity: 0.25;
-  pointer-events: none;
-  z-index: 0;
-}
-
-/* Card pattern from prototype: .card */
-.card-base {
+/* .phone-head — header */
+.tw-phone-head {
+  flex: 0 0 auto;
+  padding: 8px 16px 12px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid var(--tw-line);
   background: #fff;
-  border: 1px solid var(--tw-line);
-  border-radius: 16px;
-  box-shadow: 0 6px 16px rgba(6, 23, 66, 0.05);
+  z-index: 5;
+}
+.tw-phone-head h3 {
+  margin: 0;
+  font-size: 15px;
+  color: var(--tw-navy);
+  font-weight: 700;
+  text-align: center;
+}
+.tw-phone-head p {
+  margin: 2px 0 0;
+  color: var(--tw-muted);
+  font-size: 11px;
+  text-align: center;
+  font-weight: 500;
 }
 
-/* Circle button used in header (prototype .circle-btn) */
-.circle-btn {
-  width: 42px;
-  height: 42px;
-  border-radius: 9999px;
+/* .circle-btn — 36×36, radius 12 (NOT fully rounded!) */
+.tw-circle-btn {
+  width: 36px;
+  height: 36px;
+  border-radius: 12px;
   border: 1px solid var(--tw-line);
   background: #fff;
   display: grid;
   place-items: center;
   color: var(--tw-navy2);
   cursor: pointer;
-  transition: transform 0.15s, background 0.15s;
+  transition: transform .15s, background .15s;
+  position: relative;
+  flex-shrink: 0;
 }
-.circle-btn:active { transform: scale(0.92); background: var(--tw-soft); }
+.tw-circle-btn:active { transform: scale(.92); background: var(--tw-soft); }
+.tw-circle-btn svg {
+  width: 18px;
+  height: 18px;
+  stroke: var(--tw-navy2);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  pointer-events: none;
+}
 
-/* Bottom nav item active color */
-.nav-item-active { color: var(--tw-blue); }
-.nav-item-inactive { color: #8A96AA; }
+/* notification badge — circular red dot */
+.tw-notif-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--tw-red);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fff;
+  line-height: 1;
+}
+
+/* .tabs — shehri/sanawi pills */
+.tw-tabs {
+  display: flex;
+  border: 1px solid var(--tw-line);
+  background: #F2F6FC;
+  border-radius: 12px;
+  padding: 4px;
+  margin-bottom: 12px;
+}
+.tw-tabs span {
+  flex: 1;
+  text-align: center;
+  padding: 9px 4px;
+  border-radius: 9px;
+  color: #7B879A;
+  font-weight: 700;
+  font-size: 12px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.tw-tabs .active {
+  background: linear-gradient(145deg, var(--tw-navy2), var(--tw-blue));
+  color: #fff;
+  box-shadow: 0 4px 10px rgba(0,91,255,.18);
+}
+
+/* .branch-divider */
+.tw-branch-divider {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 10px 0 10px;
+}
+.tw-branch-divider .line {
+  flex: 1;
+  height: 1.5px;
+  background: linear-gradient(90deg, transparent, var(--tw-blue), transparent);
+  opacity: .5;
+}
+.tw-branch-divider .branch-name {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--tw-navy2);
+  background: var(--tw-soft);
+  padding: 6px 14px;
+  border-radius: 99px;
+  border: 1.5px solid var(--tw-blue);
+  white-space: nowrap;
+}
+.tw-branch-divider .branch-name svg {
+  width: 14px;
+  height: 14px;
+  stroke: var(--tw-blue);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Period picker (calendar pill) */
+.tw-period-picker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: #fff;
+  border: 1px solid var(--tw-line);
+  border-radius: 12px;
+  padding: 11px 14px;
+  margin-bottom: 12px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tw-navy);
+}
+.tw-period-picker svg {
+  width: 16px;
+  height: 16px;
+  stroke: var(--tw-blue);
+  fill: none;
+  stroke-width: 1.8;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* KPI hero card (navy gradient) */
+.tw-hero-card {
+  background: linear-gradient(160deg, #082765 0%, #061742 55%, #1E3A8A 100%);
+  border-radius: 16px;
+  padding: 16px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+  box-shadow: 0 8px 20px rgba(6,23,66,.18);
+}
+.tw-hero-card .label {
+  font-size: 12px;
+  font-weight: 600;
+  opacity: .9;
+  margin-bottom: 4px;
+}
+.tw-hero-card .big {
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -.5px;
+}
+
+/* Bottom nav */
+.tw-bottom-nav {
+  flex: 0 0 auto;
+  height: 64px;
+  border-top: 1px solid var(--tw-line);
+  background: #fff;
+  display: flex;
+  align-items: center;
+  padding: 0 8px;
+}
+
+/* Reusable utilities */
+.btn-primary-gradient { background: linear-gradient(145deg, #005BFF, #082765); color: #fff; }
+.hero-navy-gradient { background: linear-gradient(135deg, #082765 0%, #061742 60%, #1E3A8A 100%); color: #fff; }
+.page-bg-soft {
+  background:
+    radial-gradient(circle at 4% 8%, rgba(0,91,255,.10), transparent 23%),
+    radial-gradient(circle at 93% 5%, rgba(40,223,255,.08), transparent 22%),
+    #F7FAFF;
+}
+.card-base { background: #fff; border: 1px solid var(--tw-line); border-radius: 16px; box-shadow: 0 6px 16px rgba(6,23,66,.05); }

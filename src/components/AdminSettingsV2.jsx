@@ -158,7 +158,7 @@ export default function AdminSettingsV2({
   return (
     <div
       className="min-h-full px-4 pt-4 pb-8 page-bg-soft"
-      style={{ fontFamily: "'Almarai', 'IBM Plex Sans Arabic', sans-serif" }}
+      style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
       <h2 className="text-lg font-extrabold text-tw-navy mb-3 px-1">
         {lang === 'en' ? 'System Settings' : 'الإعدادات'}
