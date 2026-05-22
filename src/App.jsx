@@ -1894,38 +1894,45 @@ function ManageUsers({ onBack }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+    <div
+      className="min-h-full relative overflow-hidden pb-20"
+      style={{
+        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* خلفية زخرفية */}
+      <div
+        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
+      />
+
+      {/* شريط العنوان */}
+      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">المستخدمون</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">المستخدمون</h2>
       </div>
 
-      <div className="p-4 space-y-3 flex-1 overflow-y-auto">
-        {!showForm && (
-          <button onClick={() => setShowForm(true)}
-            className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center gap-2">
-            <Plus size={18} /> إضافة مستخدم
-          </button>
-        )}
-
+      <div className="relative z-10 p-4 space-y-3">
+        {/* form إضافة مستخدم */}
         {showForm && (
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+          <div className="bg-white border border-blue-200 rounded-2xl p-4 space-y-3 shadow-sm">
             <h3 className="font-bold text-sm text-slate-800">مستخدم جديد</h3>
             <input type="text" placeholder="اسم المستخدم (إنجليزي)" value={username}
               onChange={(e) => setUsername(e.target.value)} autoCapitalize="off"
-              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
             <input type="text" placeholder="الاسم الظاهر" value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
             <input type="password" inputMode="numeric" maxLength={4} placeholder="الرمز (4 أرقام)" value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 text-center tracking-[0.4em] font-mono" />
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500 text-center tracking-[0.4em] font-mono" />
             <div className="flex gap-2">
               {[{ v: 'employee', t: 'موظف' }, { v: 'admin', t: 'مدير' }].map((r) => (
                 <button key={r.v} onClick={() => setRole(r.v)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${role === r.v ? 'bg-blue-600 text-white border-blue-600' : 'bg-white text-gray-500 border-gray-200'}`}>
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${role === r.v ? 'bg-blue-600 text-white border-blue-600' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                   {r.t}
                 </button>
               ))}
@@ -1933,7 +1940,7 @@ function ManageUsers({ onBack }) {
             <div className="flex gap-2">
               {[{ v: 'toia', t: 'تويا' }, { v: 'wardana', t: 'وردانة' }].map((b) => (
                 <button key={b.v} onClick={() => setBranchId(b.v)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${branchId === b.v ? 'bg-slate-800 text-white border-slate-800' : 'bg-white text-gray-500 border-gray-200'}`}>
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${branchId === b.v ? 'bg-slate-800 text-white border-slate-800' : 'bg-gray-50 text-gray-500 border-gray-200'}`}>
                   {b.t}
                 </button>
               ))}
@@ -1945,7 +1952,8 @@ function ManageUsers({ onBack }) {
                 إلغاء
               </button>
               <button onClick={handleCreate} disabled={saving}
-                className="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+                className="flex-1 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)' }}>
                 {saving && <Loader2 size={16} className="animate-spin" />}
                 {saving ? 'جارٍ...' : 'حفظ'}
               </button>
@@ -1963,57 +1971,79 @@ function ManageUsers({ onBack }) {
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
         ) : (
-          <div className="space-y-2">
-            {users.map((u) => (
-              <div key={u.uid} className={`bg-white border rounded-xl p-3 shadow-sm ${u.active === false ? 'border-gray-200 opacity-60' : 'border-gray-100'}`}>
-                <div className="flex items-center gap-3">
-                  <div className={`p-2 rounded-lg ${u.role === 'admin' ? 'bg-slate-800 text-white' : 'bg-blue-50 text-blue-600'}`}>
-                    <Users size={18} />
+          <>
+            {/* قائمة المستخدمين بتصميم prototype */}
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              {users.map((u, idx) => (
+                <div key={u.uid} className={`${idx > 0 ? 'border-t border-gray-50' : ''}`}>
+                  {/* صف المستخدم */}
+                  <div className="p-4 flex items-center gap-3">
+                    {/* أيقونة دائرية على اليسار */}
+                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                      <Users size={20} />
+                    </div>
+                    {/* النص في المنتصف */}
+                    <div className="flex-1 min-w-0 text-right">
+                      <p className="font-bold text-base text-slate-800 truncate">
+                        {u.displayName || u.username}
+                      </p>
+                      <p className="text-xs text-slate-500 truncate">
+                        {u.role === 'admin' ? 'مدير' : 'موظف'} — {u.branchId === 'wardana' ? 'فرع وردانة' : u.branchId === 'toia' ? 'فرع تويا' : 'الكل'}
+                      </p>
+                    </div>
+                    {/* شارة الحالة على اليمين */}
+                    <div className={`text-xs font-bold ${u.active === false ? 'text-gray-400' : 'text-emerald-600'}`}>
+                      {u.active === false ? 'معطّل' : 'نشط'}
+                    </div>
                   </div>
-                  <div className="flex-1">
-                    <p className="font-bold text-sm text-gray-800">
-                      {u.displayName || u.username}
-                      {u.active === false && <span className="text-red-500 text-[10px] mr-2">(معطّل)</span>}
-                    </p>
-                    <p className="text-[11px] text-gray-400">
-                      {u.username} · {u.role === 'admin' ? 'مدير' : 'موظف'} · فرع {u.branchId === 'wardana' ? 'وردانة' : 'تويا'}
-                    </p>
-                  </div>
-                </div>
 
-                {editPinUid === u.uid ? (
-                  <div className="mt-3 flex gap-2">
-                    <input type="password" inputMode="numeric" maxLength={4} value={editPinValue}
-                      onChange={(e) => setEditPinValue(e.target.value.replace(/\D/g, ''))}
-                      placeholder="رمز جديد (4 أرقام)"
-                      className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500" />
-                    <button onClick={() => handleChangePin(u.uid)} disabled={busyUid === u.uid}
-                      className="bg-blue-600 text-white font-bold px-4 rounded-lg text-xs disabled:opacity-60 flex items-center gap-1">
-                      {busyUid === u.uid && <Loader2 size={14} className="animate-spin" />} حفظ
-                    </button>
-                    <button onClick={() => { setEditPinUid(null); setEditPinValue(''); }}
-                      className="bg-gray-100 text-gray-600 font-bold px-3 rounded-lg text-xs">إلغاء</button>
-                  </div>
-                ) : (
-                  <div className="mt-3 flex gap-1.5">
-                    <button onClick={() => { setEditPinUid(u.uid); setEditPinValue(''); }}
-                      className="flex-1 bg-blue-50 text-blue-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
-                      <Key size={13} /> الرمز
-                    </button>
-                    <button onClick={() => handleToggleActive(u)} disabled={busyUid === u.uid}
-                      className={`flex-1 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 ${u.active === false ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                      {busyUid === u.uid ? <Loader2 size={13} className="animate-spin" /> :
-                        u.active === false ? <><UserCheck size={13} /> تفعيل</> : <><UserX size={13} /> تعطيل</>}
-                    </button>
-                    <button onClick={() => handleDelete(u)} disabled={busyUid === u.uid}
-                      className="flex-1 bg-red-50 text-red-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
-                      <Trash2 size={13} /> حذف
-                    </button>
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
+                  {/* أزرار الإجراءات (يتم عرضها فقط عند الحاجة لتعديل PIN) */}
+                  {editPinUid === u.uid ? (
+                    <div className="px-4 pb-4 flex gap-2">
+                      <input type="password" inputMode="numeric" maxLength={4} value={editPinValue}
+                        onChange={(e) => setEditPinValue(e.target.value.replace(/\D/g, ''))}
+                        placeholder="رمز جديد (4 أرقام)"
+                        className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500" />
+                      <button onClick={() => handleChangePin(u.uid)} disabled={busyUid === u.uid}
+                        className="bg-blue-600 text-white font-bold px-4 rounded-lg text-xs disabled:opacity-60 flex items-center gap-1">
+                        {busyUid === u.uid && <Loader2 size={14} className="animate-spin" />} حفظ
+                      </button>
+                      <button onClick={() => { setEditPinUid(null); setEditPinValue(''); }}
+                        className="bg-gray-100 text-gray-600 font-bold px-3 rounded-lg text-xs">إلغاء</button>
+                    </div>
+                  ) : (
+                    <div className="px-4 pb-3 flex gap-1.5">
+                      <button onClick={() => { setEditPinUid(u.uid); setEditPinValue(''); }}
+                        className="flex-1 bg-blue-50 text-blue-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
+                        <Key size={13} /> الرمز
+                      </button>
+                      <button onClick={() => handleToggleActive(u)} disabled={busyUid === u.uid}
+                        className={`flex-1 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 ${u.active === false ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
+                        {busyUid === u.uid ? <Loader2 size={13} className="animate-spin" /> :
+                          u.active === false ? <><UserCheck size={13} /> تفعيل</> : <><UserX size={13} /> تعطيل</>}
+                      </button>
+                      <button onClick={() => handleDelete(u)} disabled={busyUid === u.uid}
+                        className="flex-1 bg-red-50 text-red-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
+                        <Trash2 size={13} /> حذف
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* زر إضافة مستخدم — gradient navy في الأسفل */}
+            {!showForm && (
+              <button onClick={() => setShowForm(true)}
+                className="w-full text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
+                  boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
+                }}>
+                <Plus size={18} /> + إضافة مستخدم
+              </button>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -2061,34 +2091,76 @@ function ManageFixedExpenses({ onBack }) {
     }
   };
 
+  // حساب الإجمالي للعرض في الشريط السفلي
+  const totalFixed = (Number(toiaAmount) || 0) + (Number(wardanaAmount) || 0);
+
   return (
-    <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+    <div
+      className="min-h-full relative overflow-hidden pb-20"
+      style={{
+        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* خلفية زخرفية */}
+      <div
+        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
+      />
+
+      {/* شريط العنوان */}
+      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">المصاريف الثابتة</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">المصاريف الثابتة</h2>
       </div>
 
-      <div className="p-6 space-y-5 flex-1">
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
-          <p className="text-indigo-800 font-bold text-sm">شهر {month}</p>
-          <p className="text-indigo-500 text-[11px] mt-1">إيجار + رواتب + تأمينات لكل فرع</p>
+      <div className="relative z-10 p-4 space-y-4">
+        {/* بطاقة الشهر */}
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-3 text-center">
+          <p className="text-slate-800 font-bold text-sm">شهر {month}</p>
+          <p className="text-slate-400 text-[11px] mt-1">تُحتسب تلقائياً ضمن التقارير</p>
         </div>
 
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
         ) : (
           <>
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">فرع تويا — الثابتة الشهرية</label>
-              <input type="number" placeholder="0.00" value={toiaAmount} onChange={(e) => setToiaAmount(e.target.value)}
-                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+            {/* بطاقة فرع تويا */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <h4 className="text-sm font-bold text-slate-800 mb-3">فرع تويا</h4>
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">المبلغ الشهري الثابت</label>
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={toiaAmount}
+                  onChange={(e) => setToiaAmount(e.target.value)}
+                  className="flex-1 text-lg font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+                  dir="ltr"
+                />
+                <SarSymbol className="text-slate-400 text-base" />
+              </div>
             </div>
-            <div>
-              <label className="text-xs font-bold text-gray-500 mb-1.5 block">فرع وردانة — الثابتة الشهرية</label>
-              <input type="number" placeholder="0.00" value={wardanaAmount} onChange={(e) => setWardanaAmount(e.target.value)}
-                className="w-full p-4 bg-gray-50 border border-gray-200 rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+
+            {/* بطاقة فرع وردانة */}
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
+              <h4 className="text-sm font-bold text-slate-800 mb-3">فرع وردانة</h4>
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">المبلغ الشهري الثابت</label>
+              <div className="flex items-center gap-2 bg-gray-50 border border-gray-200 rounded-xl p-3">
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  placeholder="0"
+                  value={wardanaAmount}
+                  onChange={(e) => setWardanaAmount(e.target.value)}
+                  className="flex-1 text-lg font-bold text-slate-800 outline-none bg-transparent placeholder:text-gray-300"
+                  dir="ltr"
+                />
+                <SarSymbol className="text-slate-400 text-base" />
+              </div>
             </div>
 
             {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
@@ -2098,11 +2170,45 @@ function ManageFixedExpenses({ onBack }) {
               </p>
             )}
 
-            <button onClick={handleSave} disabled={saving}
-              className="w-full bg-blue-600 text-white font-bold py-4 rounded-xl shadow-md hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
-              {saving && <Loader2 size={18} className="animate-spin" />}
-              {saving ? 'جارٍ الحفظ...' : 'حفظ المصاريف الثابتة'}
-            </button>
+            {/* شريط الإجمالي - navy gradient (مطابق للـ prototype) */}
+            <div
+              className="text-white p-4 rounded-2xl flex items-center justify-between relative overflow-hidden"
+              style={{
+                background: 'linear-gradient(135deg, #082765 0%, #061742 60%, #1E3A8A 100%)',
+                boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+              }}
+            >
+              <div
+                className="absolute inset-0 opacity-30 pointer-events-none"
+                style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+              />
+              <small className="relative text-xs opacity-95 font-bold">إجمالي المصاريف الثابتة الشهرية</small>
+              <b className="relative text-xl font-extrabold flex items-center gap-1.5">
+                {totalFixed.toLocaleString()} <SarSymbol className="text-base" />
+              </b>
+            </div>
+
+            {/* أزرار الإجراءات */}
+            <div className="flex gap-3 pt-2">
+              <button
+                onClick={onBack}
+                className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleSave}
+                disabled={saving}
+                className="flex-1 text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
+                  boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
+                }}
+              >
+                {saving && <Loader2 size={18} className="animate-spin" />}
+                {saving ? 'جارٍ الحفظ...' : 'حفظ'}
+              </button>
+            </div>
           </>
         )}
       </div>
@@ -2175,54 +2281,98 @@ function ManageCategories({ onBack }) {
   };
 
   return (
-    <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-gray-100">
-        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full">
+    <div
+      className="min-h-full relative overflow-hidden pb-20"
+      style={{
+        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+      }}
+    >
+      {/* خلفية زخرفية */}
+      <div
+        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
+        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
+      />
+
+      {/* شريط العنوان */}
+      <div className="relative z-10 flex items-center p-4 border-b border-gray-100 bg-white/60 backdrop-blur-sm">
+        <button onClick={onBack} className="p-2 text-slate-600 bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-gray-800 pr-8">التصنيفات</h2>
+        <h2 className="flex-1 text-center text-lg font-bold text-slate-800 px-8">التصنيفات</h2>
       </div>
 
-      <div className="p-4 space-y-3 flex-1 overflow-y-auto">
+      <div className="relative z-10 p-4 space-y-3">
+        {/* زر إضافة تصنيف — gradient navy */}
         {!showForm && (
-          <button onClick={() => setShowForm(true)}
-            className="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 flex items-center justify-center gap-2">
-            <Plus size={18} /> إضافة تصنيف
+          <button
+            onClick={() => setShowForm(true)}
+            className="w-full text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+            style={{
+              background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
+              boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
+            }}
+          >
+            <Plus size={18} /> + إضافة تصنيف
           </button>
         )}
 
+        {/* form إضافة تصنيف جديد */}
         {showForm && (
-          <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-3">
+          <div className="bg-white border border-blue-200 rounded-2xl p-4 space-y-3 shadow-sm">
             <h3 className="font-bold text-sm text-slate-800">تصنيف جديد</h3>
-            <input type="text" placeholder="اسم التصنيف (مثل: كهرباء)"
-              value={newName} onChange={(e) => setNewName(e.target.value)}
-              className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500" />
+            <input
+              type="text"
+              placeholder="اسم التصنيف (مثل: كهرباء)"
+              value={newName}
+              onChange={(e) => setNewName(e.target.value)}
+              className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
+            />
 
             <div>
               <label className="text-xs font-bold text-gray-500 mb-1.5 block">نوع المصروف (لتقارير المدير)</label>
-              <select value={newType} onChange={(e) => setNewType(e.target.value)}
-                className="w-full p-3 bg-white border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500">
+              <select
+                value={newType}
+                onChange={(e) => setNewType(e.target.value)}
+                className="w-full p-3 bg-gray-50 border border-gray-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+              >
                 <option value="general">عام</option>
                 <option value="flower">ورد</option>
                 <option value="delivery">توصيل</option>
+                <option value="customerOrders">طلبات عملاء</option>
+                <option value="supplies">مستلزمات وبضائع</option>
                 <option value="marketing">تسويق</option>
               </select>
             </div>
 
-            <label className="flex items-center justify-between bg-white border border-gray-200 rounded-xl p-3 cursor-pointer">
-              <span className="text-sm font-bold text-gray-700">صورة الفاتورة إجبارية</span>
-              <input type="checkbox" checked={newReq} onChange={(e) => setNewReq(e.target.checked)}
-                className="w-5 h-5 accent-blue-600" />
+            <label className="flex items-center justify-between bg-gray-50 border border-gray-200 rounded-xl p-3 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={newReq}
+                onChange={(e) => setNewReq(e.target.checked)}
+                className="w-5 h-5 accent-blue-600"
+              />
+              <span className="text-sm font-bold text-slate-700">صورة الفاتورة إجبارية</span>
             </label>
 
-            {error && <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">{error}</p>}
+            {error && (
+              <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">
+                {error}
+              </p>
+            )}
             <div className="flex gap-2">
-              <button onClick={() => { setShowForm(false); setError(''); }}
-                className="flex-1 bg-white border border-gray-300 text-gray-600 font-bold py-2.5 rounded-xl text-sm">
+              <button
+                onClick={() => { setShowForm(false); setError(''); }}
+                className="flex-1 bg-white border border-gray-300 text-slate-700 font-bold py-2.5 rounded-xl text-sm hover:bg-gray-50"
+              >
                 إلغاء
               </button>
-              <button onClick={handleAdd} disabled={saving}
-                className="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2">
+              <button
+                onClick={handleAdd}
+                disabled={saving}
+                className="flex-1 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)' }}
+              >
                 {saving && <Loader2 size={16} className="animate-spin" />}
                 {saving ? 'جارٍ...' : 'حفظ'}
               </button>
@@ -2234,41 +2384,52 @@ function ManageCategories({ onBack }) {
           <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>
         )}
 
+        {/* قائمة التصنيفات — تصميم prototype مع toggles خضراء */}
         {loading ? (
-          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
+          <div className="flex justify-center py-8">
+            <Loader2 size={24} className="animate-spin text-slate-300" />
+          </div>
         ) : (
-          <div className="space-y-2">
+          <div className="space-y-3">
             {cats.map((cat) => (
-              <div key={cat.id} className="bg-white border border-gray-100 rounded-xl p-3 flex items-center gap-3 shadow-sm">
-                <div className="flex-1">
-                  <p className="font-bold text-sm text-gray-800">{cat.name}</p>
-                  <p className="text-[11px] text-gray-400">
-                    {cat.requiresImage ? '🔴 صورة إجبارية' : '⚪ صورة اختيارية'}
-                    {' · '}
-                    {cat.expenseType === 'flower' ? 'ورد' :
-                     cat.expenseType === 'delivery' ? 'توصيل' :
-                     cat.expenseType === 'marketing' ? 'تسويق' : 'عام'}
+              <div key={cat.id} className="bg-white border border-gray-100 rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+                {/* Toggle أخضر كبير على اليسار (لـ RTL) — مطابق للـ prototype */}
+                <button
+                  onClick={() => toggleRequires(cat)}
+                  disabled={busyId === cat.id}
+                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors flex-shrink-0 ${
+                    cat.requiresImage ? 'bg-emerald-500' : 'bg-gray-300'
+                  } disabled:opacity-50`}
+                >
+                  <span
+                    className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+                      cat.requiresImage ? 'translate-x-1' : 'translate-x-6'
+                    }`}
+                  />
+                </button>
+
+                {/* النص + نقطة ملوّنة */}
+                <div className="flex-1 text-right">
+                  <p className="font-bold text-base text-slate-800 mb-1">{translateCategory('ar', cat.name)}</p>
+                  <p className="text-xs text-slate-500 flex items-center gap-1.5 justify-end">
+                    <span>{cat.requiresImage ? 'صورة إجبارية' : 'صورة اختيارية'}</span>
+                    <span className={`w-2 h-2 rounded-full ${cat.requiresImage ? 'bg-red-500' : 'bg-gray-300'}`}></span>
                   </p>
                 </div>
 
-                {/* مفتاح تبديل "يتطلب صورة" */}
-                <button onClick={() => toggleRequires(cat)} disabled={busyId === cat.id}
-                  className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${cat.requiresImage ? 'bg-blue-600' : 'bg-gray-300'} disabled:opacity-50`}>
-                  <span className={`inline-block h-5 w-5 transform rounded-full bg-white transition-transform ${cat.requiresImage ? 'translate-x-1' : 'translate-x-6'}`} />
-                </button>
-
-                <button onClick={() => handleDelete(cat)} disabled={busyId === cat.id}
-                  className="p-2 text-red-500 bg-red-50 rounded-lg hover:bg-red-100 disabled:opacity-50">
-                  {busyId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <span className="text-xs font-bold">حذف</span>}
+                {/* زر الحذف صغير */}
+                <button
+                  onClick={() => handleDelete(cat)}
+                  disabled={busyId === cat.id}
+                  className="p-2 text-red-500 hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0"
+                  title="حذف"
+                >
+                  {busyId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>
               </div>
             ))}
           </div>
         )}
-
-        <p className="text-[11px] text-gray-400 text-center pt-2">
-          اضغط المفتاح الأزرق لتبديل "صورة إجبارية" لأي تصنيف
-        </p>
       </div>
     </div>
   );
