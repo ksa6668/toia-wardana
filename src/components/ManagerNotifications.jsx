@@ -17,7 +17,7 @@ function ToggleSwitch({ value, onChange, disabled }) {
       disabled={disabled}
       className={`w-12 h-6 rounded-full relative transition-colors ${
         disabled ? 'opacity-50 cursor-not-allowed' : ''
-      } ${value ? 'bg-emerald-500' : 'bg-gray-300'}`}
+      } ${value ? 'bg-tw-green' : 'bg-gray-300'}`}
     >
       <span
         className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${
@@ -127,7 +127,7 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -139,7 +139,7 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
@@ -203,7 +203,7 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
             </p>
           )}
           {error && (
-            <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+            <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
               {error}
             </p>
           )}

@@ -1,7 +1,7 @@
 @import "tailwindcss";
 
 /* =================================================================
-   Design Tokens — Toia & Wardana (1:1 mirror of prototype index.html)
+   Design Tokens — Toia & Wardana (1:1 prototype mirror)
    ================================================================= */
 :root {
   --tw-navy: #061742;
@@ -21,7 +21,6 @@
   --tw-bg: #F7FAFF;
 }
 
-/* Body styling — exact prototype */
 html, body, #root {
   font-family: 'IBM Plex Sans Arabic', system-ui, -apple-system, "Segoe UI", Tahoma, Arial, sans-serif;
   color: var(--tw-text);
@@ -61,10 +60,8 @@ body {
 }
 
 /* =================================================================
-   Prototype-exact components
+   HEADER
    ================================================================= */
-
-/* .phone-head — header */
 .tw-phone-head {
   flex: 0 0 auto;
   padding: 8px 16px 12px;
@@ -90,7 +87,6 @@ body {
   font-weight: 500;
 }
 
-/* .circle-btn — 36×36, radius 12 (NOT fully rounded!) */
 .tw-circle-btn {
   width: 36px;
   height: 36px;
@@ -107,36 +103,36 @@ body {
 }
 .tw-circle-btn:active { transform: scale(.92); background: var(--tw-soft); }
 .tw-circle-btn svg {
-  width: 18px;
-  height: 18px;
-  stroke: var(--tw-navy2);
-  fill: none;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 18px; height: 18px;
+  stroke: var(--tw-navy2); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
   pointer-events: none;
 }
-
-/* notification badge — circular red dot */
 .tw-notif-badge {
-  position: absolute;
-  top: -4px;
-  right: -4px;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 4px;
-  border-radius: 999px;
-  background: var(--tw-red);
-  color: #fff;
-  font-size: 10px;
-  font-weight: 800;
-  display: grid;
-  place-items: center;
-  border: 2px solid #fff;
-  line-height: 1;
+  position: absolute; top: -4px; right: -4px;
+  min-width: 18px; height: 18px; padding: 0 5px;
+  border-radius: 9px;
+  background: var(--tw-red); color: #fff;
+  font-size: 10px; font-weight: 800;
+  display: flex; align-items: center; justify-content: center;
+  border: 2px solid #fff; line-height: 1;
 }
 
-/* .tabs — shehri/sanawi pills */
+/* =================================================================
+   PHONE BODY
+   ================================================================= */
+.tw-phone-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 14px 14px 80px;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+}
+
+/* =================================================================
+   TABS (شهري/سنوي and variants)
+   ================================================================= */
 .tw-tabs {
   display: flex;
   border: 1px solid var(--tw-line);
@@ -146,15 +142,10 @@ body {
   margin-bottom: 12px;
 }
 .tw-tabs span {
-  flex: 1;
-  text-align: center;
-  padding: 9px 4px;
-  border-radius: 9px;
-  color: #7B879A;
-  font-weight: 700;
-  font-size: 12px;
-  cursor: pointer;
-  transition: all .15s;
+  flex: 1; text-align: center;
+  padding: 9px 4px; border-radius: 9px;
+  color: #7B879A; font-weight: 700; font-size: 12px;
+  cursor: pointer; transition: all .15s;
 }
 .tw-tabs .active {
   background: linear-gradient(145deg, var(--tw-navy2), var(--tw-blue));
@@ -162,7 +153,9 @@ body {
   box-shadow: 0 4px 10px rgba(0,91,255,.18);
 }
 
-/* .branch-divider */
+/* =================================================================
+   BRANCH DIVIDER (chip with lines)
+   ================================================================= */
 .tw-branch-divider {
   display: flex;
   align-items: center;
@@ -170,35 +163,48 @@ body {
   margin: 10px 0 10px;
 }
 .tw-branch-divider .line {
-  flex: 1;
-  height: 1.5px;
+  flex: 1; height: 1.5px;
   background: linear-gradient(90deg, transparent, var(--tw-blue), transparent);
   opacity: .5;
 }
 .tw-branch-divider .branch-name {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 14px;
-  font-weight: 800;
+  display: flex; align-items: center; gap: 6px;
+  font-size: 14px; font-weight: 800;
   color: var(--tw-navy2);
   background: var(--tw-soft);
-  padding: 6px 14px;
-  border-radius: 99px;
+  padding: 6px 14px; border-radius: 99px;
   border: 1.5px solid var(--tw-blue);
   white-space: nowrap;
 }
 .tw-branch-divider .branch-name svg {
-  width: 14px;
-  height: 14px;
-  stroke: var(--tw-blue);
-  fill: none;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 14px; height: 14px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
 
-/* Period picker (calendar pill) */
+/* =================================================================
+   PILL & PERIOD PICKER
+   ================================================================= */
+.tw-pill {
+  flex: 1;
+  border: 1px solid var(--tw-line);
+  border-radius: 10px;
+  background: #fff;
+  min-height: 38px;
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  color: var(--tw-navy);
+  font-size: 12px; font-weight: 700;
+  cursor: pointer;
+  padding: 0 10px;
+}
+.tw-pill svg {
+  width: 14px; height: 14px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+  flex: 0 0 auto;
+}
+.tw-pill:active { background: var(--tw-soft); }
+
 .tw-period-picker {
   display: flex;
   align-items: center;
@@ -215,38 +221,671 @@ body {
   color: var(--tw-navy);
 }
 .tw-period-picker svg {
-  width: 16px;
-  height: 16px;
-  stroke: var(--tw-blue);
-  fill: none;
-  stroke-width: 1.8;
-  stroke-linecap: round;
-  stroke-linejoin: round;
+  width: 16px; height: 16px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
 }
 
-/* KPI hero card (navy gradient) */
-.tw-hero-card {
-  background: linear-gradient(160deg, #082765 0%, #061742 55%, #1E3A8A 100%);
+.tw-controls {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+/* =================================================================
+   CARD
+   ================================================================= */
+.tw-card {
+  background: #fff;
+  border: 1px solid var(--tw-line);
   border-radius: 16px;
-  padding: 16px;
+  box-shadow: 0 6px 16px rgba(6,23,66,.05);
+}
+
+/* =================================================================
+   HERO (KPI navy gradient card)
+   ================================================================= */
+.tw-hero {
+  border-radius: 18px;
+  padding: 18px;
   color: #fff;
+  background:
+    radial-gradient(circle at 89% 8%, rgba(22,139,255,.5), transparent 28%),
+    linear-gradient(145deg, #061742, #082765 65%, #005BFF);
+  box-shadow: 0 14px 30px rgba(0,91,255,.22);
   position: relative;
   overflow: hidden;
-  box-shadow: 0 8px 20px rgba(6,23,66,.18);
+  margin-bottom: 12px;
 }
-.tw-hero-card .label {
-  font-size: 12px;
+.tw-hero .label {
+  font-size: 13px;
+  opacity: .95;
+  text-align: center;
   font-weight: 600;
-  opacity: .9;
-  margin-bottom: 4px;
 }
-.tw-hero-card .big {
-  font-size: 32px;
+.tw-hero .big {
+  font-size: 42px;
   font-weight: 800;
-  letter-spacing: -.5px;
+  line-height: 1;
+  margin: 10px 0;
+  text-align: center;
+  letter-spacing: -1px;
 }
 
-/* Bottom nav */
+/* =================================================================
+   PROGRESS
+   ================================================================= */
+.tw-progress {
+  height: 8px;
+  background: rgba(255,255,255,.22);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.tw-progress span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--tw-cyan), var(--tw-green), var(--tw-blue));
+  transition: width .6s;
+}
+
+.tw-bar {
+  height: 6px;
+  background: #E5EBF5;
+  border-radius: 99px;
+  overflow: hidden;
+  margin-top: 8px;
+}
+.tw-bar span {
+  display: block;
+  height: 100%;
+  border-radius: 99px;
+  background: linear-gradient(90deg, var(--tw-blue), var(--tw-green));
+  transition: width .6s;
+}
+
+/* =================================================================
+   BUTTONS
+   ================================================================= */
+.tw-btn {
+  border: 0;
+  border-radius: 12px;
+  padding: 14px 16px;
+  font-weight: 700;
+  font-size: 14px;
+  background: linear-gradient(145deg, var(--tw-blue), var(--tw-navy2));
+  color: #fff;
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(0,91,255,.22);
+  transition: transform .15s;
+  width: 100%;
+  font-family: inherit;
+}
+.tw-btn:active { transform: scale(.97); }
+.tw-btn.secondary {
+  background: #fff;
+  color: var(--tw-navy);
+  border: 1px solid var(--tw-line);
+  box-shadow: none;
+}
+.tw-btn-row { display: flex; gap: 10px; margin-top: 14px; }
+.tw-btn-row .tw-btn { flex: 1; }
+
+.tw-btn-danger {
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px;
+  border: none;
+  border-radius: 12px;
+  background: #FDECEC;
+  color: var(--tw-red);
+  font-weight: 800;
+  font-size: 14px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.tw-btn-danger:active { background: #FAD5D5; }
+
+/* =================================================================
+   ACTION (clickable card with icon)
+   ================================================================= */
+.tw-action {
+  display: grid;
+  grid-template-columns: 48px 1fr 14px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  margin: 10px 0;
+  cursor: pointer;
+  transition: transform .15s, box-shadow .15s;
+}
+.tw-action:active {
+  transform: scale(.98);
+  box-shadow: 0 4px 10px rgba(0,91,255,.10);
+}
+.tw-action-icon {
+  width: 48px; height: 48px;
+  border-radius: 14px;
+  background: var(--tw-soft);
+  display: grid;
+  place-items: center;
+}
+.tw-action-icon svg {
+  width: 22px; height: 22px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.tw-action h4 { margin: 0 0 3px; font-size: 14px; font-weight: 700; color: var(--tw-navy); }
+.tw-action p { margin: 0; font-size: 12px; color: var(--tw-muted); font-weight: 500; }
+.tw-action .arrow { color: var(--tw-muted); font-size: 18px; font-weight: 700; }
+
+/* =================================================================
+   FIELD (form input)
+   ================================================================= */
+.tw-field {
+  height: 46px;
+  border: 1.5px solid var(--tw-line);
+  border-radius: 11px;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 12px;
+  color: var(--tw-navy);
+  font-size: 14px; font-weight: 700;
+  background: #FAFCFF;
+  margin-bottom: 10px;
+  transition: border .15s;
+}
+.tw-field:focus-within { border-color: var(--tw-blue); }
+.tw-field input, .tw-field select, .tw-field textarea {
+  border: 0; background: transparent; outline: none;
+  flex: 1; font-size: 14px; font-weight: 700;
+  color: var(--tw-navy); font-family: inherit;
+  width: 100%; text-align: right;
+}
+.tw-field-suffix {
+  color: var(--tw-muted); font-size: 12px; font-weight: 600; margin-right: 8px;
+}
+
+/* =================================================================
+   SETTINGS LIST
+   ================================================================= */
+.tw-settings-list { overflow: hidden; border-radius: 16px; }
+.tw-settings-row {
+  display: grid;
+  grid-template-columns: 36px 1fr 14px;
+  gap: 12px;
+  align-items: center;
+  padding: 14px;
+  border-bottom: 1px solid var(--tw-line);
+  cursor: pointer;
+  background: #fff;
+  transition: background .15s;
+}
+.tw-settings-row:last-child { border-bottom: 0; }
+.tw-settings-row:active { background: var(--tw-soft); }
+.tw-settings-row .ico {
+  width: 36px; height: 36px;
+  border-radius: 11px;
+  background: var(--tw-soft);
+  display: grid; place-items: center;
+}
+.tw-settings-row .ico svg {
+  width: 18px; height: 18px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.tw-settings-row b { display: block; font-size: 13px; font-weight: 700; color: var(--tw-navy); }
+.tw-settings-row small { font-size: 11px; color: var(--tw-muted); font-weight: 500; }
+.tw-settings-row .chev { color: var(--tw-muted); font-size: 18px; font-weight: 700; }
+.tw-settings-row.user-row { grid-template-columns: 36px 1fr auto; }
+
+/* =================================================================
+   GOAL CARD
+   ================================================================= */
+.tw-goal-card {
+  background: #fff;
+  border: 1px solid var(--tw-line);
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(6,23,66,.05);
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 36px 1fr 54px;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.tw-goal-card .gico {
+  width: 36px; height: 36px;
+  border-radius: 11px;
+  background: var(--tw-soft);
+  display: grid; place-items: center;
+}
+.tw-goal-card .gico svg {
+  width: 18px; height: 18px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.tw-goal-card b { font-size: 13px; font-weight: 700; display: block; color: var(--tw-navy); }
+.tw-goal-card small { font-size: 11px; color: var(--tw-muted); font-weight: 600; }
+.tw-goal-pct { font-size: 14px; font-weight: 800; color: var(--tw-blue); text-align: left; }
+
+/* =================================================================
+   TOGGLE CARD + ROW + SWITCH
+   ================================================================= */
+.tw-toggle-card { overflow: hidden; border-radius: 16px; margin-bottom: 14px; background: #fff; border: 1px solid var(--tw-line); }
+.tw-toggle-row {
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 30px 1fr 50px;
+  gap: 10px;
+  align-items: center;
+  border-bottom: 1px solid var(--tw-line);
+  background: #fff;
+  font-size: 13px;
+  font-weight: 700;
+}
+.tw-toggle-row:last-child { border-bottom: 0; }
+.tw-toggle-row .tico {
+  width: 30px; height: 30px;
+  border-radius: 10px;
+  background: var(--tw-soft);
+  display: grid; place-items: center;
+}
+.tw-toggle-row .tico svg {
+  width: 16px; height: 16px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.tw-switch {
+  width: 46px; height: 26px;
+  background: #D6DEEB;
+  border-radius: 99px;
+  position: relative;
+  cursor: pointer;
+  transition: background .2s;
+  flex: 0 0 auto;
+  justify-self: end;
+}
+.tw-switch:after {
+  content: "";
+  position: absolute;
+  top: 3px; right: 3px;
+  width: 20px; height: 20px;
+  background: #fff;
+  border-radius: 50%;
+  transition: right .2s;
+  box-shadow: 0 2px 4px rgba(0,0,0,.15);
+}
+.tw-switch.on { background: var(--tw-green); }
+.tw-switch.on:after { right: 23px; }
+
+/* =================================================================
+   RADIO
+   ================================================================= */
+.tw-radio-box { padding: 14px; font-size: 13px; border-radius: 16px; background: #fff; border: 1px solid var(--tw-line); }
+.tw-radio-line {
+  display: grid;
+  grid-template-columns: 22px 1fr;
+  gap: 10px;
+  margin: 12px 0;
+  cursor: pointer;
+}
+.tw-radio {
+  width: 20px; height: 20px;
+  border: 2.5px solid var(--tw-blue);
+  border-radius: 50%;
+  position: relative;
+  flex: 0 0 auto;
+}
+.tw-radio.active:after {
+  content: "";
+  position: absolute;
+  inset: 3px;
+  background: var(--tw-blue);
+  border-radius: 50%;
+}
+.tw-radio-line b { display: block; font-size: 13px; font-weight: 700; margin-bottom: 3px; color: var(--tw-navy); }
+.tw-radio-line small { font-size: 11px; color: var(--tw-muted); font-weight: 500; }
+
+/* =================================================================
+   SECTION HEADER
+   ================================================================= */
+.tw-sec-h {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--tw-navy2);
+  margin: 18px 4px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.tw-sec-h small {
+  color: var(--tw-muted);
+  font-weight: 600;
+  font-size: 11px;
+}
+
+/* =================================================================
+   USER MODAL pills (role/branch)
+   ================================================================= */
+.tw-um-field { margin-bottom: 14px; }
+.tw-um-field > label {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tw-navy);
+  margin-bottom: 6px;
+}
+.tw-um-pills { display: flex; gap: 8px; flex-wrap: wrap; }
+.tw-um-pill {
+  flex: 1;
+  min-width: 60px;
+  padding: 10px 12px;
+  text-align: center;
+  background: #fff;
+  border: 1.5px solid var(--tw-line);
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--tw-muted);
+  cursor: pointer;
+  transition: all .15s;
+  user-select: none;
+}
+.tw-um-pill.active {
+  background: var(--tw-blue);
+  border-color: var(--tw-blue);
+  color: #fff;
+}
+.tw-um-active-row {
+  display: flex; align-items: center; justify-content: space-between;
+  background: var(--tw-soft);
+  padding: 12px 14px;
+  border-radius: 12px;
+}
+.tw-um-active-row > span {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--tw-navy);
+}
+
+.tw-user-status {
+  font-weight: 800;
+  font-size: 11px;
+  white-space: nowrap;
+  text-align: end;
+  min-width: 48px;
+}
+.tw-user-status.active { color: var(--tw-green); }
+.tw-user-status.inactive { color: var(--tw-muted); }
+
+/* =================================================================
+   NOTIFICATIONS
+   ================================================================= */
+.tw-notif-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--tw-muted);
+  font-size: 13px;
+  background: var(--tw-soft);
+  border-radius: 12px;
+  margin-top: 20px;
+}
+.tw-notif-card {
+  background: #fff;
+  border: 1px solid var(--tw-line);
+  border-radius: 14px;
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  position: relative;
+  cursor: pointer;
+}
+.tw-notif-card.unread {
+  background: rgba(0,91,255,.04);
+  border-color: rgba(0,91,255,.2);
+}
+.tw-notif-card .notif-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: grid; place-items: center;
+  flex-shrink: 0;
+  font-size: 18px;
+  line-height: 1;
+}
+.tw-notif-card .notif-icon.success { background: rgba(23,201,139,.12); }
+.tw-notif-card .notif-icon.warning { background: rgba(255,179,64,.15); }
+.tw-notif-card .notif-icon.danger { background: rgba(240,68,68,.12); }
+.tw-notif-card .notif-icon.info { background: rgba(0,91,255,.12); }
+.tw-notif-card .notif-body { flex: 1; min-width: 0; }
+.tw-notif-card .notif-body b {
+  display: block;
+  font-size: 13px;
+  color: var(--tw-navy);
+  font-weight: 800;
+  margin-bottom: 3px;
+}
+.tw-notif-card .notif-body p {
+  margin: 0;
+  font-size: 12px;
+  color: var(--tw-muted);
+  font-weight: 500;
+  line-height: 1.5;
+}
+.tw-notif-card .notif-time {
+  font-size: 10px;
+  color: var(--tw-muted);
+  margin-top: 6px;
+  display: block;
+  font-weight: 600;
+}
+.tw-notif-day {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--tw-muted);
+  margin: 14px 4px 6px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+
+/* =================================================================
+   RECEIPTS
+   ================================================================= */
+.tw-rcpt-day-header {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 11px; font-weight: 800;
+  color: var(--tw-muted);
+  margin: 14px 4px 6px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+.tw-rcpt-card {
+  background: #fff;
+  border-radius: 14px;
+  padding: 12px;
+  margin-bottom: 8px;
+  display: grid;
+  grid-template-columns: 46px 1fr auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid var(--tw-line);
+}
+.tw-rcpt-thumb {
+  width: 46px; height: 46px;
+  border-radius: 10px;
+  background: var(--tw-soft);
+  display: grid; place-items: center;
+  color: var(--tw-blue);
+  position: relative;
+  overflow: hidden;
+}
+.tw-rcpt-thumb svg {
+  width: 22px; height: 22px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.tw-rcpt-body b {
+  font-size: 13px;
+  font-weight: 700;
+  display: block;
+  color: var(--tw-navy);
+}
+.tw-rcpt-body small {
+  font-size: 11px;
+  color: var(--tw-muted);
+  font-weight: 500;
+  display: block;
+  margin-top: 2px;
+}
+.tw-rcpt-amt {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--tw-red);
+  white-space: nowrap;
+}
+.tw-rcpt-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--tw-muted);
+  font-size: 13px;
+  font-weight: 600;
+  background: #fff;
+  border-radius: 14px;
+}
+
+/* =================================================================
+   SHEET (bottom sheet modal)
+   ================================================================= */
+.tw-sheet-bg {
+  position: fixed;
+  inset: 0;
+  background: rgba(6,23,66,.55);
+  z-index: 30;
+}
+.tw-sheet {
+  position: fixed;
+  left: 0; right: 0; bottom: 0;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  padding: 18px 18px 26px;
+  z-index: 31;
+  max-height: 80vh;
+  overflow-y: auto;
+  animation: tw-sheet-up .25s ease-out;
+}
+@keyframes tw-sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.tw-sheet h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--tw-navy);
+}
+.tw-sheet-grab {
+  width: 40px; height: 4px;
+  background: #D6DEEB;
+  border-radius: 99px;
+  margin: 0 auto 12px;
+}
+.tw-sheet-opt {
+  padding: 14px;
+  border: 1.5px solid var(--tw-line);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  color: var(--tw-navy);
+}
+.tw-sheet-opt:active { background: var(--tw-soft); }
+.tw-sheet-opt.active { background: var(--tw-soft); border-color: var(--tw-blue); color: var(--tw-blue); }
+
+/* =================================================================
+   METRIC (small overview tiles)
+   ================================================================= */
+.tw-metric {
+  background: #fff;
+  border: 1px solid var(--tw-line);
+  border-radius: 16px;
+  box-shadow: 0 6px 16px rgba(6,23,66,.05);
+  padding: 14px;
+  padding-inline-start: 54px;
+  position: relative;
+}
+.tw-metric small {
+  font-size: 11px;
+  color: var(--tw-muted);
+  font-weight: 600;
+  display: block;
+  line-height: 1.5;
+}
+.tw-metric b {
+  font-size: 18px;
+  display: block;
+  margin-top: 6px;
+  font-weight: 800;
+  color: var(--tw-navy);
+}
+.tw-metric-icon {
+  position: absolute;
+  top: 12px;
+  inset-inline-start: 12px;
+  width: 30px; height: 30px;
+  border-radius: 9px;
+  background: var(--tw-soft);
+  display: grid;
+  place-items: center;
+}
+.tw-metric-icon svg {
+  width: 16px; height: 16px;
+  stroke: var(--tw-blue); fill: none;
+  stroke-width: 1.8; stroke-linecap: round; stroke-linejoin: round;
+}
+.tw-metric-icon.alt { background: #FFF1E6; }
+.tw-metric-icon.alt svg { stroke: var(--tw-orange); }
+.tw-overview-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.tw-metric-wide {
+  grid-column: 1 / -1;
+  padding-inline-start: 14px;
+}
+
+/* =================================================================
+   MINI (small inline stats)
+   ================================================================= */
+.tw-mini {
+  padding: 12px 6px;
+  text-align: center;
+}
+.tw-mini small {
+  font-size: 10px;
+  color: var(--tw-muted);
+  font-weight: 600;
+  display: block;
+  margin-bottom: 4px;
+}
+.tw-mini b {
+  font-size: 16px;
+  display: block;
+  font-weight: 800;
+}
+.tw-green { color: var(--tw-green); }
+.tw-red-c { color: var(--tw-red); }
+.tw-blue-c { color: var(--tw-blue); }
+
+/* =================================================================
+   BOTTOM NAV
+   ================================================================= */
 .tw-bottom-nav {
   flex: 0 0 auto;
   height: 64px;
@@ -254,12 +893,55 @@ body {
   background: #fff;
   display: flex;
   align-items: center;
+  justify-content: space-around;
   padding: 0 8px;
 }
+.tw-nav-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  color: #8A96AA;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  flex: 1;
+  padding: 6px 0;
+  background: none;
+  border: none;
+}
+.tw-nav-item.active { color: var(--tw-blue); }
+.tw-nav-item svg { width: 22px; height: 22px; }
 
-/* Reusable utilities */
+/* =================================================================
+   TOAST
+   ================================================================= */
+.tw-toast {
+  position: fixed;
+  bottom: 80px; left: 14px; right: 14px;
+  background: var(--tw-navy);
+  color: #fff;
+  padding: 14px 16px;
+  border-radius: 14px;
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  box-shadow: 0 12px 28px rgba(6,23,66,.30);
+  z-index: 50;
+  max-width: 400px;
+  margin: 0 auto;
+}
+
+/* =================================================================
+   Reusable utilities
+   ================================================================= */
 .btn-primary-gradient { background: linear-gradient(145deg, #005BFF, #082765); color: #fff; }
-.hero-navy-gradient { background: linear-gradient(135deg, #082765 0%, #061742 60%, #1E3A8A 100%); color: #fff; }
+.hero-navy-gradient {
+  background:
+    radial-gradient(circle at 89% 8%, rgba(22,139,255,.5), transparent 28%),
+    linear-gradient(145deg, #061742, #082765 65%, #005BFF);
+  color: #fff;
+}
 .page-bg-soft {
   background:
     radial-gradient(circle at 4% 8%, rgba(0,91,255,.10), transparent 23%),

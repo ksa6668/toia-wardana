@@ -129,7 +129,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -140,7 +140,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
 
       {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <div className="flex-1 text-center px-8">
@@ -154,7 +154,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
         <div className="relative z-10 px-4 pt-4 flex items-center justify-between">
           <button
             onClick={clearAll}
-            className="text-red-500 font-bold text-sm hover:underline"
+            className="text-tw-red font-bold text-sm hover:underline"
           >
             مسح الكل
           </button>
@@ -170,7 +170,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
       <div className="relative z-10 p-4 space-y-4">
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 size={24} className="animate-spin text-slate-300" />
+            <Loader2 size={24} className="animate-spin text-tw-muted/50" />
           </div>
         ) : notifs.length === 0 ? (
           <div className="text-center py-16">
@@ -204,7 +204,7 @@ function NotificationCard({ notif, onDismiss }) {
       {/* زر الإغلاق X على اليسار */}
       <button
         onClick={onDismiss}
-        className="p-1.5 text-tw-muted/70 hover:bg-gray-100 rounded-lg flex-shrink-0 transition-colors"
+        className="p-1.5 text-tw-muted/70 hover:bg-tw-soft rounded-lg flex-shrink-0 transition-colors"
         title="حذف الإشعار"
       >
         <X size={16} />

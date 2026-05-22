@@ -163,7 +163,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       className="min-h-full px-4 pt-4 pb-8"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* أزرار التحكم: الشهر + الفرع */}
@@ -198,13 +198,13 @@ export default function ManagerMonthly({ lang = 'ar' }) {
         </div>
         <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Expenses' : 'إجمالي المصاريف'}</p>
-          <p className="text-sm font-bold text-red-600 flex items-center justify-center gap-1">
+          <p className="text-sm font-bold text-tw-red flex items-center justify-center gap-1">
             {Math.round(totals.expenses).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         </div>
         <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Net Profit' : 'صافي الربح'}</p>
-          <p className="text-sm font-bold text-emerald-600 flex items-center justify-center gap-1">
+          <p className="text-sm font-bold text-tw-green flex items-center justify-center gap-1">
             {Math.round(totals.profit).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         </div>
@@ -236,7 +236,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
         </div>
       )}
       {error && (
-        <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
+        <p className="text-tw-red text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
           {error}
         </p>
       )}
@@ -246,7 +246,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
           {/* تبويب المبيعات */}
           {activeTab === 'sales' && (
             <table className="w-full text-xs">
-              <thead className="bg-gray-50">
+              <thead className="bg-tw-soft/40">
                 <tr>
                   <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Cash' : 'كاش'}</th>
@@ -274,7 +274,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
           {/* تبويب المصاريف */}
           {activeTab === 'expenses' && (
             <table className="w-full text-xs">
-              <thead className="bg-gray-50">
+              <thead className="bg-tw-soft/40">
                 <tr>
                   <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
                   <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
@@ -288,7 +288,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
                   <tr key={row.id || i} className="border-t border-tw-line/60">
                     <td className="p-2 text-tw-navy">{formatDayShort(row.date, lang)}</td>
                     <td className="p-2 text-tw-navy">{row.category || row.expenseType || '—'}</td>
-                    <td className="p-2 text-center font-bold text-red-600">{Math.round(row.amount).toLocaleString()}</td>
+                    <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.amount).toLocaleString()}</td>
                   </tr>
                 ))}
               </tbody>
@@ -298,7 +298,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
           {/* تبويب الربح */}
           {activeTab === 'profit' && (
             <table className="w-full text-xs">
-              <thead className="bg-gray-50">
+              <thead className="bg-tw-soft/40">
                 <tr>
                   <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Sales' : 'المبيعات'}</th>
@@ -313,8 +313,8 @@ export default function ManagerMonthly({ lang = 'ar' }) {
                   <tr key={row.day} className="border-t border-tw-line/60">
                     <td className="p-2 font-bold text-tw-navy">{formatDayShort(row.day, lang)}</td>
                     <td className="p-2 text-center text-tw-blue">{Math.round(row.sales).toLocaleString()}</td>
-                    <td className="p-2 text-center text-red-600">{Math.round(row.expenses).toLocaleString()}</td>
-                    <td className={`p-2 text-center font-bold ${row.profit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
+                    <td className="p-2 text-center text-tw-red">{Math.round(row.expenses).toLocaleString()}</td>
+                    <td className={`p-2 text-center font-bold ${row.profit >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
                       {Math.round(row.profit).toLocaleString()}
                     </td>
                   </tr>

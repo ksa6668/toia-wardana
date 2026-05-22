@@ -165,7 +165,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
-          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
@@ -218,7 +218,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
                         ? 'bg-tw-blue text-white border-blue-600 shadow-md scale-105'
                         : isPrimary
                         ? 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100'
-                        : 'bg-white text-tw-muted border-tw-line hover:bg-gray-50'
+                        : 'bg-white text-tw-muted border-tw-line hover:bg-tw-soft/40'
                     }`}
                   >
                     {translateCategory(lang, c.name)}
@@ -236,14 +236,14 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
           {/* المبلغ */}
           <div>
             <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.amount')}</label>
-            <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
+            <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
               <input
                 type="number"
                 inputMode="decimal"
                 placeholder="0"
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
-                className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-gray-300"
+                className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                 dir="ltr"
               />
               <SarSymbol className="text-tw-muted/70 text-base" />
@@ -261,7 +261,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
                   className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-colors ${
                     payMethod === p.id
                       ? 'bg-tw-blue text-white border-blue-600'
-                      : 'bg-gray-50 text-gray-600 border-tw-line'
+                      : 'bg-tw-soft/40 text-tw-muted border-tw-line'
                   }`}
                 >
                   {pmLabel(p.id)}
@@ -280,7 +280,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
               placeholder={lang === 'en' ? 'Short description' : 'وصف مختصر'}
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
-              className="w-full bg-gray-50 border border-tw-line rounded-xl p-3 text-sm outline-none focus:border-blue-500"
+              className="w-full bg-tw-soft/40 border border-tw-line rounded-xl p-3 text-sm outline-none focus:border-tw-blue"
             />
           </div>
 
@@ -288,7 +288,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
           <div>
             <label className="text-xs font-bold text-tw-muted mb-1.5 block">
               {lang === 'en' ? 'Invoice photo' : 'صورة الفاتورة'}
-              {requiresImage && <span className="text-red-500 mr-1">*</span>}
+              {requiresImage && <span className="text-tw-red mr-1">*</span>}
             </label>
             <input
               ref={cameraInputRef}
@@ -325,8 +325,8 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
                 onClick={triggerPhotoCapture}
                 className={`w-full p-5 rounded-xl border-2 border-dashed flex flex-col items-center gap-2 transition-colors ${
                   requiresImage
-                    ? 'border-red-300 bg-red-50 text-red-700 hover:bg-red-100'
-                    : 'border-gray-300 bg-gray-50 text-gray-600 hover:bg-gray-100'
+                    ? 'border-red-300 bg-red-50 text-tw-red hover:bg-red-50'
+                    : 'border-tw-line bg-tw-soft/40 text-tw-muted hover:bg-tw-soft'
                 }`}
               >
                 {requiresImage ? <Camera size={28} /> : <ImageIcon size={28} />}
@@ -336,7 +336,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
               </button>
             )}
             {requiresImage && !imageFile && (
-              <p className="text-[11px] text-red-600 mt-2 font-bold">
+              <p className="text-[11px] text-tw-red mt-2 font-bold">
                 📷 {lang === 'en'
                   ? 'Photo must be captured with camera for this category.'
                   : 'يجب التقاط الصورة بالكاميرا مباشرة لهذا التصنيف.'}
@@ -346,12 +346,12 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
         </div>
 
         {error && (
-          <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+          <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
             {error}
           </p>
         )}
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> {t(lang, 'expense.saved')}
           </p>
         )}
@@ -360,7 +360,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
         <div className="flex gap-3 pt-2">
           <button
             onClick={() => setView('employeeHome')}
-            className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+            className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 transition-colors"
           >
             {lang === 'en' ? 'Cancel' : 'إلغاء'}
           </button>

@@ -22,7 +22,7 @@ function MetricCard({ icon: Icon, label, value, alt }) {
   return (
     <div className="bg-white p-3 rounded-2xl border border-tw-line shadow-sm">
       <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${
-        alt ? 'bg-red-50 text-red-600' : 'bg-tw-soft text-tw-blue'
+        alt ? 'bg-red-50 text-tw-red' : 'bg-tw-soft text-tw-blue'
       }`}>
         <Icon size={18} />
       </div>
@@ -115,7 +115,7 @@ export default function ManagerOverview({ lang = 'ar' }) {
       className="min-h-full px-4 pt-4 pb-8"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* أزرار التحكم */}
@@ -146,7 +146,7 @@ export default function ManagerOverview({ lang = 'ar' }) {
         </div>
       )}
       {error && (
-        <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">{error}</p>
+        <p className="text-tw-red text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">{error}</p>
       )}
 
       {!loading && !error && (

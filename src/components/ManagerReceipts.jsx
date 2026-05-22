@@ -84,7 +84,7 @@ export default function ManagerReceipts({ onBack }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -95,7 +95,7 @@ export default function ManagerReceipts({ onBack }) {
 
       {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <div className="flex-1 text-center px-8">
@@ -110,17 +110,17 @@ export default function ManagerReceipts({ onBack }) {
           {/* فلتر الفترة */}
           <button
             onClick={() => setShowFilters(true)}
-            className="flex-1 bg-white rounded-xl border border-tw-line p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            className="flex-1 bg-white rounded-xl border border-tw-line p-3 flex items-center justify-between hover:bg-tw-soft/40 transition-colors"
           >
-            <Calendar size={16} className="text-blue-500" />
+            <Calendar size={16} className="text-tw-blue" />
             <span className="text-sm font-bold text-tw-navy">{currentPeriodLabel}</span>
           </button>
           {/* فلتر الفرع */}
           <button
             onClick={() => setShowFilters(true)}
-            className="flex-1 bg-white rounded-xl border border-tw-line p-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+            className="flex-1 bg-white rounded-xl border border-tw-line p-3 flex items-center justify-between hover:bg-tw-soft/40 transition-colors"
           >
-            <MapPin size={16} className="text-blue-500" />
+            <MapPin size={16} className="text-tw-blue" />
             <span className="text-sm font-bold text-tw-navy">{currentBranchLabel}</span>
           </button>
         </div>
@@ -133,7 +133,7 @@ export default function ManagerReceipts({ onBack }) {
           </div>
           <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 text-center">
             <p className="text-xs text-tw-muted mb-1">الإجمالي</p>
-            <p className="text-2xl font-extrabold text-red-500 flex items-center justify-center gap-1">
+            <p className="text-2xl font-extrabold text-tw-red flex items-center justify-center gap-1">
               {totalAmount.toLocaleString()} <SarSymbol className="text-base" />
             </p>
           </div>
@@ -142,10 +142,10 @@ export default function ManagerReceipts({ onBack }) {
         {/* قائمة الفواتير */}
         {loading ? (
           <div className="flex justify-center py-12">
-            <Loader2 size={28} className="animate-spin text-slate-300" />
+            <Loader2 size={28} className="animate-spin text-tw-muted/50" />
           </div>
         ) : error ? (
-          <p className="text-red-600 text-sm font-bold bg-red-50 border border-red-100 rounded-xl p-4 text-center">
+          <p className="text-tw-red text-sm font-bold bg-red-50 border border-red-100 rounded-xl p-4 text-center">
             {error}
           </p>
         ) : filtered.length === 0 ? (
@@ -216,7 +216,7 @@ function ReceiptCard({ expense, onViewImage }) {
       {/* صورة الفاتورة (thumbnail) */}
       <button
         onClick={onViewImage}
-        className="w-16 h-16 rounded-xl bg-gray-100 overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
+        className="w-16 h-16 rounded-xl bg-tw-soft overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
       >
         {expense.invoiceUrl ? (
           <img
@@ -247,7 +247,7 @@ function ReceiptCard({ expense, onViewImage }) {
 
       {/* المبلغ */}
       <div className="text-left flex-shrink-0">
-        <p className="font-extrabold text-base text-red-500 flex items-center gap-1">
+        <p className="font-extrabold text-base text-tw-red flex items-center gap-1">
           {Number(expense.amount || 0).toLocaleString()} <SarSymbol className="text-xs" />
         </p>
       </div>
@@ -281,7 +281,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
                 className={`py-3 rounded-xl text-sm font-bold border ${
                   period === p.id
                     ? 'bg-tw-blue text-white border-blue-600'
-                    : 'bg-gray-50 text-tw-muted border-tw-line'
+                    : 'bg-tw-soft/40 text-tw-muted border-tw-line'
                 }`}
               >
                 {p.label}
@@ -301,7 +301,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
                 className={`py-3 rounded-xl text-sm font-bold border ${
                   branch === b.id
                     ? 'bg-tw-blue text-white border-blue-600'
-                    : 'bg-gray-50 text-tw-muted border-tw-line'
+                    : 'bg-tw-soft/40 text-tw-muted border-tw-line'
                 }`}
               >
                 {b.label}

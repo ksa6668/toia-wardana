@@ -119,7 +119,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -131,7 +131,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
@@ -213,7 +213,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
                   value={businessName}
                   onChange={(e) => setBusinessName(e.target.value)}
                   placeholder="Toia & Wardana"
-                  className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                  className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm font-bold outline-none focus:border-tw-blue"
                 />
               </div>
               <div>
@@ -225,7 +225,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
                   value={contactPhone}
                   onChange={(e) => setContactPhone(e.target.value)}
                   placeholder="+966 5XX XXX XXXX"
-                  className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
+                  className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue"
                   dir="ltr"
                 />
               </div>
@@ -234,12 +234,12 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
 
           {/* زر الحفظ */}
           {done && (
-            <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+            <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
               <CheckCircle2 size={18} /> {lang === 'en' ? 'Information saved' : 'تم حفظ المعلومات'}
             </p>
           )}
           {error && (
-            <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+            <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
               {error}
             </p>
           )}
@@ -286,7 +286,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
 
           {/* منطقة خطرة */}
           <div>
-            <h4 className="text-sm font-bold text-red-600 mb-1 flex items-center gap-1.5">
+            <h4 className="text-sm font-bold text-tw-red mb-1 flex items-center gap-1.5">
               <AlertTriangle size={16} />
               {lang === 'en' ? 'Danger Zone' : 'منطقة خطرة'}
             </h4>
@@ -297,7 +297,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
             </p>
             <button
               onClick={handleResetClick}
-              className="w-full text-white font-bold py-3.5 rounded-xl bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+              className="w-full text-white font-bold py-3.5 rounded-xl bg-tw-red hover:bg-tw-red transition-colors flex items-center justify-center gap-2"
             >
               <Trash2 size={16} />
               {lang === 'en' ? 'Reset All Data' : 'إعادة تعيين جميع البيانات'}

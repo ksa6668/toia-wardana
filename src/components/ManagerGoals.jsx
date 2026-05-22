@@ -101,7 +101,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* خلفية زخرفية */}
@@ -114,7 +114,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
@@ -140,7 +140,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
           </div>
         )}
         {error && (
-          <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
+          <p className="text-tw-red text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
             {error}
           </p>
         )}
@@ -172,7 +172,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
               <label className="text-xs text-tw-muted font-bold mb-1.5 block">
                 {lang === 'en' ? 'Target amount' : 'المبلغ المستهدف'}
               </label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
+              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
@@ -189,7 +189,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
             {/* كارت التقييمات */}
             <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line">
               <div className="flex items-center gap-2 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+                <div className="w-9 h-9 rounded-xl bg-amber-50 text-tw-orange flex items-center justify-center">
                   <Star size={18} />
                 </div>
                 <h4 className="text-sm font-bold text-tw-navy">
@@ -199,7 +199,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
               <label className="text-xs text-tw-muted font-bold mb-1.5 block">
                 {lang === 'en' ? 'Target review count' : 'عدد التقييمات المستهدف'}
               </label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
+              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
@@ -218,7 +218,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
         ))}
 
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> {lang === 'en' ? 'Goals saved' : 'تم حفظ الأهداف'}
           </p>
         )}
@@ -228,7 +228,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
           <div className="flex gap-3 pt-2">
             <button
               onClick={onBack}
-              className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+              className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 transition-colors"
             >
               {lang === 'en' ? 'Cancel' : 'إلغاء'}
             </button>

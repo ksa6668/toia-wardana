@@ -88,7 +88,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
-          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
@@ -108,13 +108,13 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
           </div>
           <div className="bg-white p-3 rounded-xl border border-tw-line text-center shadow-sm">
             <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Expenses' : 'المصاريف'}</p>
-            <p className="text-sm font-bold text-red-600 flex items-center justify-center gap-1">
+            <p className="text-sm font-bold text-tw-red flex items-center justify-center gap-1">
               {Math.round(totals.expenses).toLocaleString()} <SarSymbol className="text-xs" />
             </p>
           </div>
           <div className="bg-white p-3 rounded-xl border border-tw-line text-center shadow-sm">
             <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Net' : 'الصافي'}</p>
-            <p className="text-sm font-bold text-emerald-600 flex items-center justify-center gap-1">
+            <p className="text-sm font-bold text-tw-green flex items-center justify-center gap-1">
               {Math.round(totals.net).toLocaleString()} <SarSymbol className="text-xs" />
             </p>
           </div>
@@ -126,7 +126,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
           </div>
         )}
         {error && (
-          <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
+          <p className="text-tw-red text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
             {error}
           </p>
         )}
@@ -146,7 +146,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
             {/* القائمة */}
             {allEntries.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center border border-tw-line shadow-sm">
-                <Calendar size={32} className="text-gray-300 mx-auto mb-3" />
+                <Calendar size={32} className="text-tw-muted/50 mx-auto mb-3" />
                 <p className="text-sm font-bold text-tw-muted mb-1">
                   {lang === 'en' ? 'No entries yet' : 'لا توجد عمليات بعد'}
                 </p>
@@ -167,7 +167,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
                     <div className={`w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${
                       entry.kind === 'sale'
                         ? 'bg-tw-soft text-tw-blue'
-                        : 'bg-red-50 text-red-600'
+                        : 'bg-red-50 text-tw-red'
                     }`}>
                       {entry.kind === 'sale' ? <TrendingUp size={18} /> : <Receipt size={18} />}
                     </div>
@@ -200,7 +200,7 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
 
                     {/* المبلغ */}
                     <div className={`text-sm font-bold flex items-center gap-1 ${
-                      entry.kind === 'sale' ? 'text-tw-blue' : 'text-red-600'
+                      entry.kind === 'sale' ? 'text-tw-blue' : 'text-tw-red'
                     }`}>
                       {entry.kind === 'sale'
                         ? `+${Math.round(entry.total || 0).toLocaleString()}`

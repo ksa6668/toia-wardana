@@ -221,7 +221,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -233,7 +233,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
@@ -261,7 +261,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
         <div className="relative z-10 px-4 pb-8 space-y-5">
           {/* ملاحظة الاستخدام */}
           <div className="bg-tw-soft border border-tw-line rounded-2xl p-3 flex items-start gap-2">
-            <Lightbulb size={18} className="text-amber-500 flex-shrink-0 mt-0.5" />
+            <Lightbulb size={18} className="text-tw-orange flex-shrink-0 mt-0.5" />
             <p className="text-xs text-tw-navy leading-relaxed">
               {lang === 'en'
                 ? 'For best experience, use backup from desktop or directly from the browser (Chrome / Safari).'
@@ -326,7 +326,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
 
             {/* تنبيه عن Excel vs JSON */}
             <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2">
-              <AlertTriangle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <AlertTriangle size={14} className="text-tw-orange flex-shrink-0 mt-0.5" />
               <p className="text-[11px] text-tw-navy leading-relaxed">
                 {lang === 'en'
                   ? 'Excel file does not save invoice photos. For full backup use JSON.'
@@ -337,12 +337,12 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
 
           {/* الرسائل */}
           {done && (
-            <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+            <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
               <CheckCircle2 size={18} /> {done}
             </p>
           )}
           {error && (
-            <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+            <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
               {error}
             </p>
           )}
@@ -372,14 +372,14 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
 
             <button
               onClick={handleImportClick}
-              className="w-full text-white font-bold py-3.5 rounded-xl bg-red-500 hover:bg-red-600 transition-colors flex items-center justify-center gap-2"
+              className="w-full text-white font-bold py-3.5 rounded-xl bg-tw-red hover:bg-tw-red transition-colors flex items-center justify-center gap-2"
             >
               <FileText size={16} />
               {lang === 'en' ? 'Choose file' : 'اختيار ملف'}
             </button>
 
             <div className="mt-3 p-3 bg-red-50 border border-red-100 rounded-xl flex items-start gap-2">
-              <AlertTriangle size={14} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <AlertTriangle size={14} className="text-tw-red flex-shrink-0 mt-0.5" />
               <p className="text-[11px] text-tw-navy leading-relaxed">
                 {lang === 'en'
                   ? 'Warning: Import will completely replace current data.'

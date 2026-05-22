@@ -569,7 +569,7 @@ function SuperAdminDashboard() {
             <span>فترة التقرير:</span>
           </div>
           <select value={period} onChange={(e) => setPeriod(e.target.value)}
-            className="bg-slate-50 border border-slate-200 text-sm font-bold rounded-lg px-3 py-1.5 outline-none focus:border-blue-500 text-tw-blue">
+            className="bg-tw-soft border border-tw-line text-sm font-bold rounded-lg px-3 py-1.5 outline-none focus:border-tw-blue text-tw-blue">
             <option value="يومي">يومي</option>
             <option value="أسبوعي">أسبوعي</option>
             <option value="شهري">شهري (هذا الشهر)</option>
@@ -583,12 +583,12 @@ function SuperAdminDashboard() {
             <div className="flex-1">
               <label className="text-[10px] font-bold text-tw-muted block mb-1">من</label>
               <input type="date" value={customFrom} onChange={(e) => setCustomFrom(e.target.value)}
-                className="w-full p-2 bg-gray-50 border border-tw-line rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
+                className="w-full p-2 bg-tw-soft/40 border border-tw-line rounded-lg text-xs font-mono outline-none focus:border-tw-blue" />
             </div>
             <div className="flex-1">
               <label className="text-[10px] font-bold text-tw-muted block mb-1">إلى</label>
               <input type="date" value={customTo} onChange={(e) => setCustomTo(e.target.value)}
-                className="w-full p-2 bg-gray-50 border border-tw-line rounded-lg text-xs font-mono outline-none focus:border-blue-500" />
+                className="w-full p-2 bg-tw-soft/40 border border-tw-line rounded-lg text-xs font-mono outline-none focus:border-tw-blue" />
             </div>
           </div>
         )}
@@ -642,7 +642,7 @@ function SuperAdminDashboard() {
           {isEmpty && (
             <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
               <p className="text-amber-800 font-bold text-sm">لا توجد بيانات لهذه الفترة</p>
-              <p className="text-amber-600 text-xs mt-1">سجّل مبيعات ومصاريف من حساب موظف لتظهر هنا</p>
+              <p className="text-tw-orange text-xs mt-1">سجّل مبيعات ومصاريف من حساب موظف لتظهر هنا</p>
             </div>
           )}
 
@@ -650,7 +650,7 @@ function SuperAdminDashboard() {
             <div className="space-y-4">
               <div className="bg-slate-900 p-5 rounded-2xl shadow-lg text-white relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 bg-tw-soft0 rounded-full mix-blend-multiply filter blur-3xl opacity-50"></div>
-                <p className="text-slate-300 font-bold text-xs mb-2">{profitLabel} — {m.view.label}</p>
+                <p className="text-tw-muted/50 font-bold text-xs mb-2">{profitLabel} — {m.view.label}</p>
                 <p className="text-4xl font-bold font-mono text-emerald-400">
                   {Math.round(m.view.profit).toLocaleString()} <SarSymbol className="text-sm text-tw-muted/70" />
                 </p>
@@ -659,9 +659,9 @@ function SuperAdminDashboard() {
                 </p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <StatCard label="المبيعات" value={m.view.sales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
+                <StatCard label="المبيعات" value={m.view.sales} icon={<TrendingUp size={16} className="text-tw-green" />} />
                 <StatCard label="المصاريف" value={m.view.totalExp} icon={<TrendingDown size={16} className="text-tw-red" />} />
-                <StatCard label="م. متغيرة" value={m.view.varExp} icon={<Receipt size={16} className="text-orange-500" />} />
+                <StatCard label="م. متغيرة" value={m.view.varExp} icon={<Receipt size={16} className="text-tw-orange" />} />
                 <StatCard label="نصيب الثابتة" value={m.view.fixedExp} icon={<Building2 size={16} className="text-indigo-500" />} />
               </div>
               <div className="bg-white p-5 rounded-2xl shadow-sm border border-tw-line">
@@ -672,7 +672,7 @@ function SuperAdminDashboard() {
                   <span className="text-tw-blue">أون لاين: {m.view.onlinePerc}%</span>
                   <span className="text-tw-navy">أوف لاين: {m.view.offlinePerc}%</span>
                 </div>
-                <div className="h-3 w-full flex rounded-full overflow-hidden mb-3 bg-slate-100">
+                <div className="h-3 w-full flex rounded-full overflow-hidden mb-3 bg-tw-soft">
                   <div style={{ width: `${m.view.onlinePerc}%` }} className="bg-tw-soft0"></div>
                   <div style={{ width: `${m.view.offlinePerc}%` }} className="bg-slate-300"></div>
                 </div>
@@ -695,7 +695,7 @@ function SuperAdminDashboard() {
 
           {activeReport === 'branches' && (
             <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
-              <div className="bg-tw-soft border-b border-blue-100 p-3 font-bold text-sm text-blue-900 flex items-center gap-2">
+              <div className="bg-tw-soft border-b border-tw-line p-3 font-bold text-sm text-blue-900 flex items-center gap-2">
                 <Store size={18} /> مقارنة الأداء ({period})
               </div>
               <div className="overflow-x-auto">
@@ -705,7 +705,7 @@ function SuperAdminDashboard() {
                       <th className="p-3 font-bold">البيان</th>
                       <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">تويا</th>
                       <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">وردانة</th>
-                      <th className="p-3 font-bold text-center border-r border-tw-line bg-gray-50">الإجمالي</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line bg-tw-soft/40">الإجمالي</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 font-mono">
@@ -719,11 +719,11 @@ function SuperAdminDashboard() {
                       <td className="p-3 text-center font-bold text-tw-green border-r border-tw-line">{Math.round(m.wardanaProfit).toLocaleString()}</td>
                       <td className="p-3 text-center font-bold text-emerald-800 border-r border-tw-line bg-emerald-50/60">{Math.round(m.totalProfit).toLocaleString()}</td>
                     </tr>
-                    <tr className="hover:bg-gray-50">
-                      <td className="p-3 text-gray-600 font-sans font-bold">تكلفة الورد %</td>
+                    <tr className="hover:bg-tw-soft/40">
+                      <td className="p-3 text-tw-muted font-sans font-bold">تكلفة الورد %</td>
                       <td className="p-3 text-center text-tw-navy font-bold">{m.toiaFlowerPerc}%</td>
                       <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line">{m.wardanaFlowerPerc}%</td>
-                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line bg-gray-50">{m.totalFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line bg-tw-soft/40">{m.totalFlowerPerc}%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -738,20 +738,20 @@ function SuperAdminDashboard() {
                 <p className="text-blue-200 text-xs">محسوبة على أساس {m.data.days} يوم بناءً على فلتر ({period})</p>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <AverageCard title="متوسط المبيعات" amount={m.view.avgSales} icon={<TrendingUp size={16} className="text-emerald-500" />} />
+                <AverageCard title="متوسط المبيعات" amount={m.view.avgSales} icon={<TrendingUp size={16} className="text-tw-green" />} />
                 <AverageCard title="متوسط المصاريف" amount={m.view.avgExp} icon={<TrendingDown size={16} className="text-tw-red" />} />
                 <AverageCard title="متوسط الورد" amount={m.view.avgFlower} icon={<ShoppingCart size={16} className="text-pink-500" />} />
-                <AverageCard title="متوسط التوصيل" amount={m.view.avgDelivery} icon={<Car size={16} className="text-orange-500" />} />
+                <AverageCard title="متوسط التوصيل" amount={m.view.avgDelivery} icon={<Car size={16} className="text-tw-orange" />} />
                 <AverageCard title="متوسط التسويق" amount={m.view.avgMarketing} icon={<Megaphone size={16} className="text-purple-500" />} full />
               </div>
 
               <div className="bg-slate-900 text-white p-4 rounded-2xl shadow-md mt-3">
                 <h3 className="font-bold mb-1 text-sm flex items-center gap-2"><CreditCard size={18} /> متوسطات طرق الدفع اليومية</h3>
-                <p className="text-slate-300 text-xs">قيمة كل وسيلة دفع يومياً ضمن الفترة</p>
+                <p className="text-tw-muted/50 text-xs">قيمة كل وسيلة دفع يومياً ضمن الفترة</p>
               </div>
               <div className="grid grid-cols-3 gap-2">
-                <AverageCard title="Cash" amount={m.view.avgCash} icon={<Wallet size={14} className="text-emerald-500" />} />
-                <AverageCard title="Mada" amount={m.view.avgMada} icon={<CreditCard size={14} className="text-blue-500" />} />
+                <AverageCard title="Cash" amount={m.view.avgCash} icon={<Wallet size={14} className="text-tw-green" />} />
+                <AverageCard title="Mada" amount={m.view.avgMada} icon={<CreditCard size={14} className="text-tw-blue" />} />
                 <AverageCard title="Transfer" amount={m.view.avgTransfer} icon={<Globe size={14} className="text-purple-500" />} />
               </div>
             </div>
@@ -765,7 +765,7 @@ function SuperAdminDashboard() {
               <div className="space-y-5">
                 <PaymentBar label="مدى (شبكة)" amount={m.view.mada} total={m.view.sales} color="bg-tw-soft0" />
                 <PaymentBar label="تحويل (أون لاين)" amount={m.view.transfer} total={m.view.sales} color="bg-purple-500" />
-                <PaymentBar label="نقدي (كاش)" amount={m.view.cash} total={m.view.sales} color="bg-emerald-500" />
+                <PaymentBar label="نقدي (كاش)" amount={m.view.cash} total={m.view.sales} color="bg-tw-green" />
               </div>
             </div>
           )}
@@ -776,11 +776,11 @@ function SuperAdminDashboard() {
               {!m.dailyBreakdown ? (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
                   <p className="text-amber-800 font-bold text-sm">هذا التحليل متاح فقط في فلتر "شهري"</p>
-                  <p className="text-amber-600 text-xs mt-1">بدّل الفلتر فوق إلى "شهري"</p>
+                  <p className="text-tw-orange text-xs mt-1">بدّل الفلتر فوق إلى "شهري"</p>
                 </div>
               ) : (
                 <>
-                  <div className="bg-emerald-600 text-white p-4 rounded-2xl shadow-md">
+                  <div className="bg-tw-green text-white p-4 rounded-2xl shadow-md">
                     <h3 className="font-bold text-sm flex items-center gap-2"><Calendar size={18} /> أيام الشهر — {m.view.label}</h3>
                     <p className="text-emerald-100 text-[11px] mt-1">معرفة الأيام الأقوى والأضعف بيعاً</p>
                   </div>
@@ -805,7 +805,7 @@ function SuperAdminDashboard() {
                           <p className="text-lg font-bold text-tw-green font-mono">يوم {best.day}</p>
                           <p className="text-xs font-mono text-tw-green">{best.sales.toLocaleString()}</p>
                         </div>
-                        <div className="bg-white border border-blue-100 rounded-xl p-3 text-center">
+                        <div className="bg-white border border-tw-line rounded-xl p-3 text-center">
                           <p className="text-[10px] text-tw-muted/70 font-bold">المتوسط</p>
                           <p className="text-lg font-bold text-tw-blue font-mono">{avg.toLocaleString()}</p>
                           <p className="text-[10px] text-tw-muted/70">ريال/يوم</p>
@@ -831,8 +831,8 @@ function SuperAdminDashboard() {
                             return (
                               <div key={d.day} className="flex items-center gap-2">
                                 <span className="text-[10px] font-mono w-6 text-tw-muted font-bold text-left">{d.day}</span>
-                                <div className="flex-1 bg-gray-50 rounded h-5 overflow-hidden relative">
-                                  <div className={`h-full ${isMax ? 'bg-emerald-500' : 'bg-blue-400'} rounded transition-all`}
+                                <div className="flex-1 bg-tw-soft/40 rounded h-5 overflow-hidden relative">
+                                  <div className={`h-full ${isMax ? 'bg-tw-green' : 'bg-blue-400'} rounded transition-all`}
                                     style={{ width: `${widthPerc}%` }} />
                                 </div>
                                 <span className="text-[10px] font-mono w-20 text-tw-navy font-bold text-left">
@@ -856,7 +856,7 @@ function SuperAdminDashboard() {
               {!m.weeklyBreakdown ? (
                 <div className="bg-amber-50 border border-amber-200 rounded-2xl p-5 text-center">
                   <p className="text-amber-800 font-bold text-sm">هذا التحليل متاح فقط في فلتر "شهري"</p>
-                  <p className="text-amber-600 text-xs mt-1">بدّل الفلتر فوق إلى "شهري"</p>
+                  <p className="text-tw-orange text-xs mt-1">بدّل الفلتر فوق إلى "شهري"</p>
                 </div>
               ) : (
                 <>
@@ -882,16 +882,16 @@ function SuperAdminDashboard() {
                                   <span className="text-[11px] text-tw-muted/70 mr-1">({sharePerc}%)</span>
                                 </div>
                               </div>
-                              <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+                              <div className="w-full bg-tw-soft rounded-full h-2.5 overflow-hidden">
                                 <div className="bg-indigo-500 h-full rounded-full transition-all duration-500"
                                   style={{ width: `${widthPerc}%` }} />
                               </div>
                             </div>
                           );
                         })}
-                        <div className="bg-slate-50 p-3 flex justify-between font-bold text-sm">
+                        <div className="bg-tw-soft p-3 flex justify-between font-bold text-sm">
                           <span className="text-tw-navy">إجمالي الشهر:</span>
-                          <span className="font-mono text-slate-900">{total.toLocaleString()} <SarSymbol /></span>
+                          <span className="font-mono text-tw-navy">{total.toLocaleString()} <SarSymbol /></span>
                         </div>
                       </div>
                     );
@@ -913,7 +913,7 @@ function SuperAdminDashboard() {
                       <th className="p-3 font-bold">المؤشر</th>
                       <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">Toia</th>
                       <th className="p-3 font-bold text-center border-r border-tw-line text-tw-blue">Wardana</th>
-                      <th className="p-3 font-bold text-center border-r border-tw-line bg-gray-50">Total</th>
+                      <th className="p-3 font-bold text-center border-r border-tw-line bg-tw-soft/40">Total</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50 font-mono">
@@ -935,11 +935,11 @@ function SuperAdminDashboard() {
                     <CompareRow label="Flower Exp." t={m.data.toia.flowerExp} w={m.data.wardana.flowerExp} total={m.data.toia.flowerExp + m.data.wardana.flowerExp} tone="pink" />
                     <CompareRow label="Delivery Fees" t={m.data.toia.deliveryExp} w={m.data.wardana.deliveryExp} total={m.data.toia.deliveryExp + m.data.wardana.deliveryExp} tone="orange" />
                     <CompareRow label="Marketing Exp." t={m.data.toia.marketingExp} w={m.data.wardana.marketingExp} total={m.data.toia.marketingExp + m.data.wardana.marketingExp} tone="purple" />
-                    <tr className="hover:bg-gray-50">
-                      <td className="p-3 text-gray-600 font-sans font-bold">Flower Cost %</td>
+                    <tr className="hover:bg-tw-soft/40">
+                      <td className="p-3 text-tw-muted font-sans font-bold">Flower Cost %</td>
                       <td className="p-3 text-center text-tw-navy font-bold">{m.toiaFlowerPerc}%</td>
                       <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line">{m.wardanaFlowerPerc}%</td>
-                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line bg-gray-50">{m.totalFlowerPerc}%</td>
+                      <td className="p-3 text-center text-tw-navy font-bold border-r border-tw-line bg-tw-soft/40">{m.totalFlowerPerc}%</td>
                     </tr>
                   </tbody>
                 </table>
@@ -957,7 +957,7 @@ function ReportTab({ id, current, set, icon, label }) {
   const active = current === id;
   return (
     <button onClick={() => set(id)}
-      className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${active ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-tw-muted border-tw-line hover:bg-gray-50'}`}>
+      className={`flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold transition-all border ${active ? 'bg-slate-900 text-white border-slate-900 shadow-md' : 'bg-white text-tw-muted border-tw-line hover:bg-tw-soft/40'}`}>
       {icon} {label}
     </button>
   );
@@ -977,17 +977,17 @@ function StatCard({ label, value, icon }) {
 
 const TONE = {
   emerald: 'text-tw-green', red: 'text-red-400', orange: 'text-orange-400',
-  slate: 'text-tw-muted', blue: 'text-blue-500', pink: 'text-pink-500', purple: 'text-purple-500',
+  slate: 'text-tw-muted', blue: 'text-tw-blue', pink: 'text-pink-500', purple: 'text-purple-500',
 };
 
 function CompareRow({ label, t, w, total, tone = 'slate', bold }) {
   const c = TONE[tone] || TONE.slate;
   return (
-    <tr className="hover:bg-gray-50">
+    <tr className="hover:bg-tw-soft/40">
       <td className={`p-3 font-sans ${bold ? 'font-bold text-tw-navy' : 'text-tw-muted'}`}>{label}</td>
       <td className={`p-3 text-center ${c} ${bold ? 'font-bold' : ''}`}>{Math.round(t).toLocaleString()}</td>
       <td className={`p-3 text-center ${c} ${bold ? 'font-bold' : ''} border-r border-tw-line`}>{Math.round(w).toLocaleString()}</td>
-      <td className={`p-3 text-center ${c} font-bold border-r border-tw-line bg-gray-50`}>{Math.round(total).toLocaleString()}</td>
+      <td className={`p-3 text-center ${c} font-bold border-r border-tw-line bg-tw-soft/40`}>{Math.round(total).toLocaleString()}</td>
     </tr>
   );
 }
@@ -1014,7 +1014,7 @@ function PaymentBar({ label, amount, total, color }) {
           <span className="text-tw-muted/70">({perc}%)</span>
         </div>
       </div>
-      <div className="w-full bg-gray-100 rounded-full h-2.5 overflow-hidden">
+      <div className="w-full bg-tw-soft rounded-full h-2.5 overflow-hidden">
         <div className={`${color} h-full rounded-full transition-all duration-500`} style={{ width: `${perc}%` }}></div>
       </div>
     </div>
@@ -1087,7 +1087,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
       <div className={`relative z-10 flex ${lang === 'en' ? 'justify-end' : 'justify-start'} mb-4`}>
         <button
           onClick={toggleLang}
-          className="bg-white/80 backdrop-blur-sm border border-blue-100 text-tw-navy px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-white hover:shadow-md transition-all"
+          className="bg-white/80 backdrop-blur-sm border border-tw-line text-tw-navy px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-white hover:shadow-md transition-all"
           style={{ fontWeight: 700, fontSize: '13px', letterSpacing: '0.5px' }}
         >
           {lang === 'ar' ? 'EN' : 'ع'}
@@ -1321,7 +1321,7 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
       <div className={`relative z-10 flex ${lang === 'en' ? 'justify-start' : 'justify-end'} mb-3`}>
         <button
           onClick={toggleLang}
-          className="bg-white/80 backdrop-blur-sm border border-blue-100 text-tw-navy px-3 py-1.5 rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 text-xs font-bold"
+          className="bg-white/80 backdrop-blur-sm border border-tw-line text-tw-navy px-3 py-1.5 rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 text-xs font-bold"
         >
           <Globe size={14} className="text-tw-blue" />
           {t(lang, 'home.langToggle')}
@@ -1465,7 +1465,7 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
       {/* زر "آخر 7 أيام" — مدمج صغير */}
       <button
         onClick={() => setView('employeeHistory')}
-        className="relative z-10 w-full flex items-center justify-center gap-2 bg-white/70 backdrop-blur-sm border border-blue-100 text-tw-blue py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
+        className="relative z-10 w-full flex items-center justify-center gap-2 bg-white/70 backdrop-blur-sm border border-tw-line text-tw-blue py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
       >
         <Calendar size={16} />
         {lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام'}
@@ -1529,7 +1529,7 @@ function SalesForm({ setView, branch, branchId, lang }) {
   return (
     <div className="flex flex-col h-full bg-white relative z-10">
       <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={() => setView('employeeHome')} className="p-2 text-tw-muted bg-slate-100 rounded-full">
+        <button onClick={() => setView('employeeHome')} className="p-2 text-tw-muted bg-tw-soft rounded-full">
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">{t(lang, 'sales.title')}</h2>
@@ -1539,27 +1539,27 @@ function SalesForm({ setView, branch, branchId, lang }) {
           <div>
             <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'sales.date')}</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-tw-blue" />
           </div>
           <div>
             <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'sales.branch')}</label>
-            <div className="w-full p-3 bg-tw-soft border border-blue-100 rounded-xl text-sm font-bold text-tw-blue">{branch}</div>
+            <div className="w-full p-3 bg-tw-soft border border-tw-line rounded-xl text-sm font-bold text-tw-blue">{branch}</div>
           </div>
         </div>
 
         <div className="space-y-4">
           {fields.map((f) => (
             <div key={f.key} className="flex items-center">
-              <div className="w-1/3 text-gray-600 font-bold">{f.label}</div>
+              <div className="w-1/3 text-tw-muted font-bold">{f.label}</div>
               <input type="number" placeholder="0.00" value={f.value}
                 onChange={(e) => f.set(e.target.value)}
-                className="w-2/3 p-4 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+                className="w-2/3 p-4 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-tw-blue" dir="ltr" />
             </div>
           ))}
         </div>
 
-        <div className="bg-tw-soft p-6 rounded-2xl text-center border border-blue-100">
-          <p className="text-blue-800 font-bold mb-2">{t(lang, 'sales.total')}</p>
+        <div className="bg-tw-soft p-6 rounded-2xl text-center border border-tw-line">
+          <p className="text-tw-navy2 font-bold mb-2">{t(lang, 'sales.total')}</p>
           <p className="text-3xl font-bold text-tw-blue font-mono">{total.toLocaleString()} <SarSymbol /></p>
         </div>
 
@@ -1574,16 +1574,16 @@ function SalesForm({ setView, branch, branchId, lang }) {
               <span className="font-mono text-amber-900">{Number(mada).toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-xs font-bold">
-              <span className="text-red-700">{t(lang, 'sales.madaFeesLine')}</span>
-              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} <SarSymbol /></span>
+              <span className="text-tw-red">{t(lang, 'sales.madaFeesLine')}</span>
+              <span className="font-mono text-tw-red">{madaFeesAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-xs font-bold pt-1 border-t border-amber-200">
               <span className="text-emerald-800">{t(lang, 'sales.madaNet')}</span>
               <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-300">
-              <span className="text-slate-900">{t(lang, 'sales.totalAfter')}</span>
-              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} <SarSymbol /></span>
+              <span className="text-tw-navy">{t(lang, 'sales.totalAfter')}</span>
+              <span className="font-mono text-tw-navy">{netTotal.toLocaleString()} <SarSymbol /></span>
             </div>
           </div>
         )}
@@ -1701,7 +1701,7 @@ function ExpenseForm({ setView, branchId, lang }) {
   return (
     <div className="flex flex-col h-full bg-white relative z-10">
       <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={() => setView('employeeHome')} className="p-2 text-tw-muted bg-slate-100 rounded-full">
+        <button onClick={() => setView('employeeHome')} className="p-2 text-tw-muted bg-tw-soft rounded-full">
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">{t(lang, 'expense.title')}</h2>
@@ -1710,17 +1710,17 @@ function ExpenseForm({ setView, branchId, lang }) {
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'sales.date')}</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+            className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-tw-blue" />
         </div>
 
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.category')}</label>
           {loadingCats ? (
-            <div className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-sm text-tw-muted/70 flex items-center gap-2">
+            <div className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl text-sm text-tw-muted/70 flex items-center gap-2">
               <Loader2 size={16} className="animate-spin" /> {t(lang, 'expense.loading')}
             </div>
           ) : (
-            <select className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl font-bold text-tw-navy outline-none focus:border-blue-500"
+            <select className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl font-bold text-tw-navy outline-none focus:border-tw-blue"
               value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
               <option value="">{t(lang, 'expense.chooseCat')}</option>
               {categories.map((c) => (
@@ -1735,7 +1735,7 @@ function ExpenseForm({ setView, branchId, lang }) {
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">{t(lang, 'expense.amount')}</label>
           <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+            className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-tw-blue" dir="ltr" />
         </div>
 
         <div>
@@ -1743,7 +1743,7 @@ function ExpenseForm({ setView, branchId, lang }) {
           <div className="flex gap-2">
             {(methods.length ? methods : [{ id: 'Cash' }, { id: 'Mada' }, { id: 'Transfer' }]).map((p) => (
               <button key={p.id} onClick={() => setPayMethod(p.id)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${payMethod === p.id ? 'bg-tw-blue text-white border-blue-600' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border transition-colors ${payMethod === p.id ? 'bg-tw-blue text-white border-blue-600' : 'bg-tw-soft/40 text-tw-muted border-tw-line'}`}>
                 {pmLabel(p.id)}
               </button>
             ))}
@@ -1753,13 +1753,13 @@ function ExpenseForm({ setView, branchId, lang }) {
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
           onChange={handleFileChange} className="hidden" />
 
-        <div className={`p-6 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-tw-line bg-gray-50'}`}>
+        <div className={`p-6 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-tw-line bg-tw-soft/40'}`}>
           {imagePreview ? (
             <div className="text-center">
               <img src={imagePreview} alt="preview" className="max-h-40 mx-auto rounded-xl shadow mb-3 object-contain" />
-              <p className="text-xs text-gray-600 mb-3 font-bold truncate">{imageFile?.name}</p>
+              <p className="text-xs text-tw-muted mb-3 font-bold truncate">{imageFile?.name}</p>
               <div className="flex gap-2 justify-center">
-                <button onClick={handlePickImage} className="bg-white border border-gray-300 px-4 py-2 rounded-xl text-xs font-bold">
+                <button onClick={handlePickImage} className="bg-white border border-tw-line px-4 py-2 rounded-xl text-xs font-bold">
                   {t(lang, 'expense.change')}
                 </button>
                 <button onClick={() => { setImageFile(null); setImagePreview(''); }}
@@ -1771,11 +1771,11 @@ function ExpenseForm({ setView, branchId, lang }) {
           ) : (
             <div className="text-center">
               <Camera className={`mx-auto mb-3 ${requiresImage ? 'text-tw-red' : 'text-tw-muted/70'}`} size={32} />
-              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-tw-navy'} mb-4`}>
+              <p className={`text-sm font-bold ${requiresImage ? 'text-tw-red' : 'text-tw-navy'} mb-4`}>
                 {requiresImage ? t(lang, 'expense.imageReq') : t(lang, 'expense.imageOpt')}
               </p>
               <button onClick={handlePickImage}
-                className="bg-white border border-gray-300 px-6 py-2.5 rounded-xl text-sm font-bold flex gap-2 mx-auto">
+                className="bg-white border border-tw-line px-6 py-2.5 rounded-xl text-sm font-bold flex gap-2 mx-auto">
                 <UploadCloud size={16} /> {t(lang, 'expense.pickImage')}
               </button>
             </div>
@@ -1827,7 +1827,7 @@ function AdminSettings() {
         {items.map((item) => (
           <button key={item.key} disabled={!item.enabled}
             onClick={() => item.enabled && setScreen(item.key)}
-            className={`w-full p-4 border-b border-tw-line/60 last:border-0 flex items-center justify-between text-right transition-colors ${item.enabled ? 'hover:bg-gray-50 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
+            className={`w-full p-4 border-b border-tw-line/60 last:border-0 flex items-center justify-between text-right transition-colors ${item.enabled ? 'hover:bg-tw-soft/40 cursor-pointer' : 'opacity-50 cursor-not-allowed'}`}>
             <div>
               <span className="font-bold text-sm text-tw-navy block">{item.label}</span>
               <span className="text-[11px] text-tw-muted/70">{item.desc}{!item.enabled && ' (قريباً)'}</span>
@@ -2032,7 +2032,7 @@ function ManageUsers({ onBack }) {
 
       {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">المستخدمون</h2>
@@ -2041,21 +2041,21 @@ function ManageUsers({ onBack }) {
       <div className="relative z-10 p-4 space-y-3">
         {/* form إضافة مستخدم */}
         {showForm && (
-          <div className="bg-white border border-blue-200 rounded-2xl p-4 space-y-3 shadow-sm">
+          <div className="bg-white border border-tw-blue/30 rounded-2xl p-4 space-y-3 shadow-sm">
             <h3 className="font-bold text-sm text-tw-navy">مستخدم جديد</h3>
             <input type="text" placeholder="اسم المستخدم (إنجليزي)" value={username}
               onChange={(e) => setUsername(e.target.value)} autoCapitalize="off"
-              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue" />
             <input type="text" placeholder="الاسم الظاهر" value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue" />
             <input type="password" inputMode="numeric" maxLength={4} placeholder="الرمز (4 أرقام)" value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
-              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500 text-center tracking-[0.4em] font-mono" />
+              className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue text-center tracking-[0.4em] font-mono" />
             <div className="flex gap-2">
               {[{ v: 'employee', t: 'موظف' }, { v: 'admin', t: 'مدير' }].map((r) => (
                 <button key={r.v} onClick={() => setRole(r.v)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${role === r.v ? 'bg-tw-blue text-white border-blue-600' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${role === r.v ? 'bg-tw-blue text-white border-blue-600' : 'bg-tw-soft/40 text-tw-muted border-tw-line'}`}>
                   {r.t}
                 </button>
               ))}
@@ -2063,7 +2063,7 @@ function ManageUsers({ onBack }) {
             <div className="flex gap-2">
               {[{ v: 'toia', t: 'تويا' }, { v: 'wardana', t: 'وردانة' }].map((b) => (
                 <button key={b.v} onClick={() => setBranchId(b.v)}
-                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${branchId === b.v ? 'bg-slate-800 text-white border-slate-800' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
+                  className={`flex-1 py-2 rounded-xl text-sm font-bold border ${branchId === b.v ? 'bg-slate-800 text-white border-slate-800' : 'bg-tw-soft/40 text-tw-muted border-tw-line'}`}>
                   {b.t}
                 </button>
               ))}
@@ -2071,7 +2071,7 @@ function ManageUsers({ onBack }) {
             {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-2 text-center">{error}</p>}
             <div className="flex gap-2">
               <button onClick={() => { setShowForm(false); setError(''); }}
-                className="flex-1 bg-white border border-gray-300 text-gray-600 font-bold py-2.5 rounded-xl text-sm">
+                className="flex-1 bg-white border border-tw-line text-tw-muted font-bold py-2.5 rounded-xl text-sm">
                 إلغاء
               </button>
               <button onClick={handleCreate} disabled={saving}
@@ -2081,7 +2081,7 @@ function ManageUsers({ onBack }) {
                 {saving ? 'جارٍ...' : 'حفظ'}
               </button>
             </div>
-            <p className="text-[10px] text-amber-700 bg-amber-50 rounded-lg p-2 text-center">
+            <p className="text-[10px] text-tw-orange bg-amber-50 rounded-lg p-2 text-center">
               ملاحظة: بعد الحفظ سيُسجَّل دخولك بالحساب الجديد. سجّل خروج ثم ادخل بحسابك من جديد.
             </p>
           </div>
@@ -2092,7 +2092,7 @@ function ManageUsers({ onBack }) {
         )}
 
         {loading ? (
-          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
+          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-tw-muted/50" /></div>
         ) : (
           <>
             {/* قائمة المستخدمين بتصميم prototype - كل صف قابل للضغط لفتح modal التعديل */}
@@ -2101,7 +2101,7 @@ function ManageUsers({ onBack }) {
                 <button
                   key={u.uid}
                   onClick={() => openEdit(u)}
-                  className={`w-full p-4 flex items-center gap-3 text-right hover:bg-gray-50 transition-colors ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
+                  className={`w-full p-4 flex items-center gap-3 text-right hover:bg-tw-soft/40 transition-colors ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
                 >
                   {/* شارة الحالة على اليسار (في RTL) */}
                   <div className={`text-xs font-bold ${u.active === false ? 'text-tw-muted/70' : 'text-tw-green'}`}>
@@ -2150,7 +2150,7 @@ function ManageUsers({ onBack }) {
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-tw-blue"
               />
             </div>
 
@@ -2166,7 +2166,7 @@ function ManageUsers({ onBack }) {
                 placeholder="••••"
                 value={editPin}
                 onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
-                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl text-base font-bold text-tw-navy text-center tracking-[0.4em] font-mono outline-none focus:border-tw-blue"
               />
             </div>
 
@@ -2184,7 +2184,7 @@ function ManageUsers({ onBack }) {
                     className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${
                       editRole === r.v
                         ? 'bg-tw-blue text-white border-blue-600'
-                        : 'bg-gray-50 text-tw-muted border-tw-line hover:bg-gray-100'
+                        : 'bg-tw-soft/40 text-tw-muted border-tw-line hover:bg-tw-soft'
                     }`}
                   >
                     {r.t}
@@ -2208,7 +2208,7 @@ function ManageUsers({ onBack }) {
                     className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${
                       editBranch === b.v
                         ? 'bg-tw-blue text-white border-blue-600'
-                        : 'bg-gray-50 text-tw-muted border-tw-line hover:bg-gray-100'
+                        : 'bg-tw-soft/40 text-tw-muted border-tw-line hover:bg-tw-soft'
                     }`}
                   >
                     {b.t}
@@ -2222,7 +2222,7 @@ function ManageUsers({ onBack }) {
               onClick={() => setEditActive(!editActive)}
               className="w-full bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between border border-emerald-100 hover:bg-emerald-100 transition-colors"
             >
-              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-tw-green' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
               </div>
               <span className="text-sm font-bold text-tw-navy">المستخدم نشط</span>
@@ -2240,7 +2240,7 @@ function ManageUsers({ onBack }) {
               <button
                 onClick={closeEdit}
                 disabled={editSaving}
-                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
+                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 disabled:opacity-60"
               >
                 إلغاء
               </button>
@@ -2262,7 +2262,7 @@ function ManageUsers({ onBack }) {
             <button
               onClick={handleDeleteFromEdit}
               disabled={editSaving}
-              className="w-full bg-red-50 hover:bg-red-100 text-tw-red font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
+              className="w-full bg-red-50 hover:bg-red-50 text-tw-red font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
             >
               حذف المستخدم
             </button>
@@ -2333,7 +2333,7 @@ function ManageFixedExpenses({ onBack }) {
 
       {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">المصاريف الثابتة</h2>
@@ -2347,21 +2347,21 @@ function ManageFixedExpenses({ onBack }) {
         </div>
 
         {loading ? (
-          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
+          <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-tw-muted/50" /></div>
         ) : (
           <>
             {/* بطاقة فرع تويا */}
             <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4">
               <h4 className="text-sm font-bold text-tw-navy mb-3">فرع تويا</h4>
               <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ الشهري الثابت</label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
+              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
                   value={toiaAmount}
                   onChange={(e) => setToiaAmount(e.target.value)}
-                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-gray-300"
+                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                   dir="ltr"
                 />
                 <SarSymbol className="text-tw-muted/70 text-base" />
@@ -2372,14 +2372,14 @@ function ManageFixedExpenses({ onBack }) {
             <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4">
               <h4 className="text-sm font-bold text-tw-navy mb-3">فرع وردانة</h4>
               <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ الشهري الثابت</label>
-              <div className="flex items-center gap-2 bg-gray-50 border border-tw-line rounded-xl p-3">
+              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
                 <input
                   type="number"
                   inputMode="decimal"
                   placeholder="0"
                   value={wardanaAmount}
                   onChange={(e) => setWardanaAmount(e.target.value)}
-                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-gray-300"
+                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                   dir="ltr"
                 />
                 <SarSymbol className="text-tw-muted/70 text-base" />
@@ -2415,7 +2415,7 @@ function ManageFixedExpenses({ onBack }) {
             <div className="flex gap-3 pt-2">
               <button
                 onClick={onBack}
-                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 transition-colors"
+                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 transition-colors"
               >
                 إلغاء
               </button>
@@ -2519,7 +2519,7 @@ function ManageCategories({ onBack }) {
 
       {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">التصنيفات</h2>
@@ -2542,14 +2542,14 @@ function ManageCategories({ onBack }) {
 
         {/* form إضافة تصنيف جديد */}
         {showForm && (
-          <div className="bg-white border border-blue-200 rounded-2xl p-4 space-y-3 shadow-sm">
+          <div className="bg-white border border-tw-blue/30 rounded-2xl p-4 space-y-3 shadow-sm">
             <h3 className="font-bold text-sm text-tw-navy">تصنيف جديد</h3>
             <input
               type="text"
               placeholder="اسم التصنيف (مثل: كهرباء)"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
+              className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue"
             />
 
             <div>
@@ -2557,7 +2557,7 @@ function ManageCategories({ onBack }) {
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
-                className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm font-bold outline-none focus:border-tw-blue"
               >
                 <option value="general">عام</option>
                 <option value="flower">ورد</option>
@@ -2568,7 +2568,7 @@ function ManageCategories({ onBack }) {
               </select>
             </div>
 
-            <label className="flex items-center justify-between bg-gray-50 border border-tw-line rounded-xl p-3 cursor-pointer">
+            <label className="flex items-center justify-between bg-tw-soft/40 border border-tw-line rounded-xl p-3 cursor-pointer">
               <input
                 type="checkbox"
                 checked={newReq}
@@ -2586,7 +2586,7 @@ function ManageCategories({ onBack }) {
             <div className="flex gap-2">
               <button
                 onClick={() => { setShowForm(false); setError(''); }}
-                className="flex-1 bg-white border border-gray-300 text-tw-navy font-bold py-2.5 rounded-xl text-sm hover:bg-gray-50"
+                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-2.5 rounded-xl text-sm hover:bg-tw-soft/40"
               >
                 إلغاء
               </button>
@@ -2610,7 +2610,7 @@ function ManageCategories({ onBack }) {
         {/* قائمة التصنيفات — تصميم prototype مع toggles خضراء */}
         {loading ? (
           <div className="flex justify-center py-8">
-            <Loader2 size={24} className="animate-spin text-slate-300" />
+            <Loader2 size={24} className="animate-spin text-tw-muted/50" />
           </div>
         ) : (
           <div className="space-y-3">
@@ -2621,7 +2621,7 @@ function ManageCategories({ onBack }) {
                   onClick={() => toggleRequires(cat)}
                   disabled={busyId === cat.id}
                   className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors flex-shrink-0 ${
-                    cat.requiresImage ? 'bg-emerald-500' : 'bg-gray-300'
+                    cat.requiresImage ? 'bg-tw-green' : 'bg-gray-300'
                   } disabled:opacity-50`}
                 >
                   <span
@@ -2636,7 +2636,7 @@ function ManageCategories({ onBack }) {
                   <p className="font-bold text-base text-tw-navy mb-1">{translateCategory('ar', cat.name)}</p>
                   <p className="text-xs text-tw-muted flex items-center gap-1.5 justify-end">
                     <span>{cat.requiresImage ? 'صورة إجبارية' : 'صورة اختيارية'}</span>
-                    <span className={`w-2 h-2 rounded-full ${cat.requiresImage ? 'bg-red-500' : 'bg-gray-300'}`}></span>
+                    <span className={`w-2 h-2 rounded-full ${cat.requiresImage ? 'bg-tw-red' : 'bg-gray-300'}`}></span>
                   </p>
                 </div>
 
@@ -2697,36 +2697,36 @@ function ChangeMyPin({ onBack }) {
   return (
     <div className="flex flex-col h-full bg-white pb-20">
       <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">تغيير رمزي السري</h2>
       </div>
 
       <div className="p-6 space-y-4 flex-1">
-        <div className="bg-tw-soft border border-blue-100 rounded-xl p-3 text-center">
+        <div className="bg-tw-soft border border-tw-line rounded-xl p-3 text-center">
           <Key size={20} className="text-tw-blue mx-auto mb-2" />
-          <p className="text-blue-800 font-bold text-sm">تحديث الرمز السري لحسابك</p>
-          <p className="text-blue-500 text-[11px] mt-1">سيتم التحقق من الرمز الحالي قبل التغيير</p>
+          <p className="text-tw-navy2 font-bold text-sm">تحديث الرمز السري لحسابك</p>
+          <p className="text-tw-blue text-[11px] mt-1">سيتم التحقق من الرمز الحالي قبل التغيير</p>
         </div>
 
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">الرمز الحالي</label>
           <input type="password" inputMode="numeric" maxLength={4} value={currentPin}
             onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
-            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+            className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-tw-blue" />
         </div>
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">الرمز الجديد</label>
           <input type="password" inputMode="numeric" maxLength={4} value={newPin}
             onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
-            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+            className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-tw-blue" />
         </div>
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">تأكيد الرمز الجديد</label>
           <input type="password" inputMode="numeric" maxLength={4} value={confirmPin}
             onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
-            className="w-full p-4 bg-gray-50 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-blue-500" />
+            className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-tw-blue" />
         </div>
 
         {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
@@ -2778,7 +2778,7 @@ function AdminDataEntry({ onBack }) {
   return (
     <div className="flex flex-col h-full bg-white pb-20">
       <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">تسجيل بيانات (مدير)</h2>
@@ -2863,7 +2863,7 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
   return (
     <div className="flex flex-col h-full bg-white pb-20">
       <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">مبيعات — {branchName}</h2>
@@ -2873,7 +2873,7 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
           <div>
             <label className="text-xs font-bold text-tw-muted mb-1.5 block">التاريخ</label>
             <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-              className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+              className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-tw-blue" />
           </div>
           <div>
             <label className="text-xs font-bold text-tw-muted mb-1.5 block">الفرع</label>
@@ -2884,16 +2884,16 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
         <div className="space-y-3">
           {fields.map((f) => (
             <div key={f.label} className="flex items-center">
-              <div className="w-1/3 text-gray-600 font-bold text-sm">{f.label}</div>
+              <div className="w-1/3 text-tw-muted font-bold text-sm">{f.label}</div>
               <input type="number" placeholder="0.00" value={f.value}
                 onChange={(e) => f.set(e.target.value)}
-                className="w-2/3 p-3.5 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+                className="w-2/3 p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-tw-blue" dir="ltr" />
             </div>
           ))}
         </div>
 
-        <div className="bg-tw-soft p-5 rounded-2xl text-center border border-blue-100">
-          <p className="text-blue-800 font-bold mb-1 text-sm">الإجمالي</p>
+        <div className="bg-tw-soft p-5 rounded-2xl text-center border border-tw-line">
+          <p className="text-tw-navy2 font-bold mb-1 text-sm">الإجمالي</p>
           <p className="text-3xl font-bold text-tw-blue font-mono">{total.toLocaleString()} <SarSymbol /></p>
         </div>
 
@@ -2901,16 +2901,16 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
           <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 space-y-2">
             <p className="text-amber-900 font-bold text-xs">💳 رسوم مدى ({(MADA_FEE_RATE * 100).toFixed(2)}%)</p>
             <div className="flex justify-between text-xs font-bold">
-              <span className="text-red-700">- رسوم:</span>
-              <span className="font-mono text-red-700">{madaFeesAmt.toLocaleString()} <SarSymbol /></span>
+              <span className="text-tw-red">- رسوم:</span>
+              <span className="font-mono text-tw-red">{madaFeesAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-xs font-bold pt-1 border-t border-amber-200">
               <span className="text-emerald-800">صافي مدى:</span>
               <span className="font-mono text-emerald-800">{madaNetAmt.toLocaleString()} <SarSymbol /></span>
             </div>
             <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-300">
-              <span className="text-slate-900">الإجمالي بعد الرسوم:</span>
-              <span className="font-mono text-slate-900">{netTotal.toLocaleString()} <SarSymbol /></span>
+              <span className="text-tw-navy">الإجمالي بعد الرسوم:</span>
+              <span className="font-mono text-tw-navy">{netTotal.toLocaleString()} <SarSymbol /></span>
             </div>
           </div>
         )}
@@ -3014,7 +3014,7 @@ function AdminExpenseForm({ onBack, branchId }) {
   return (
     <div className="flex flex-col h-full bg-white pb-20">
       <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-slate-100 rounded-full">
+        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">مصروف — {branchName}</h2>
@@ -3023,18 +3023,18 @@ function AdminExpenseForm({ onBack, branchId }) {
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">التاريخ</label>
           <input type="date" value={date} onChange={(e) => setDate(e.target.value)}
-            className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-blue-500" />
+            className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-sm outline-none focus:border-tw-blue" />
         </div>
 
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">التصنيف</label>
           {loadingCats ? (
-            <div className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm text-tw-muted/70 flex items-center gap-2">
+            <div className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm text-tw-muted/70 flex items-center gap-2">
               <Loader2 size={16} className="animate-spin" /> جارٍ التحميل...
             </div>
           ) : (
             <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
-              className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl font-bold text-tw-navy outline-none focus:border-blue-500">
+              className="w-full p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl font-bold text-tw-navy outline-none focus:border-tw-blue">
               <option value="">اختر التصنيف...</option>
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
@@ -3048,7 +3048,7 @@ function AdminExpenseForm({ onBack, branchId }) {
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">المبلغ</label>
           <input type="number" placeholder="0.00" value={amount} onChange={(e) => setAmount(e.target.value)}
-            className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-blue-500" dir="ltr" />
+            className="w-full p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl font-mono text-left outline-none focus:border-tw-blue" dir="ltr" />
         </div>
 
         <div>
@@ -3056,7 +3056,7 @@ function AdminExpenseForm({ onBack, branchId }) {
           <div className="flex gap-2">
             {(methods.length ? methods : [{ id: 'Cash', labelAr: 'Cash' }, { id: 'Mada', labelAr: 'Mada' }, { id: 'Transfer', labelAr: 'Transfer' }]).map((p) => (
               <button key={p.id} onClick={() => setPayMethod(p.id)}
-                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p.id ? 'bg-tw-blue text-white border-blue-600' : 'bg-gray-50 text-tw-muted border-tw-line'}`}>
+                className={`flex-1 py-2.5 rounded-xl text-sm font-bold border ${payMethod === p.id ? 'bg-tw-blue text-white border-blue-600' : 'bg-tw-soft/40 text-tw-muted border-tw-line'}`}>
                 {p.labelAr || p.name || p.id}
               </button>
             ))}
@@ -3066,12 +3066,12 @@ function AdminExpenseForm({ onBack, branchId }) {
         <input ref={fileInputRef} type="file" accept="image/*" capture="environment"
           onChange={handleFileChange} className="hidden" />
 
-        <div className={`p-5 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-tw-line bg-gray-50'}`}>
+        <div className={`p-5 rounded-2xl border-2 border-dashed ${requiresImage && !imageFile ? 'border-red-300 bg-red-50' : 'border-tw-line bg-tw-soft/40'}`}>
           {imagePreview ? (
             <div className="text-center">
               <img src={imagePreview} alt="معاينة" className="max-h-32 mx-auto rounded-xl shadow mb-2 object-contain" />
               <div className="flex gap-2 justify-center">
-                <button onClick={handlePickImage} className="bg-white border border-gray-300 px-4 py-1.5 rounded-lg text-xs font-bold">
+                <button onClick={handlePickImage} className="bg-white border border-tw-line px-4 py-1.5 rounded-lg text-xs font-bold">
                   تغيير
                 </button>
                 <button onClick={() => { setImageFile(null); setImagePreview(''); }}
@@ -3083,11 +3083,11 @@ function AdminExpenseForm({ onBack, branchId }) {
           ) : (
             <div className="text-center">
               <Camera className={`mx-auto mb-2 ${requiresImage ? 'text-tw-red' : 'text-tw-muted/70'}`} size={28} />
-              <p className={`text-sm font-bold ${requiresImage ? 'text-red-700' : 'text-tw-navy'} mb-3`}>
+              <p className={`text-sm font-bold ${requiresImage ? 'text-tw-red' : 'text-tw-navy'} mb-3`}>
                 {requiresImage ? 'صورة الفاتورة مطلوبة!' : 'صورة الفاتورة (اختياري)'}
               </p>
               <button onClick={handlePickImage}
-                className="bg-white border border-gray-300 px-5 py-2 rounded-xl text-xs font-bold flex gap-2 mx-auto">
+                className="bg-white border border-tw-line px-5 py-2 rounded-xl text-xs font-bold flex gap-2 mx-auto">
                 <UploadCloud size={14} /> اختيار صورة
               </button>
             </div>

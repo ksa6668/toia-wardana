@@ -220,7 +220,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
       className="min-h-full px-4 pt-4 pb-8"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       {/* تبويبات شهري/سنوي */}
@@ -271,7 +271,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
         </div>
       )}
       {error && (
-        <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">{error}</p>
+        <p className="text-tw-red text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">{error}</p>
       )}
 
       {!loading && !error && (

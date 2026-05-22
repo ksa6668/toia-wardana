@@ -148,7 +148,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
       className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"Almarai", "IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
       <div
@@ -160,7 +160,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={onBack}
-          className="p-2 text-tw-muted bg-slate-100 rounded-full hover:bg-slate-200 transition-colors"
+          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
         >
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
@@ -172,17 +172,17 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
       <div className="relative z-10 p-4 space-y-4">
         {loading && (
           <div className="flex justify-center py-12">
-            <Loader2 size={28} className="animate-spin text-slate-300" />
+            <Loader2 size={28} className="animate-spin text-tw-muted/50" />
           </div>
         )}
 
         {error && (
-          <p className="text-red-600 text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
+          <p className="text-tw-red text-xs text-center bg-red-50 border border-red-100 rounded-lg p-3">
             {error}
           </p>
         )}
         {done && (
-          <p className="text-emerald-700 text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
+          <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
             <CheckCircle2 size={18} /> {done}
           </p>
         )}
@@ -192,7 +192,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
             {/* قائمة الفروع */}
             {branches.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center border border-tw-line shadow-sm">
-                <Store size={32} className="text-gray-300 mx-auto mb-3" />
+                <Store size={32} className="text-tw-muted/50 mx-auto mb-3" />
                 <p className="text-sm font-bold text-tw-muted">
                   {lang === 'en' ? 'No branches yet' : 'لا توجد فروع بعد'}
                 </p>
@@ -206,10 +206,10 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                     <button
                       key={b.id}
                       onClick={() => openEdit(b)}
-                      className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
+                      className={`w-full p-4 flex items-center gap-3 hover:bg-tw-soft/40 transition-colors text-right ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
                     >
                       {/* شارة الحالة */}
-                      <div className={`text-xs font-bold ${isActive ? 'text-emerald-600' : 'text-tw-muted/70'}`}>
+                      <div className={`text-xs font-bold ${isActive ? 'text-tw-green' : 'text-tw-muted/70'}`}>
                         {isActive
                           ? (lang === 'en' ? 'Active' : 'نشط')
                           : (lang === 'en' ? 'Disabled' : 'معطّل')}
@@ -247,7 +247,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                 {lang === 'en' ? '+ Add New Branch' : '+ إضافة فرع'}
               </button>
             ) : (
-              <div className="bg-white rounded-2xl p-4 shadow-sm border border-blue-200 space-y-3">
+              <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-blue/30 space-y-3">
                 <h4 className="text-sm font-bold text-tw-navy">
                   {lang === 'en' ? 'Add new branch' : 'إضافة فرع جديد'}
                 </h4>
@@ -260,7 +260,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                     value={newName}
                     onChange={(e) => setNewName(e.target.value)}
                     placeholder={lang === 'en' ? 'e.g. Riyadh Branch' : 'مثلاً: فرع الرياض'}
-                    className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
+                    className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue"
                   />
                 </div>
                 <div>
@@ -272,7 +272,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                     value={newNameEn}
                     onChange={(e) => setNewNameEn(e.target.value)}
                     placeholder="e.g. Riyadh Branch"
-                    className="w-full p-3 bg-gray-50 border border-tw-line rounded-xl text-sm outline-none focus:border-blue-500"
+                    className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue"
                     dir="ltr"
                   />
                 </div>
@@ -312,7 +312,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
             {/* رسالة الفرع الأساسي */}
             {isPrimaryEditing && (
               <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
-                <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <AlertCircle size={16} className="text-tw-orange flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-amber-800 leading-relaxed">
                   هذا فرع أساسي — يمكن تعديل اسمه أو تعطيله، لكن لا يمكن حذفه.
                 </p>
@@ -328,7 +328,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                 type="text"
                 value={editName}
                 onChange={(e) => setEditName(e.target.value)}
-                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-tw-blue"
               />
             </div>
 
@@ -342,7 +342,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                 value={editNameEn}
                 onChange={(e) => setEditNameEn(e.target.value)}
                 placeholder="Toia Branch"
-                className="w-full p-3.5 bg-gray-50 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-blue-500"
+                className="w-full p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl text-base font-bold text-tw-navy outline-none focus:border-tw-blue"
                 dir="ltr"
               />
             </div>
@@ -352,7 +352,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               onClick={() => setEditActive(!editActive)}
               className="w-full bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between border border-emerald-100 hover:bg-emerald-100 transition-colors"
             >
-              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-tw-green' : 'bg-gray-300'}`}>
                 <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
               </div>
               <span className="text-sm font-bold text-tw-navy">
@@ -361,7 +361,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
             </button>
 
             {editError && (
-              <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+              <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
                 {editError}
               </p>
             )}
@@ -370,7 +370,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               <button
                 onClick={closeEdit}
                 disabled={savingEdit}
-                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
+                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 disabled:opacity-60"
               >
                 {lang === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
@@ -393,7 +393,7 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               <button
                 onClick={handleDeleteFromEdit}
                 disabled={savingEdit}
-                className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
+                className="w-full bg-red-50 hover:bg-red-50 text-tw-red font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
               >
                 {lang === 'en' ? 'Delete Branch' : 'حذف الفرع'}
               </button>

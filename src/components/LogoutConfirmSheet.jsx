@@ -29,13 +29,13 @@ export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
         <div className="flex gap-3 pt-1">
           <button
             onClick={onConfirm}
-            className="flex-1 bg-red-500 hover:bg-red-600 text-white font-bold py-3.5 rounded-2xl transition-colors text-base"
+            className="flex-1 bg-tw-red hover:bg-tw-red text-white font-bold py-3.5 rounded-2xl transition-colors text-base"
           >
             تأكيد
           </button>
           <button
             onClick={onCancel}
-            className="flex-1 bg-white border border-tw-line hover:bg-gray-50 text-tw-navy font-bold py-3.5 rounded-2xl transition-colors text-base"
+            className="flex-1 bg-white border border-tw-line hover:bg-tw-soft/40 text-tw-navy font-bold py-3.5 rounded-2xl transition-colors text-base"
           >
             إلغاء
           </button>
