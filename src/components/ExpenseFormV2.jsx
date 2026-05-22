@@ -1,27 +1,32 @@
 // src/components/ExpenseFormV2.jsx
 // ----------------------------------------------------------
-// نموذج تسجيل المصروف — تصميم 1:1 مع الـ prototype (screen-addExpense)
+// نموذج تسجيل/تعديل المصروف — تصميم 1:1 مع الـ prototype (screen-addExpense)
 //
-// المنطق محفوظ بالكامل:
-//   - addExpense من firebase.js
+// المنطق المحفوظ:
+//   - addExpense / updateExpense من firebase.js
 //   - uploadInvoiceImage (Cloudflare R2)
 //   - getCategories + getPaymentMethods
 //   - منطق الكاميرا الإجبارية: requiresImage → cameraInput, غيرها → fileInput
 //
-// التصميم الجديد (Batch 12):
+// التصميم (Batch 12):
 //   - .tw-controls-row pills للتاريخ + الفرع
+//   - pill التاريخ يفتح date picker (مُصلَح)
 //   - pill الفرع قابل للنقر → bottom sheet (للمدير)
 //   - .tw-chips مع .tw-chip.primary للتصنيفات الأساسية (cyan tint)
 //   - .tw-form-card لتفاصيل المصروف
 //   - .tw-photo-up (dashed → solid عند الإرفاق)
-//   - .tw-btn-row (إلغاء + حفظ)
+//
+// وضع التعديل:
+//   - إذا existingRecord موجود → يعبّئ القيم + الصورة القديمة كـ preview
+//   - يحفظ بـ updateExpense
+//   - عنوان الشاشة يصير "تعديل المصروف"
 // ----------------------------------------------------------
 import { useState, useEffect, useRef } from 'react';
 import {
-  Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronRight, X, Image as ImageIcon,
+  Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronRight, ChevronDown, X, Image as ImageIcon,
 } from 'lucide-react';
 import {
-  addExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,
+  addExpense, updateExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,
 } from '../firebase';
 import { t, translateCategory, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
@@ -32,7 +37,6 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-// التصنيفات الأساسية الأربعة (chip primary بلون cyan tint)
 const PRIMARY_TYPES = ['flower', 'delivery', 'customerOrders', 'supplies'];
 
 export default function ExpenseFormV2({
@@ -42,17 +46,23 @@ export default function ExpenseFormV2({
   lang = 'ar',
   allowBranchSwitch = false,
   onBranchChange,
+  existingRecord = null,
 }) {
-  const [date, setDate] = useState(todayStr());
+  const isEdit = !!existingRecord;
+
+  const [date, setDate] = useState(existingRecord?.date || todayStr());
   const [categories, setCategories] = useState([]);
   const [methods, setMethods] = useState([]);
   const [branches, setBranches] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
   const [loadingCats, setLoadingCats] = useState(true);
-  const [categoryId, setCategoryId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [notes, setNotes] = useState('');
-  const [payMethod, setPayMethod] = useState('Cash');
+  const [categoryId, setCategoryId] = useState(existingRecord?.categoryId || '');
+  const [amount, setAmount] = useState(existingRecord?.amount != null ? String(existingRecord.amount) : '');
+  const [notes, setNotes] = useState(existingRecord?.notes || '');
+  const [payMethod, setPayMethod] = useState(existingRecord?.paymentMethodId || 'Cash');
+  // الصورة القديمة من السجل (URL) — تُعرض كـ preview بدون تغيير حتى يختار المدير صورة جديدة
+  const [existingImageUrl, setExistingImageUrl] = useState(existingRecord?.invoiceUrl || '');
+  const [existingImagePath, setExistingImagePath] = useState(existingRecord?.invoicePath || '');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [uploading, setUploading] = useState(false);
@@ -68,7 +78,6 @@ export default function ExpenseFormV2({
       try {
         const [cats, pm] = await Promise.all([getCategories(), getPaymentMethods()]);
         if (!cancelled) {
-          // ترتيب التصنيفات: الأساسية الأربعة أولاً ثم الباقي
           const orderMap = { flower: 1, delivery: 2, customerOrders: 3, supplies: 4 };
           const sorted = [...cats].sort((a, b) => {
             const ra = orderMap[a.expenseType] || 99;
@@ -78,9 +87,11 @@ export default function ExpenseFormV2({
           });
           setCategories(sorted);
           setMethods(pm);
-          // التصنيف الافتراضي: أول تصنيف primary
-          const firstPrimary = sorted.find((c) => PRIMARY_TYPES.includes(c.expenseType));
-          if (firstPrimary) setCategoryId(firstPrimary.id);
+          // التصنيف الافتراضي فقط لو ما في categoryId مسبقاً
+          if (!existingRecord) {
+            const firstPrimary = sorted.find((c) => PRIMARY_TYPES.includes(c.expenseType));
+            if (firstPrimary) setCategoryId(firstPrimary.id);
+          }
         }
       } catch (err) {
         if (!cancelled) setError(err?.message || t(lang, 'expense.loading'));
@@ -89,9 +100,8 @@ export default function ExpenseFormV2({
       }
     })();
     return () => { cancelled = true; };
-  }, [lang]);
+  }, [lang, existingRecord]);
 
-  // جلب الفروع للـ bottom sheet (للمدير فقط)
   useEffect(() => {
     if (!allowBranchSwitch) return;
     (async () => {
@@ -105,7 +115,9 @@ export default function ExpenseFormV2({
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const requiresImage = selectedCategory?.requiresImage || false;
 
-  // الكاميرا الإلزامية للتصنيفات التي تتطلب صورة، gallery للباقي
+  // الصورة الفعلية المعروضة (إما الجديدة preview أو القديمة existingImageUrl)
+  const visibleImage = imagePreview || existingImageUrl;
+
   const triggerPhotoCapture = () => {
     if (requiresImage) cameraInputRef.current?.click();
     else fileInputRef.current?.click();
@@ -124,6 +136,11 @@ export default function ExpenseFormV2({
   const removePhoto = () => {
     setImageFile(null);
     setImagePreview('');
+    // في وضع التعديل: نمسح أيضاً الصورة القديمة (لو ضغط × على القديمة)
+    if (isEdit) {
+      setExistingImageUrl('');
+      setExistingImagePath('');
+    }
     if (cameraInputRef.current) cameraInputRef.current.value = '';
     if (fileInputRef.current) fileInputRef.current.value = '';
   };
@@ -132,11 +149,18 @@ export default function ExpenseFormV2({
     setError('');
     if (!categoryId) { setError(t(lang, 'expense.err.cat')); return; }
     if (!(Number(amount) > 0)) { setError(t(lang, 'expense.err.amount')); return; }
-    if (requiresImage && !imageFile) { setError(t(lang, 'expense.err.img')); return; }
+    // الصورة إجبارية لو التصنيف يطلبها — إلا في وضع التعديل وعنده صورة قديمة محفوظة
+    if (requiresImage && !imageFile && !existingImageUrl) {
+      setError(t(lang, 'expense.err.img'));
+      return;
+    }
 
     setSaving(true);
     try {
-      let invoiceUrl = null, invoicePath = null;
+      let invoiceUrl = existingImageUrl || null;
+      let invoicePath = existingImagePath || null;
+
+      // لو فيه صورة جديدة، نرفعها (تستبدل القديمة)
       if (imageFile) {
         setUploading(true);
         const up = await uploadInvoiceImage(imageFile);
@@ -144,7 +168,8 @@ export default function ExpenseFormV2({
         invoicePath = up.invoicePath;
         setUploading(false);
       }
-      await addExpense({
+
+      const payload = {
         date,
         branchId,
         categoryId,
@@ -155,7 +180,13 @@ export default function ExpenseFormV2({
         notes: notes.trim() || null,
         invoiceUrl,
         invoicePath,
-      });
+      };
+
+      if (isEdit) {
+        await updateExpense(existingRecord.id, payload);
+      } else {
+        await addExpense(payload);
+      }
       setDone(true);
       setTimeout(() => setView('employeeHome'), 1200);
     } catch (err) {
@@ -176,15 +207,21 @@ export default function ExpenseFormV2({
     ? (lang === 'en' ? 'Today' : 'اليوم')
     : date;
 
+  const screenTitle = isEdit
+    ? (lang === 'en' ? 'Edit expense' : 'تعديل المصروف')
+    : t(lang, 'expense.title');
+
+  const saveBtnLabel = isEdit
+    ? (lang === 'en' ? 'Save changes' : 'حفظ التعديلات')
+    : t(lang, 'expense.save');
+
   return (
     <div className="tw-page-bg">
-      {/* خلفية زخرفية */}
       <div
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
 
-      {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
@@ -195,49 +232,61 @@ export default function ExpenseFormV2({
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {t(lang, 'expense.title')}
+          {screenTitle}
         </h2>
         <div style={{ width: 36 }} />
       </div>
 
       <div className="relative z-10 p-4 pb-8">
-        {/* Pills: التاريخ + الفرع */}
+        {/* Pills: التاريخ + الفرع — التاريخ مُصلَح */}
         <div className="tw-controls-row">
-          <div className="tw-pill" style={{ position: 'relative' }}>
+          <label className="tw-pill" style={{ position: 'relative', cursor: 'pointer', flex: 1 }}>
             <Calendar size={14} />
             <span>{dateLabel}</span>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              style={{ width: '100%', height: '100%' }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0,
+                cursor: 'pointer',
+                border: 0,
+                padding: 0,
+                margin: 0,
+              }}
+              aria-label={lang === 'en' ? 'Select date' : 'اختر التاريخ'}
             />
-          </div>
+          </label>
+
           <div
             className="tw-pill"
             onClick={() => allowBranchSwitch && setSheetOpen(true)}
             role={allowBranchSwitch ? 'button' : undefined}
             tabIndex={allowBranchSwitch ? 0 : undefined}
-            style={{ cursor: allowBranchSwitch ? 'pointer' : 'default' }}
+            style={{ cursor: allowBranchSwitch ? 'pointer' : 'default', flex: 1 }}
+            onKeyDown={(e) => {
+              if (allowBranchSwitch && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                setSheetOpen(true);
+              }
+            }}
           >
             <MapPin size={14} />
             <span>{lang === 'en' ? branch : `فرع ${branch}`}</span>
             {allowBranchSwitch && (
-              <ChevronRight
-                size={12}
-                style={{ marginInlineStart: 'auto', opacity: 0.5, transform: 'rotate(90deg)' }}
-              />
+              <ChevronDown size={12} style={{ marginInlineStart: 'auto', opacity: 0.5 }} />
             )}
           </div>
         </div>
 
-        {/* عنوان التصنيف */}
         <div className="tw-sec-h" style={{ margin: '14px 4px 8px' }}>
           {t(lang, 'expense.category')}
         </div>
 
-        {/* Chips التصنيفات */}
         {loadingCats ? (
           <div className="tw-form-card" style={{ marginBottom: 10, display: 'flex', alignItems: 'center', gap: 8, color: 'var(--tw-muted)' }}>
             <Loader2 size={16} className="animate-spin" />
@@ -266,11 +315,9 @@ export default function ExpenseFormV2({
           </div>
         )}
 
-        {/* تفاصيل المصروف — كارت */}
         <div className="tw-form-card">
           <h4>{lang === 'en' ? 'Expense details' : 'تفاصيل المصروف'}</h4>
 
-          {/* المبلغ */}
           <label>{t(lang, 'expense.amount')}</label>
           <div className="tw-field">
             <input
@@ -284,7 +331,6 @@ export default function ExpenseFormV2({
             <span className="tw-field-suffix">{t(lang, 'sales.currency')}</span>
           </div>
 
-          {/* طريقة الدفع */}
           <label style={{ marginTop: 10 }}>{t(lang, 'expense.payMethod')}</label>
           <div className="tw-um-pills" style={{ marginBottom: 10 }}>
             {(methods.length ? methods : [{ id: 'Cash' }, { id: 'Mada' }, { id: 'Transfer' }]).map((p) => {
@@ -303,7 +349,6 @@ export default function ExpenseFormV2({
             })}
           </div>
 
-          {/* الملاحظات */}
           <label style={{ marginTop: 10 }}>
             {lang === 'en' ? 'Notes (optional)' : 'الملاحظات (اختياري)'}
           </label>
@@ -316,7 +361,6 @@ export default function ExpenseFormV2({
             />
           </div>
 
-          {/* صورة الفاتورة */}
           <label style={{ marginTop: 10 }}>
             {lang === 'en' ? 'Invoice photo' : 'صورة الفاتورة'}
             {requiresImage && <span style={{ color: 'var(--tw-red)', marginInlineStart: 4 }}>*</span>}
@@ -338,12 +382,23 @@ export default function ExpenseFormV2({
             style={{ display: 'none' }}
           />
 
-          {imagePreview ? (
+          {visibleImage ? (
             <div className="tw-photo-preview-wrap">
-              <img src={imagePreview} alt="preview" />
+              <img src={visibleImage} alt="preview" />
               <button type="button" onClick={removePhoto} className="tw-photo-remove" aria-label="Remove photo">
                 <X size={14} />
               </button>
+              {/* في وضع التعديل: زر استبدال الصورة بصورة جديدة */}
+              {isEdit && (
+                <button
+                  type="button"
+                  onClick={triggerPhotoCapture}
+                  className="tw-btn secondary"
+                  style={{ marginTop: 8, width: '100%', fontSize: 12 }}
+                >
+                  {lang === 'en' ? 'Replace photo' : 'استبدال الصورة'}
+                </button>
+              )}
             </div>
           ) : (
             <>
@@ -378,11 +433,13 @@ export default function ExpenseFormV2({
         )}
         {done && (
           <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center mt-3 flex items-center justify-center gap-2">
-            <CheckCircle2 size={18} /> {t(lang, 'expense.saved')}
+            <CheckCircle2 size={18} />
+            {isEdit
+              ? (lang === 'en' ? 'Updated successfully' : 'تم التعديل بنجاح')
+              : t(lang, 'expense.saved')}
           </p>
         )}
 
-        {/* أزرار الإجراءات */}
         <div className="tw-btn-row" style={{ marginTop: 14 }}>
           <button
             onClick={() => setView('employeeHome')}
@@ -403,13 +460,12 @@ export default function ExpenseFormV2({
             {uploading
               ? (lang === 'en' ? 'Uploading...' : 'جارٍ رفع الصورة...')
               : saving
-              ? t(lang, 'expense.saving')
-              : t(lang, 'expense.save')}
+              ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...')
+              : saveBtnLabel}
           </button>
         </div>
       </div>
 
-      {/* Bottom sheet لاختيار الفرع — يظهر فقط للمدير */}
       {allowBranchSwitch && (
         <BranchPickerSheet
           open={sheetOpen}

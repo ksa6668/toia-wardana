@@ -1352,3 +1352,95 @@ body {
   border-color: var(--tw-blue);
   color: var(--tw-blue);
 }
+
+/* ---- Action buttons on history list (edit/delete) ---- */
+.tw-rec-actions {
+  display: flex;
+  gap: 4px;
+  margin-inline-start: 4px;
+  flex-shrink: 0;
+}
+.tw-rec-action-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--tw-soft);
+  color: var(--tw-blue);
+  border: none;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: background .15s, transform .1s;
+  padding: 0;
+  flex-shrink: 0;
+}
+.tw-rec-action-btn:hover { background: #DCE9FF; }
+.tw-rec-action-btn:active { transform: scale(.92); }
+.tw-rec-action-btn.edit {
+  background: var(--tw-soft);
+  color: var(--tw-blue);
+}
+.tw-rec-action-btn.delete {
+  background: rgba(240, 68, 68, .1);
+  color: var(--tw-red);
+}
+.tw-rec-action-btn.delete:hover {
+  background: rgba(240, 68, 68, .18);
+}
+
+/* ---- Confirm dialog (delete confirmation) ---- */
+.tw-confirm-dialog {
+  padding: 14px 0;
+}
+.tw-confirm-dialog .icon {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(240, 68, 68, .12);
+  color: var(--tw-red);
+  display: grid;
+  place-items: center;
+  margin: 0 auto 14px;
+}
+.tw-confirm-dialog .icon svg { width: 28px; height: 28px; }
+.tw-confirm-dialog h4 {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--tw-navy);
+  margin: 0 0 6px;
+}
+.tw-confirm-dialog p {
+  text-align: center;
+  font-size: 13px;
+  color: var(--tw-muted);
+  margin: 0 0 18px;
+  font-weight: 500;
+}
+.tw-confirm-dialog .btns {
+  display: flex;
+  gap: 10px;
+}
+.tw-confirm-dialog .btns button {
+  flex: 1;
+  padding: 12px;
+  border-radius: 12px;
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  border: none;
+  font-family: inherit;
+}
+.tw-confirm-dialog .btns .cancel {
+  background: #fff;
+  border: 1.5px solid var(--tw-line);
+  color: var(--tw-navy);
+}
+.tw-confirm-dialog .btns .delete {
+  background: var(--tw-red);
+  color: #fff;
+}
+.tw-confirm-dialog .btns .delete:disabled {
+  opacity: .6;
+  cursor: not-allowed;
+}

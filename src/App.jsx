@@ -20,6 +20,8 @@ import {
   saveUserLanguage,
   getMonthlyGoal, setMonthlyGoal, getAllGoalsForMonth,
   addBranch, deleteBranch, updateBranch,
+  // Batch 12: admin edit/delete for sales & expenses
+  deleteDailySales, deleteExpense,
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 import SarSymbol from './components/SarSymbol';
@@ -32,8 +34,9 @@ import ManagerKpis from './components/ManagerKpis';
 import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
 import EmployeeHistory from './components/EmployeeHistory';
-// Batch 12: Shared last-7-days list used in AdminDataEntry
+// Batch 12: Shared last-7-days list + delete confirmation
 import RecHistorySection from './components/RecHistorySection';
+import DeleteConfirmSheet from './components/DeleteConfirmSheet';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
 // Batch 5: Notifications + Receipts + Logout confirm
@@ -2810,18 +2813,24 @@ function ChangeMyPin({ onBack }) {
 // ==========================================
 // شاشة تسجيل المبيعات/المصاريف للمدير (لأي فرع)
 // ==========================================
-// Batch 12: تصميم 1:1 مع البروتوتايب
+// Batch 12: تصميم 1:1 مع البروتوتايب + تعديل/حذف للمدير
 //   - بدون شاشة اختيار فرع منفصلة
 //   - يفتح مباشرة على شاشة "المبيعات والمصروفات" مع فرع تويا افتراضياً
 //   - زرّان (مبيعات + مصاريف) + قائمة "آخر 7 أيام"
 //   - الفرع يُغيَّر من داخل النماذج عبر pill قابل للنقر → bottom sheet
+//   - كل سطر في القائمة فيه ✎ تعديل + 🗑 حذف (للمدير فقط)
 function AdminDataEntry({ onBack }) {
-  const [step, setStep] = useState('home'); // home | salesForm | expenseForm
-  // الافتراضي: فرع تويا (السؤال 2 → ب)
+  const [step, setStep] = useState('home'); // home | salesForm | expenseForm | editSalesForm | editExpenseForm
   const [chosenBranch, setChosenBranch] = useState('toia');
   const [branches, setBranches] = useState([]);
-  // مفتاح لتحديث قائمة آخر 7 أيام بعد كل حفظ
   const [refreshKey, setRefreshKey] = useState(0);
+
+  // وضع التحرير: السجل المختار للتعديل
+  const [editingRecord, setEditingRecord] = useState(null);
+
+  // وضع الحذف: السجل + التأكيد
+  const [deletingRecord, setDeletingRecord] = useState(null);
+  const [deleteError, setDeleteError] = useState('');
 
   useEffect(() => {
     (async () => {
@@ -2833,99 +2842,144 @@ function AdminDataEntry({ onBack }) {
   const branchName = branches.find((b) => b.id === chosenBranch)?.name
     || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا');
 
-  // setView يستقبله SalesFormV2 و ExpenseFormV2
   const setView = (v) => {
     if (v === 'salesForm') setStep('salesForm');
     else if (v === 'expenseForm') setStep('expenseForm');
     else if (v === 'employeeHome' || v === 'home') {
       setStep('home');
-      // تحديث القائمة بعد العودة (في حال تم حفظ شيء)
+      setEditingRecord(null);
       setRefreshKey((k) => k + 1);
     }
   };
 
-  // تغيير الفرع من داخل النماذج (pill bottom sheet)
   const handleBranchChange = (newBranchId) => {
     setChosenBranch(newBranchId);
+  };
+
+  // فتح شاشة تعديل سجل
+  const handleEdit = (entry) => {
+    setEditingRecord(entry);
+    if (entry.kind === 'sale') setStep('editSalesForm');
+    else setStep('editExpenseForm');
+  };
+
+  // طلب حذف سجل (يفتح dialog التأكيد)
+  const handleDeleteRequest = (entry) => {
+    setDeleteError('');
+    setDeletingRecord(entry);
+  };
+
+  // تنفيذ الحذف فعلياً بعد التأكيد
+  const handleDeleteConfirm = async () => {
+    if (!deletingRecord) return;
+    setDeleteError('');
+    try {
+      if (deletingRecord.kind === 'sale') {
+        await deleteDailySales(deletingRecord.id);
+      } else {
+        await deleteExpense(deletingRecord.id);
+      }
+      setDeletingRecord(null);
+      setRefreshKey((k) => k + 1);
+    } catch (err) {
+      setDeleteError(err?.message || 'تعذّر الحذف');
+      throw err; // للسماح للـ sheet أن يعرف فشل العملية
+    }
   };
 
   // الشاشة الرئيسية: زرّان + قائمة آخر 7 أيام
   if (step === 'home') {
     return (
-      <div className="flex flex-col h-full tw-page-bg">
-        {/* خلفية زخرفية */}
-        <div
-          className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-          style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-        />
-
-        {/* شريط العنوان */}
-        <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm flex-shrink-0">
-          <button
-            onClick={onBack}
-            className="tw-circle-btn"
-            type="button"
-            aria-label="Back"
-          >
-            <ChevronRight size={20} className="rotate-180" />
-          </button>
-          <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-            المبيعات والمصروفات
-          </h2>
-          <div style={{ width: 36 }} />
-        </div>
-
-        {/* المحتوى — قابل للتمرير */}
-        <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-8">
-          {/* الزر 1: تسجيل المبيعات */}
+      <>
+        <div className="flex flex-col h-full tw-page-bg">
           <div
-            className="tw-card tw-action"
-            onClick={() => setView('salesForm')}
-            role="button"
-            tabIndex={0}
-            style={{ marginBottom: 10 }}
-          >
-            <div className="tw-action-icon">
-              <TrendingUp />
-            </div>
-            <div>
-              <h4>تسجيل المبيعات</h4>
-              <p>إجمالي المبيعات اليومية</p>
-            </div>
-            <div className="arrow">‹</div>
-          </div>
-
-          {/* الزر 2: تسجيل المصروفات */}
-          <div
-            className="tw-card tw-action"
-            onClick={() => setView('expenseForm')}
-            role="button"
-            tabIndex={0}
-            style={{ marginBottom: 10 }}
-          >
-            <div className="tw-action-icon">
-              <Receipt />
-            </div>
-            <div>
-              <h4>تسجيل المصروفات</h4>
-              <p>فواتير ومصروفات أخرى</p>
-            </div>
-            <div className="arrow">‹</div>
-          </div>
-
-          {/* قائمة آخر 7 أيام للفرع الافتراضي (تويا) */}
-          <RecHistorySection
-            branchId={chosenBranch}
-            lang="ar"
-            refreshKey={refreshKey}
+            className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
+            style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
           />
+
+          <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm flex-shrink-0">
+            <button
+              onClick={onBack}
+              className="tw-circle-btn"
+              type="button"
+              aria-label="Back"
+            >
+              <ChevronRight size={20} className="rotate-180" />
+            </button>
+            <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
+              المبيعات والمصروفات
+            </h2>
+            <div style={{ width: 36 }} />
+          </div>
+
+          <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-8">
+            <div
+              className="tw-card tw-action"
+              onClick={() => setView('salesForm')}
+              role="button"
+              tabIndex={0}
+              style={{ marginBottom: 10 }}
+            >
+              <div className="tw-action-icon">
+                <TrendingUp />
+              </div>
+              <div>
+                <h4>تسجيل المبيعات</h4>
+                <p>إجمالي المبيعات اليومية</p>
+              </div>
+              <div className="arrow">‹</div>
+            </div>
+
+            <div
+              className="tw-card tw-action"
+              onClick={() => setView('expenseForm')}
+              role="button"
+              tabIndex={0}
+              style={{ marginBottom: 10 }}
+            >
+              <div className="tw-action-icon">
+                <Receipt />
+              </div>
+              <div>
+                <h4>تسجيل المصروفات</h4>
+                <p>فواتير ومصروفات أخرى</p>
+              </div>
+              <div className="arrow">‹</div>
+            </div>
+
+            {/* قائمة آخر 7 أيام مع أزرار التعديل/الحذف */}
+            <RecHistorySection
+              branchId={chosenBranch}
+              lang="ar"
+              refreshKey={refreshKey}
+              editable={true}
+              onEdit={handleEdit}
+              onDelete={handleDeleteRequest}
+            />
+
+            {deleteError && (
+              <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center mt-3">
+                {deleteError}
+              </p>
+            )}
+          </div>
         </div>
-      </div>
+
+        {/* Dialog التأكيد على الحذف */}
+        <DeleteConfirmSheet
+          open={!!deletingRecord}
+          title={deletingRecord?.kind === 'sale' ? 'حذف هذه المبيعة؟' : 'حذف هذا المصروف؟'}
+          message="لا يمكن التراجع عن هذا الإجراء."
+          onConfirm={handleDeleteConfirm}
+          onClose={() => setDeletingRecord(null)}
+          lang="ar"
+        />
+      </>
     );
   }
 
-  // نموذج المبيعات — الفرع قابل للتغيير عبر pill
-  if (step === 'salesForm') {
+  // نموذج المبيعات — وضع التسجيل أو التعديل
+  if (step === 'salesForm' || step === 'editSalesForm') {
     return (
       <SalesFormV2
         setView={setView}
@@ -2934,12 +2988,13 @@ function AdminDataEntry({ onBack }) {
         lang="ar"
         allowBranchSwitch={true}
         onBranchChange={handleBranchChange}
+        existingRecord={step === 'editSalesForm' ? editingRecord : null}
       />
     );
   }
 
-  // نموذج المصاريف — الفرع قابل للتغيير عبر pill
-  if (step === 'expenseForm') {
+  // نموذج المصاريف — وضع التسجيل أو التعديل
+  if (step === 'expenseForm' || step === 'editExpenseForm') {
     return (
       <ExpenseFormV2
         setView={setView}
@@ -2948,6 +3003,7 @@ function AdminDataEntry({ onBack }) {
         lang="ar"
         allowBranchSwitch={true}
         onBranchChange={handleBranchChange}
+        existingRecord={step === 'editExpenseForm' ? editingRecord : null}
       />
     );
   }

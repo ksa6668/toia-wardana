@@ -1,8 +1,8 @@
 // src/components/RecHistorySection.jsx
 // ----------------------------------------------------------
 // قائمة "آخر 7 أيام" — مكوّن مشترك يُستخدم في:
-//   1) شاشة EmployeeHistory (الموظف)
-//   2) شاشة AdminDataEntry → recordOps (المدير)
+//   1) شاشة EmployeeHistory (الموظف) — read-only
+//   2) شاشة AdminDataEntry → recordOps (المدير) — مع تعديل/حذف
 //
 // تصميم 1:1 مع الـ prototype:
 //   - .tw-rec-history-section
@@ -10,16 +10,19 @@
 //   - .tw-rec-card        (مبيعة أو مصروف)
 //   - .tw-rec-empty       (حالة فارغة)
 //
-// يقرأ من Firestore عبر firebase.js (getSales, getExpenses)
-// يُفلتر إلى فرع واحد فقط (branchId).
+// Batch 12: إضافة أزرار التعديل/الحذف (للمدير فقط)
+//   - props.editable=true → يظهر زر ✎ + 🗑 على كل سطر
+//   - props.onEdit(entry) → callback لفتح شاشة التعديل
+//   - props.onDelete(entry) → callback لتأكيد الحذف
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
-import { TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar } from 'lucide-react';
+import {
+  TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar, Pencil, Trash2,
+} from 'lucide-react';
 import { getSales, getExpenses } from '../firebase';
 import { translateCategory } from '../i18n';
 import SarSymbol from './SarSymbol';
 
-// تنسيق التاريخ "YYYY-MM-DD" إلى "اليوم"/"أمس"/"21 مايو"
 function formatDayHeader(dateStr, lang) {
   if (!dateStr) return '—';
   const today = new Date();
@@ -34,7 +37,15 @@ function formatDayHeader(dateStr, lang) {
   });
 }
 
-export default function RecHistorySection({ branchId, lang = 'ar', showTitle = true, refreshKey = 0 }) {
+export default function RecHistorySection({
+  branchId,
+  lang = 'ar',
+  showTitle = true,
+  refreshKey = 0,
+  editable = false,   // Batch 12: تفعيل أزرار التعديل/الحذف (للمدير)
+  onEdit,             // callback(entry) عند الضغط على ✎
+  onDelete,           // callback(entry) عند الضغط على 🗑
+}) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sales, setSales] = useState([]);
@@ -68,7 +79,6 @@ export default function RecHistorySection({ branchId, lang = 'ar', showTitle = t
     return () => { cancelled = true; };
   }, [branchId, lang, refreshKey]);
 
-  // دمج + ترتيب تنازلي حسب التاريخ
   const allEntries = useMemo(() => {
     const items = [
       ...sales.map((s) => ({ kind: 'sale', ...s })),
@@ -83,7 +93,6 @@ export default function RecHistorySection({ branchId, lang = 'ar', showTitle = t
     });
   }, [sales, expenses]);
 
-  // تجميع حسب اليوم
   const groupedByDay = useMemo(() => {
     const map = {};
     allEntries.forEach((e) => {
@@ -154,23 +163,50 @@ export default function RecHistorySection({ branchId, lang = 'ar', showTitle = t
                   <b>{title}</b>
                   {sub && <small>{sub}</small>}
                 </div>
+
+                {/* أيقونة الصورة لو موجودة */}
                 {entry.invoiceUrl && (
                   <a
                     href={entry.invoiceUrl}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="tw-circle-btn"
-                    style={{ width: 32, height: 32 }}
+                    className="tw-rec-action-btn"
                     title={lang === 'en' ? 'View invoice' : 'عرض الفاتورة'}
                     onClick={(e) => e.stopPropagation()}
                   >
                     <ImageIcon size={14} />
                   </a>
                 )}
+
+                {/* المبلغ */}
                 <div className={`tw-rec-amt ${isSale ? 'sale' : 'expense'}`}>
                   <span dir="ltr">{isSale ? '+' : '−'}{amt.toLocaleString('en-US')}</span>
                   <SarSymbol />
                 </div>
+
+                {/* أزرار التعديل/الحذف (للمدير فقط) */}
+                {editable && (
+                  <div className="tw-rec-actions">
+                    <button
+                      type="button"
+                      className="tw-rec-action-btn edit"
+                      onClick={() => onEdit?.(entry)}
+                      title={lang === 'en' ? 'Edit' : 'تعديل'}
+                      aria-label={lang === 'en' ? 'Edit' : 'تعديل'}
+                    >
+                      <Pencil size={13} />
+                    </button>
+                    <button
+                      type="button"
+                      className="tw-rec-action-btn delete"
+                      onClick={() => onDelete?.(entry)}
+                      title={lang === 'en' ? 'Delete' : 'حذف'}
+                      aria-label={lang === 'en' ? 'Delete' : 'حذف'}
+                    >
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
+                )}
               </div>
             );
           })}

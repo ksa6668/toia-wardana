@@ -1,25 +1,30 @@
 // src/components/SalesFormV2.jsx
 // ----------------------------------------------------------
-// نموذج تسجيل المبيعات — تصميم 1:1 مع الـ prototype (screen-addSale)
+// نموذج تسجيل/تعديل المبيعات — تصميم 1:1 مع الـ prototype (screen-addSale)
 //
-// المنطق محفوظ بالكامل من النسخة السابقة:
-//   - addDailySales من firebase.js
+// المنطق المحفوظ:
+//   - addDailySales / updateDailySales من firebase.js
 //   - حسبة Mada fees (MADA_FEE_RATE, madaFees, madaNet)
 //   - i18n
 //
-// التصميم الجديد (Batch 12):
+// التصميم (Batch 12):
 //   - .tw-controls-row pills للتاريخ والفرع
-//   - pill الفرع قابل للنقر → bottom sheet
+//   - pill التاريخ يفتح date picker (مُصلَح في هذا الـ batch)
+//   - pill الفرع قابل للنقر → bottom sheet (للمدير)
 //   - .tw-form-card مع .tw-payment-row لكل طريقة دفع
 //   - .tw-total-strip (gradient navy → blue)
-//   - .tw-btn-row (إلغاء + حفظ)
+//
+// وضع التعديل:
+//   - إذا existingRecord موجود → يعبّئ القيم القديمة + يحفظ بـ updateDailySales
+//   - عنوان الشاشة يصير "تعديل المبيعات"
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
-  Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronRight,
+  Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronRight, ChevronDown,
 } from 'lucide-react';
 import {
-  addDailySales, getPaymentMethods, getBranches, madaFees, madaNet, MADA_FEE_RATE,
+  addDailySales, updateDailySales, getPaymentMethods, getBranches,
+  madaFees, madaNet, MADA_FEE_RATE,
 } from '../firebase';
 import { t, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
@@ -35,13 +40,16 @@ export default function SalesFormV2({
   branch,
   branchId,
   lang = 'ar',
-  allowBranchSwitch = false,  // للمدير: السماح بتغيير الفرع من pill
-  onBranchChange,              // callback عند تغيير الفرع
+  allowBranchSwitch = false,
+  onBranchChange,
+  existingRecord = null,
 }) {
-  const [date, setDate] = useState(todayStr());
-  const [cash, setCash] = useState('');
-  const [mada, setMada] = useState('');
-  const [transfer, setTransfer] = useState('');
+  const isEdit = !!existingRecord;
+
+  const [date, setDate] = useState(existingRecord?.date || todayStr());
+  const [cash, setCash] = useState(existingRecord?.cash != null ? String(existingRecord.cash) : '');
+  const [mada, setMada] = useState(existingRecord?.mada != null ? String(existingRecord.mada) : '');
+  const [transfer, setTransfer] = useState(existingRecord?.transfer != null ? String(existingRecord.transfer) : '');
   const [methods, setMethods] = useState([]);
   const [branches, setBranches] = useState([]);
   const [sheetOpen, setSheetOpen] = useState(false);
@@ -56,7 +64,6 @@ export default function SalesFormV2({
     })();
   }, []);
 
-  // جلب الفروع للـ bottom sheet (للمدير فقط)
   useEffect(() => {
     if (!allowBranchSwitch) return;
     (async () => {
@@ -83,7 +90,11 @@ export default function SalesFormV2({
     if (total <= 0) { setError(t(lang, 'sales.err.amount')); return; }
     setSaving(true);
     try {
-      await addDailySales({ date, branchId, cash, mada, transfer });
+      if (isEdit) {
+        await updateDailySales(existingRecord.id, { date, branchId, cash, mada, transfer });
+      } else {
+        await addDailySales({ date, branchId, cash, mada, transfer });
+      }
       setDone(true);
       setTimeout(() => setView('employeeHome'), 1200);
     } catch (err) {
@@ -96,15 +107,21 @@ export default function SalesFormV2({
     ? (lang === 'en' ? 'Today' : 'اليوم')
     : date;
 
+  const screenTitle = isEdit
+    ? (lang === 'en' ? 'Edit sales' : 'تعديل المبيعات')
+    : t(lang, 'sales.title');
+
+  const saveBtnLabel = isEdit
+    ? (lang === 'en' ? 'Save changes' : 'حفظ التعديلات')
+    : t(lang, 'sales.save');
+
   return (
     <div className="tw-page-bg">
-      {/* خلفية زخرفية */}
       <div
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
 
-      {/* شريط العنوان */}
       <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
         <button
           onClick={() => setView('employeeHome')}
@@ -115,44 +132,59 @@ export default function SalesFormV2({
           <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
         </button>
         <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {t(lang, 'sales.title')}
+          {screenTitle}
         </h2>
         <div style={{ width: 36 }} />
       </div>
 
       <div className="relative z-10 p-4 pb-8">
-        {/* Pills: التاريخ + الفرع */}
+        {/* Pills: التاريخ + الفرع — التاريخ مُصلَح */}
         <div className="tw-controls-row">
-          <div className="tw-pill" style={{ position: 'relative' }}>
+          {/* Pill التاريخ — label يحوي input فوقه opacity:0 */}
+          <label className="tw-pill" style={{ position: 'relative', cursor: 'pointer', flex: 1 }}>
             <Calendar size={14} />
             <span>{dateLabel}</span>
             <input
               type="date"
               value={date}
               onChange={(e) => setDate(e.target.value)}
-              className="absolute inset-0 opacity-0 cursor-pointer"
-              style={{ width: '100%', height: '100%' }}
+              style={{
+                position: 'absolute',
+                inset: 0,
+                width: '100%',
+                height: '100%',
+                opacity: 0,
+                cursor: 'pointer',
+                border: 0,
+                padding: 0,
+                margin: 0,
+              }}
+              aria-label={lang === 'en' ? 'Select date' : 'اختر التاريخ'}
             />
-          </div>
+          </label>
+
+          {/* Pill الفرع */}
           <div
             className="tw-pill"
             onClick={() => allowBranchSwitch && setSheetOpen(true)}
             role={allowBranchSwitch ? 'button' : undefined}
             tabIndex={allowBranchSwitch ? 0 : undefined}
-            style={{ cursor: allowBranchSwitch ? 'pointer' : 'default' }}
+            style={{ cursor: allowBranchSwitch ? 'pointer' : 'default', flex: 1 }}
+            onKeyDown={(e) => {
+              if (allowBranchSwitch && (e.key === 'Enter' || e.key === ' ')) {
+                e.preventDefault();
+                setSheetOpen(true);
+              }
+            }}
           >
             <MapPin size={14} />
             <span>{lang === 'en' ? branch : `فرع ${branch}`}</span>
             {allowBranchSwitch && (
-              <ChevronRight
-                size={12}
-                style={{ marginInlineStart: 'auto', opacity: 0.5, transform: 'rotate(90deg)' }}
-              />
+              <ChevronDown size={12} style={{ marginInlineStart: 'auto', opacity: 0.5 }} />
             )}
           </div>
         </div>
 
-        {/* كارت تفاصيل المبيعات */}
         <div className="tw-form-card">
           <h4>
             {lang === 'en'
@@ -209,7 +241,6 @@ export default function SalesFormV2({
           </div>
         </div>
 
-        {/* شريط الإجمالي - navy gradient */}
         <div className="tw-total-strip">
           <small>{t(lang, 'sales.total')}</small>
           <b>
@@ -218,7 +249,6 @@ export default function SalesFormV2({
           </b>
         </div>
 
-        {/* حسبة رسوم مدى — منطق مهم محفوظ */}
         {Number(mada) > 0 && (
           <div
             className="mt-3 rounded-2xl p-4"
@@ -266,11 +296,13 @@ export default function SalesFormV2({
         )}
         {done && (
           <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center mt-3 flex items-center justify-center gap-2">
-            <CheckCircle2 size={18} /> {t(lang, 'sales.saved')}
+            <CheckCircle2 size={18} />
+            {isEdit
+              ? (lang === 'en' ? 'Updated successfully' : 'تم التعديل بنجاح')
+              : t(lang, 'sales.saved')}
           </p>
         )}
 
-        {/* أزرار الإجراءات */}
         <div className="tw-btn-row" style={{ marginTop: 14 }}>
           <button
             onClick={() => setView('employeeHome')}
@@ -288,12 +320,13 @@ export default function SalesFormV2({
             style={{ flex: 1 }}
           >
             {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
-            {saving ? t(lang, 'sales.saving') : t(lang, 'sales.save')}
+            {saving
+              ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...')
+              : saveBtnLabel}
           </button>
         </div>
       </div>
 
-      {/* Bottom sheet لاختيار الفرع — يظهر فقط للمدير */}
       {allowBranchSwitch && (
         <BranchPickerSheet
           open={sheetOpen}
