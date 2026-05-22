@@ -14,7 +14,7 @@ import {
   getSales, getExpenses, getFixedExpenses, setFixedExpense,
   getUsers, createStaffUser, uploadInvoiceImage,
   getCategories, setCategoryRequiresImage, addCategory, deleteCategory,
-  changeMyPin, setUserActive, adminChangeUserPin, adminDeleteUser,
+  changeMyPin, setUserActive, adminChangeUserPin, adminDeleteUser, adminUpdateUserProfile,
   getBranches, getPaymentMethods,
   madaFees, madaNet, MADA_FEE_RATE,
   saveUserLanguage,
@@ -38,6 +38,8 @@ import AdminSettingsV2 from './components/AdminSettingsV2';
 import NotificationsCenter, { addNotification } from './components/NotificationsCenter';
 import ManagerReceipts from './components/ManagerReceipts';
 import LogoutConfirmSheet from './components/LogoutConfirmSheet';
+// Batch 6: Generic edit sheet for full forms
+import EditSheet from './components/EditSheet';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -1843,8 +1845,18 @@ function ManageUsers({ onBack }) {
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
-  const [editPinUid, setEditPinUid] = useState(null); // أي مستخدم نغيّر رمزه
+  const [editPinUid, setEditPinUid] = useState(null); // أي مستخدم نغيّر رمزه (للوضع القديم)
   const [busyUid, setBusyUid] = useState(null);
+
+  // Batch 6: edit modal state
+  const [editingUser, setEditingUser] = useState(null);
+  const [editName, setEditName] = useState('');
+  const [editPin, setEditPin] = useState('');
+  const [editRole, setEditRole] = useState('employee');
+  const [editBranch, setEditBranch] = useState('toia');
+  const [editActive, setEditActive] = useState(true);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editError, setEditError] = useState('');
 
   // حقول نموذج الإضافة
   const [username, setUsername] = useState('');
@@ -1855,7 +1867,7 @@ function ManageUsers({ onBack }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
-  // حقل تغيير الرمز
+  // حقل تغيير الرمز (legacy inline)
   const [editPinValue, setEditPinValue] = useState('');
 
   const loadUsers = async () => {
@@ -1870,6 +1882,77 @@ function ManageUsers({ onBack }) {
   };
 
   useEffect(() => { loadUsers(); }, []);
+
+  // فتح modal التعديل لمستخدم
+  const openEdit = (u) => {
+    setEditingUser(u);
+    setEditName(u.displayName || u.username || '');
+    setEditPin(''); // فارغ = لا تغيير
+    setEditRole(u.role || 'employee');
+    setEditBranch(u.branchId || 'toia');
+    setEditActive(u.active !== false);
+    setEditError('');
+  };
+
+  const closeEdit = () => {
+    setEditingUser(null);
+    setEditError('');
+  };
+
+  // حفظ تعديلات المستخدم
+  const handleSaveEdit = async () => {
+    if (!editingUser) return;
+    setEditError('');
+    if (!editName.trim()) {
+      setEditError('أدخل اسم المستخدم');
+      return;
+    }
+    if (editPin && !/^\d{4}$/.test(editPin)) {
+      setEditError('كلمة المرور يجب أن تكون 4 أرقام (أو اتركها فارغة لعدم التغيير)');
+      return;
+    }
+    setEditSaving(true);
+    try {
+      // 1) تحديث الملف الشخصي (اسم/دور/فرع)
+      await adminUpdateUserProfile(editingUser.uid, {
+        displayName: editName.trim(),
+        role: editRole,
+        branchId: editBranch,
+      });
+      // 2) تحديث الحالة (نشط/معطّل) إذا تغيّرت
+      const currentActive = editingUser.active !== false;
+      if (currentActive !== editActive) {
+        await setUserActive(editingUser.uid, editActive);
+      }
+      // 3) تغيير كلمة المرور إذا أُدخلت
+      if (editPin) {
+        await adminChangeUserPin(editingUser.uid, editPin);
+      }
+      await loadUsers();
+      closeEdit();
+    } catch (err) {
+      setEditError(err?.message || 'تعذّر الحفظ');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  // حذف من داخل modal التعديل
+  const handleDeleteFromEdit = async () => {
+    if (!editingUser) return;
+    if (!confirm(`حذف نهائي لمستخدم "${editingUser.displayName || editingUser.username}"؟ لا يمكن التراجع.`)) return;
+    setEditSaving(true);
+    setEditError('');
+    try {
+      await adminDeleteUser(editingUser.uid);
+      await loadUsers();
+      closeEdit();
+    } catch (err) {
+      setEditError(err?.message || 'تعذّر الحذف');
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   const handleCreate = async () => {
     setError('');
@@ -2012,63 +2095,32 @@ function ManageUsers({ onBack }) {
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-slate-300" /></div>
         ) : (
           <>
-            {/* قائمة المستخدمين بتصميم prototype */}
+            {/* قائمة المستخدمين بتصميم prototype - كل صف قابل للضغط لفتح modal التعديل */}
             <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
               {users.map((u, idx) => (
-                <div key={u.uid} className={`${idx > 0 ? 'border-t border-gray-50' : ''}`}>
-                  {/* صف المستخدم */}
-                  <div className="p-4 flex items-center gap-3">
-                    {/* أيقونة دائرية على اليسار */}
-                    <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                      <Users size={20} />
-                    </div>
-                    {/* النص في المنتصف */}
-                    <div className="flex-1 min-w-0 text-right">
-                      <p className="font-bold text-base text-slate-800 truncate">
-                        {u.displayName || u.username}
-                      </p>
-                      <p className="text-xs text-slate-500 truncate">
-                        {u.role === 'admin' ? 'مدير' : 'موظف'} — {u.branchId === 'wardana' ? 'فرع وردانة' : u.branchId === 'toia' ? 'فرع تويا' : 'الكل'}
-                      </p>
-                    </div>
-                    {/* شارة الحالة على اليمين */}
-                    <div className={`text-xs font-bold ${u.active === false ? 'text-gray-400' : 'text-emerald-600'}`}>
-                      {u.active === false ? 'معطّل' : 'نشط'}
-                    </div>
+                <button
+                  key={u.uid}
+                  onClick={() => openEdit(u)}
+                  className={`w-full p-4 flex items-center gap-3 text-right hover:bg-gray-50 transition-colors ${idx > 0 ? 'border-t border-gray-50' : ''}`}
+                >
+                  {/* شارة الحالة على اليسار (في RTL) */}
+                  <div className={`text-xs font-bold ${u.active === false ? 'text-gray-400' : 'text-emerald-600'}`}>
+                    {u.active === false ? 'معطّل' : 'نشط'}
                   </div>
-
-                  {/* أزرار الإجراءات (يتم عرضها فقط عند الحاجة لتعديل PIN) */}
-                  {editPinUid === u.uid ? (
-                    <div className="px-4 pb-4 flex gap-2">
-                      <input type="password" inputMode="numeric" maxLength={4} value={editPinValue}
-                        onChange={(e) => setEditPinValue(e.target.value.replace(/\D/g, ''))}
-                        placeholder="رمز جديد (4 أرقام)"
-                        className="flex-1 p-2 bg-gray-50 border border-gray-200 rounded-lg text-sm text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500" />
-                      <button onClick={() => handleChangePin(u.uid)} disabled={busyUid === u.uid}
-                        className="bg-blue-600 text-white font-bold px-4 rounded-lg text-xs disabled:opacity-60 flex items-center gap-1">
-                        {busyUid === u.uid && <Loader2 size={14} className="animate-spin" />} حفظ
-                      </button>
-                      <button onClick={() => { setEditPinUid(null); setEditPinValue(''); }}
-                        className="bg-gray-100 text-gray-600 font-bold px-3 rounded-lg text-xs">إلغاء</button>
-                    </div>
-                  ) : (
-                    <div className="px-4 pb-3 flex gap-1.5">
-                      <button onClick={() => { setEditPinUid(u.uid); setEditPinValue(''); }}
-                        className="flex-1 bg-blue-50 text-blue-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
-                        <Key size={13} /> الرمز
-                      </button>
-                      <button onClick={() => handleToggleActive(u)} disabled={busyUid === u.uid}
-                        className={`flex-1 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1 ${u.active === false ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'}`}>
-                        {busyUid === u.uid ? <Loader2 size={13} className="animate-spin" /> :
-                          u.active === false ? <><UserCheck size={13} /> تفعيل</> : <><UserX size={13} /> تعطيل</>}
-                      </button>
-                      <button onClick={() => handleDelete(u)} disabled={busyUid === u.uid}
-                        className="flex-1 bg-red-50 text-red-700 text-[11px] font-bold py-2 rounded-lg flex items-center justify-center gap-1">
-                        <Trash2 size={13} /> حذف
-                      </button>
-                    </div>
-                  )}
-                </div>
+                  {/* النص في المنتصف */}
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-base text-slate-800 truncate">
+                      {u.displayName || u.username}
+                    </p>
+                    <p className="text-xs text-slate-500 truncate">
+                      {u.role === 'admin' ? 'مدير' : 'موظف'} — {u.branchId === 'wardana' ? 'فرع وردانة' : u.branchId === 'toia' ? 'فرع تويا' : 'الكل'}
+                    </p>
+                  </div>
+                  {/* أيقونة دائرية على اليمين */}
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Users size={20} />
+                  </div>
+                </button>
               ))}
             </div>
 
@@ -2086,6 +2138,137 @@ function ManageUsers({ onBack }) {
           </>
         )}
       </div>
+
+      {/* Batch 6: Bottom Sheet لتعديل المستخدم */}
+      <EditSheet open={!!editingUser} onClose={closeEdit} title="تعديل المستخدم">
+        {editingUser && (
+          <div className="space-y-4">
+            {/* الاسم */}
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الاسم</label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* كلمة المرور */}
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+                كلمة المرور <span className="font-normal text-slate-400">(اتركها فارغة لعدم التغيير)</span>
+              </label>
+              <input
+                type="text"
+                inputMode="numeric"
+                maxLength={4}
+                placeholder="••••"
+                value={editPin}
+                onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 text-center tracking-[0.4em] font-mono outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* الدور */}
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الدور</label>
+              <div className="flex gap-2">
+                {[
+                  { v: 'admin', t: 'مدير' },
+                  { v: 'employee', t: 'موظف' },
+                ].map((r) => (
+                  <button
+                    key={r.v}
+                    onClick={() => setEditRole(r.v)}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${
+                      editRole === r.v
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {r.t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* الفرع */}
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">الفرع</label>
+              <div className="flex gap-2">
+                {[
+                  { v: 'all', t: 'الكل' },
+                  { v: 'toia', t: 'فرع تويا' },
+                  { v: 'wardana', t: 'فرع وردانة' },
+                ].map((b) => (
+                  <button
+                    key={b.v}
+                    onClick={() => setEditBranch(b.v)}
+                    className={`flex-1 py-3 rounded-xl text-sm font-bold border transition-colors ${
+                      editBranch === b.v
+                        ? 'bg-blue-600 text-white border-blue-600'
+                        : 'bg-gray-50 text-slate-500 border-gray-200 hover:bg-gray-100'
+                    }`}
+                  >
+                    {b.t}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* المستخدم نشط toggle */}
+            <button
+              onClick={() => setEditActive(!editActive)}
+              className="w-full bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between border border-emerald-100 hover:bg-emerald-100 transition-colors"
+            >
+              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
+              </div>
+              <span className="text-sm font-bold text-slate-800">المستخدم نشط</span>
+            </button>
+
+            {/* رسالة الخطأ */}
+            {editError && (
+              <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+                {editError}
+              </p>
+            )}
+
+            {/* أزرار الحفظ والإلغاء */}
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={closeEdit}
+                disabled={editSaving}
+                className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
+              >
+                إلغاء
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={editSaving}
+                className="flex-1 text-white font-bold py-3.5 rounded-xl hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
+                  boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
+                }}
+              >
+                {editSaving && <Loader2 size={16} className="animate-spin" />}
+                حفظ
+              </button>
+            </div>
+
+            {/* زر حذف المستخدم */}
+            <button
+              onClick={handleDeleteFromEdit}
+              disabled={editSaving}
+              className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
+            >
+              حذف المستخدم
+            </button>
+          </div>
+        )}
+      </EditSheet>
     </div>
   );
 }

@@ -1,21 +1,19 @@
 // src/components/ManagerBranches.jsx
 // ----------------------------------------------------------
 // شاشة إدارة الفروع للمدير
-// مطابقة لتصميم section#screen-branches في الـ prototype.
-//
-// تعرض:
-//   1) قائمة بالفروع الحالية مع زر تعطيل
-//   2) form لإضافة فرع جديد (اسم بالعربي + اسم بالإنجليزي)
-//
-// ⚠️ ملاحظة: حذف الفرع = تعطيله (active=false) للحفاظ على البيانات التاريخية
+// Batch 6: التعديل أصبح Bottom Sheet مع رسالة للفرع الأساسي
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
-  ChevronRight, Plus, Store, Loader2, CheckCircle2, Trash2, Edit3, X,
+  ChevronRight, Plus, Store, Loader2, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import {
   getBranches, addBranch, updateBranch, deleteBranch,
 } from '../firebase';
+import EditSheet from './EditSheet';
+
+// الفروع الأساسية لا يمكن حذفها
+const PRIMARY_BRANCH_IDS = ['toia', 'wardana'];
 
 export default function ManagerBranches({ onBack, lang = 'ar' }) {
   const [branches, setBranches] = useState([]);
@@ -27,11 +25,13 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
   const [newName, setNewName] = useState('');
   const [newNameEn, setNewNameEn] = useState('');
   const [adding, setAdding] = useState(false);
-  // وضع التحرير
-  const [editingId, setEditingId] = useState(null);
+  // وضع التحرير - في bottom sheet
+  const [editingBranch, setEditingBranch] = useState(null);
   const [editName, setEditName] = useState('');
   const [editNameEn, setEditNameEn] = useState('');
+  const [editActive, setEditActive] = useState(true);
   const [savingEdit, setSavingEdit] = useState(false);
+  const [editError, setEditError] = useState('');
 
   const reload = async () => {
     setLoading(true);
@@ -78,53 +78,74 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
     }
   };
 
-  const handleStartEdit = (branch) => {
-    setEditingId(branch.id);
+  const openEdit = (branch) => {
+    setEditingBranch(branch);
     setEditName(branch.name || '');
     setEditNameEn(branch.nameEn || '');
-    setError('');
+    setEditActive(branch.active !== false);
+    setEditError('');
+  };
+
+  const closeEdit = () => {
+    setEditingBranch(null);
+    setEditError('');
   };
 
   const handleSaveEdit = async () => {
-    setError('');
+    if (!editingBranch) return;
+    setEditError('');
     if (!editName.trim()) {
-      setError(lang === 'en' ? 'Branch name required' : 'اسم الفرع مطلوب');
+      setEditError(lang === 'en' ? 'Branch name required' : 'اسم الفرع مطلوب');
       return;
     }
     setSavingEdit(true);
     try {
-      await updateBranch(editingId, {
+      await updateBranch(editingBranch.id, {
         name: editName.trim(),
         nameEn: editNameEn.trim() || null,
+        active: editActive,
       });
-      setEditingId(null);
       await reload();
+      closeEdit();
       showDoneMsg(lang === 'en' ? 'Branch updated' : 'تم تحديث الفرع');
     } catch (err) {
-      setError(err?.message || 'تعذّر تحديث الفرع');
+      setEditError(err?.message || 'تعذّر تحديث الفرع');
     } finally {
       setSavingEdit(false);
     }
   };
 
-  const handleDelete = async (branch) => {
+  const handleDeleteFromEdit = async () => {
+    if (!editingBranch) return;
+    if (PRIMARY_BRANCH_IDS.includes(editingBranch.id)) {
+      setEditError(lang === 'en'
+        ? 'Primary branches cannot be deleted'
+        : 'لا يمكن حذف الفروع الأساسية');
+      return;
+    }
     const confirmMsg = lang === 'en'
-      ? `Disable branch "${branch.name}"? Historical data will be preserved.`
-      : `هل تريد تعطيل فرع "${branch.name}"؟ ستُحفظ البيانات التاريخية.`;
+      ? `Disable branch "${editingBranch.name}"? Historical data will be preserved.`
+      : `هل تريد تعطيل فرع "${editingBranch.name}"؟ ستُحفظ البيانات التاريخية.`;
     if (!window.confirm(confirmMsg)) return;
-    setError('');
+    setSavingEdit(true);
+    setEditError('');
     try {
-      await deleteBranch(branch.id);
+      await deleteBranch(editingBranch.id);
       await reload();
+      closeEdit();
       showDoneMsg(lang === 'en' ? 'Branch disabled' : 'تم تعطيل الفرع');
     } catch (err) {
-      setError(err?.message || 'تعذّر تعطيل الفرع');
+      setEditError(err?.message || 'تعذّر تعطيل الفرع');
+    } finally {
+      setSavingEdit(false);
     }
   };
 
+  const isPrimaryEditing = editingBranch && PRIMARY_BRANCH_IDS.includes(editingBranch.id);
+
   return (
     <div
-      className="min-h-full relative overflow-hidden"
+      className="min-h-full relative overflow-hidden pb-20"
       style={{
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
@@ -148,10 +169,10 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
         </h2>
       </div>
 
-      <div className="relative z-10 p-4 space-y-3 pb-8">
+      <div className="relative z-10 p-4 space-y-4">
         {loading && (
-          <div className="flex items-center justify-center py-10 text-slate-400">
-            <Loader2 className="animate-spin" size={24} />
+          <div className="flex justify-center py-12">
+            <Loader2 size={28} className="animate-spin text-slate-300" />
           </div>
         )}
 
@@ -178,98 +199,58 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
               </div>
             ) : (
               <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                {branches.map((b) => (
-                  <div key={b.id} className="border-b border-gray-50 last:border-0">
-                    {editingId === b.id ? (
-                      /* وضع التحرير */
-                      <div className="p-4 bg-blue-50/30 space-y-3">
-                        <div>
-                          <label className="text-xs text-gray-500 font-bold mb-1 block">
-                            {lang === 'en' ? 'Name (Arabic)' : 'الاسم بالعربي'}
-                          </label>
-                          <input
-                            type="text"
-                            value={editName}
-                            onChange={(e) => setEditName(e.target.value)}
-                            className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
-                          />
-                        </div>
-                        <div>
-                          <label className="text-xs text-gray-500 font-bold mb-1 block">
-                            {lang === 'en' ? 'Name (English)' : 'الاسم بالإنجليزي'}
-                          </label>
-                          <input
-                            type="text"
-                            value={editNameEn}
-                            onChange={(e) => setEditNameEn(e.target.value)}
-                            className="w-full p-2.5 bg-white border border-gray-200 rounded-xl text-sm outline-none focus:border-blue-500"
-                            dir="ltr"
-                          />
-                        </div>
-                        <div className="flex gap-2 pt-1">
-                          <button
-                            onClick={() => setEditingId(null)}
-                            className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-2.5 rounded-lg text-xs hover:bg-gray-50"
-                          >
-                            {lang === 'en' ? 'Cancel' : 'إلغاء'}
-                          </button>
-                          <button
-                            onClick={handleSaveEdit}
-                            disabled={savingEdit}
-                            className="flex-1 bg-blue-600 text-white font-bold py-2.5 rounded-lg text-xs hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-1"
-                          >
-                            {savingEdit && <Loader2 size={14} className="animate-spin" />}
-                            {lang === 'en' ? 'Save' : 'حفظ'}
-                          </button>
-                        </div>
+                {branches.map((b, idx) => {
+                  const isPrimary = PRIMARY_BRANCH_IDS.includes(b.id);
+                  const isActive = b.active !== false;
+                  return (
+                    <button
+                      key={b.id}
+                      onClick={() => openEdit(b)}
+                      className={`w-full p-4 flex items-center gap-3 hover:bg-gray-50 transition-colors text-right ${idx > 0 ? 'border-t border-gray-50' : ''}`}
+                    >
+                      {/* شارة الحالة */}
+                      <div className={`text-xs font-bold ${isActive ? 'text-emerald-600' : 'text-gray-400'}`}>
+                        {isActive
+                          ? (lang === 'en' ? 'Active' : 'نشط')
+                          : (lang === 'en' ? 'Disabled' : 'معطّل')}
                       </div>
-                    ) : (
-                      /* وضع العرض */
-                      <div className="p-4 flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
-                          <Store size={18} />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-bold text-slate-800">{b.name}</p>
-                          {b.nameEn && (
-                            <p className="text-xs text-gray-500" dir="ltr">{b.nameEn}</p>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => handleStartEdit(b)}
-                          className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg"
-                          title={lang === 'en' ? 'Edit' : 'تعديل'}
-                        >
-                          <Edit3 size={16} />
-                        </button>
-                        <button
-                          onClick={() => handleDelete(b)}
-                          className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                          title={lang === 'en' ? 'Disable' : 'تعطيل'}
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                      {/* النص */}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-base font-bold text-slate-800">{b.name}</p>
+                        <p className="text-xs text-slate-500">
+                          {isPrimary
+                            ? (lang === 'en' ? 'Primary branch' : 'فرع أساسي')
+                            : (b.nameEn || (lang === 'en' ? 'Custom branch' : 'فرع إضافي'))}
+                        </p>
                       </div>
-                    )}
-                  </div>
-                ))}
+                      {/* أيقونة */}
+                      <div className="w-11 h-11 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center flex-shrink-0">
+                        <Store size={18} />
+                      </div>
+                    </button>
+                  );
+                })}
               </div>
             )}
 
-            {/* form إضافة فرع جديد */}
-            {showAdd ? (
+            {/* زر إضافة فرع جديد */}
+            {!showAdd ? (
+              <button
+                onClick={() => setShowAdd(true)}
+                className="w-full text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
+                  boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
+                }}
+              >
+                <Plus size={18} />
+                {lang === 'en' ? '+ Add New Branch' : '+ إضافة فرع'}
+              </button>
+            ) : (
               <div className="bg-white rounded-2xl p-4 shadow-sm border border-blue-200 space-y-3">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-sm font-bold text-slate-800">
-                    {lang === 'en' ? 'Add new branch' : 'إضافة فرع جديد'}
-                  </h4>
-                  <button
-                    onClick={() => { setShowAdd(false); setNewName(''); setNewNameEn(''); setError(''); }}
-                    className="p-1 text-gray-400 hover:bg-gray-100 rounded"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+                <h4 className="text-sm font-bold text-slate-800">
+                  {lang === 'en' ? 'Add new branch' : 'إضافة فرع جديد'}
+                </h4>
                 <div>
                   <label className="text-xs text-gray-500 font-bold mb-1 block">
                     {lang === 'en' ? 'Name (Arabic)' : 'الاسم بالعربي'}
@@ -295,32 +276,131 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                     dir="ltr"
                   />
                 </div>
-                <button
-                  onClick={handleAdd}
-                  disabled={adding}
-                  className="w-full text-white font-bold py-3 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-                  style={{
-                    background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
-                  }}
-                >
-                  {adding && <Loader2 size={16} className="animate-spin" />}
-                  {adding
-                    ? (lang === 'en' ? 'Adding...' : 'جارٍ الإضافة...')
-                    : (lang === 'en' ? 'Add Branch' : 'إضافة الفرع')}
-                </button>
+                <div className="flex gap-2">
+                  <button
+                    onClick={() => { setShowAdd(false); setNewName(''); setNewNameEn(''); setError(''); }}
+                    className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-2.5 rounded-xl text-sm"
+                  >
+                    {lang === 'en' ? 'Cancel' : 'إلغاء'}
+                  </button>
+                  <button
+                    onClick={handleAdd}
+                    disabled={adding}
+                    className="flex-1 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2"
+                    style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)' }}
+                  >
+                    {adding && <Loader2 size={16} className="animate-spin" />}
+                    {adding
+                      ? (lang === 'en' ? 'Adding...' : 'جارٍ الإضافة...')
+                      : (lang === 'en' ? 'Save' : 'حفظ')}
+                  </button>
+                </div>
               </div>
-            ) : (
-              <button
-                onClick={() => setShowAdd(true)}
-                className="w-full p-4 rounded-2xl border-2 border-dashed border-blue-300 bg-blue-50/50 text-blue-700 font-bold text-sm hover:bg-blue-50 transition-colors flex items-center justify-center gap-2"
-              >
-                <Plus size={18} />
-                {lang === 'en' ? 'Add New Branch' : 'إضافة فرع جديد'}
-              </button>
             )}
           </>
         )}
       </div>
+
+      {/* Bottom Sheet لتعديل الفرع */}
+      <EditSheet
+        open={!!editingBranch}
+        onClose={closeEdit}
+        title={lang === 'en' ? 'Edit Branch' : 'تعديل الفرع'}
+      >
+        {editingBranch && (
+          <div className="space-y-4">
+            {/* رسالة الفرع الأساسي */}
+            {isPrimaryEditing && (
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-start gap-2">
+                <AlertCircle size={16} className="text-amber-600 flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  هذا فرع أساسي — يمكن تعديل اسمه أو تعطيله، لكن لا يمكن حذفه.
+                </p>
+              </div>
+            )}
+
+            {/* اسم الفرع */}
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+                {lang === 'en' ? 'Branch Name' : 'اسم الفرع'}
+              </label>
+              <input
+                type="text"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 outline-none focus:border-blue-500"
+              />
+            </div>
+
+            {/* الاسم بالإنجليزي */}
+            <div>
+              <label className="text-xs font-bold text-slate-500 mb-1.5 block">
+                {lang === 'en' ? 'Name (English)' : 'الاسم بالإنجليزية (اختياري)'}
+              </label>
+              <input
+                type="text"
+                value={editNameEn}
+                onChange={(e) => setEditNameEn(e.target.value)}
+                placeholder="Toia Branch"
+                className="w-full p-3.5 bg-gray-50 border border-gray-200 rounded-xl text-base font-bold text-slate-800 outline-none focus:border-blue-500"
+                dir="ltr"
+              />
+            </div>
+
+            {/* الفرع نشط */}
+            <button
+              onClick={() => setEditActive(!editActive)}
+              className="w-full bg-emerald-50 rounded-xl p-3.5 flex items-center justify-between border border-emerald-100 hover:bg-emerald-100 transition-colors"
+            >
+              <div className={`relative inline-flex h-7 w-12 items-center rounded-full transition-colors ${editActive ? 'bg-emerald-500' : 'bg-gray-300'}`}>
+                <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${editActive ? 'translate-x-1' : 'translate-x-6'}`} />
+              </div>
+              <span className="text-sm font-bold text-slate-800">
+                {lang === 'en' ? 'Branch Active' : 'الفرع نشط'}
+              </span>
+            </button>
+
+            {editError && (
+              <p className="text-red-600 text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">
+                {editError}
+              </p>
+            )}
+
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={closeEdit}
+                disabled={savingEdit}
+                className="flex-1 bg-white border border-gray-200 text-slate-700 font-bold py-3.5 rounded-xl hover:bg-gray-50 disabled:opacity-60"
+              >
+                {lang === 'en' ? 'Cancel' : 'إلغاء'}
+              </button>
+              <button
+                onClick={handleSaveEdit}
+                disabled={savingEdit}
+                className="flex-1 text-white font-bold py-3.5 rounded-xl hover:opacity-90 disabled:opacity-60 flex items-center justify-center gap-2"
+                style={{
+                  background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
+                  boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
+                }}
+              >
+                {savingEdit && <Loader2 size={16} className="animate-spin" />}
+                {lang === 'en' ? 'Save' : 'حفظ'}
+              </button>
+            </div>
+
+            {/* زر الحذف - فقط للفروع غير الأساسية */}
+            {!isPrimaryEditing && (
+              <button
+                onClick={handleDeleteFromEdit}
+                disabled={savingEdit}
+                className="w-full bg-red-50 hover:bg-red-100 text-red-600 font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
+              >
+                {lang === 'en' ? 'Delete Branch' : 'حذف الفرع'}
+              </button>
+            )}
+          </div>
+        )}
+      </EditSheet>
     </div>
   );
 }

@@ -430,6 +430,17 @@ export async function setUserActive(uid, active) {
   await updateDoc(doc(db, "users", uid), { active: !!active });
 }
 
+// تحديث ملف مستخدم (الاسم/الدور/الفرع) — لا يلمس Auth، فقط Firestore.
+// كلمة المرور تحدّث عبر adminChangeUserPin منفصلاً.
+export async function adminUpdateUserProfile(uid, { displayName, role, branchId } = {}) {
+  const patch = {};
+  if (typeof displayName === 'string') patch.displayName = displayName.trim();
+  if (role === 'admin' || role === 'employee') patch.role = role;
+  if (typeof branchId === 'string') patch.branchId = branchId; // 'toia' | 'wardana' | 'all'
+  if (Object.keys(patch).length === 0) return;
+  await updateDoc(doc(db, "users", uid), patch);
+}
+
 // طلب من Admin API: تغيير رمز مستخدم آخر (للمدير فقط)
 export async function adminChangeUserPin(targetUid, newPin) {
   if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
