@@ -594,3 +594,91 @@ export async function addBranch({ name, nameEn, order }) {
 export async function deleteBranch(id) {
   await updateDoc(doc(db, "branches", id), { active: false });
 }
+
+// ========================================================
+// App Settings (§Batch 3) — الإعدادات العامة للتطبيق
+// المسار: appSettings/main  →  { businessName, contactPhone, defaultLang, currency, dateSystem }
+// ========================================================
+
+/**
+ * جلب الإعدادات العامة. لو ما فيه، يرجع defaults.
+ */
+export async function getAppSettings() {
+  const ref = doc(db, "appSettings", "main");
+  const snap = await getDoc(ref);
+  if (!snap.exists()) {
+    return {
+      businessName: "Toia & Wardana",
+      contactPhone: "",
+      defaultLang: "ar",
+      currency: "SAR",
+      dateSystem: "gregorian",
+      notifInApp: true,
+      notifSystem: false,
+      exists: false,
+    };
+  }
+  return { ...snap.data(), exists: true };
+}
+
+/**
+ * حفظ الإعدادات العامة.
+ */
+export async function setAppSettings(data) {
+  const ref = doc(db, "appSettings", "main");
+  await setDoc(
+    ref,
+    {
+      ...data,
+      updatedAt: serverTimestamp(),
+    },
+    { merge: true }
+  );
+}
+
+// ========================================================
+// Backup helpers (§Batch 3)
+// تصدير كل البيانات في JSON واحد (sales + expenses + users + branches + categories + goals + fixedExpenses)
+// ========================================================
+
+/**
+ * يجلب كل البيانات لعمل نسخة احتياطية.
+ * يستخدمه ManagerBackup.jsx لتصدير JSON/Excel.
+ */
+export async function getAllDataForBackup() {
+  const [salesSnap, expensesSnap, usersSnap, branchesSnap, categoriesSnap, goalsSnap, fixedSnap] = await Promise.all([
+    getDocs(collection(db, "dailySales")),
+    getDocs(collection(db, "expenses")),
+    getDocs(collection(db, "users")),
+    getDocs(collection(db, "branches")),
+    getDocs(collection(db, "categories")),
+    getDocs(collection(db, "goals")),
+    getDocs(collection(db, "fixedExpenses")),
+  ]);
+  const toArr = (snap) => snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+  return {
+    exportedAt: new Date().toISOString(),
+    version: "1.0",
+    sales: toArr(salesSnap),
+    expenses: toArr(expensesSnap),
+    users: toArr(usersSnap),
+    branches: toArr(branchesSnap),
+    categories: toArr(categoriesSnap),
+    goals: toArr(goalsSnap),
+    fixedExpenses: toArr(fixedSnap),
+  };
+}
+
+/**
+ * يجلب إحصائيات سريعة لعرضها في شاشة Backup.
+ */
+export async function getDataStats() {
+  const data = await getAllDataForBackup();
+  return {
+    sales: data.sales.length,
+    expenses: data.expenses.length,
+    branches: data.branches.filter((b) => b.active !== false).length,
+    users: data.users.length,
+    categories: data.categories.length,
+  };
+}

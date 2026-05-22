@@ -13,6 +13,9 @@ import {
 } from 'lucide-react';
 import ManagerGoals from './ManagerGoals';
 import ManagerBranches from './ManagerBranches';
+import ManagerGeneralSettings from './ManagerGeneralSettings';
+import ManagerNotifications from './ManagerNotifications';
+import ManagerBackup from './ManagerBackup';
 
 // عناصر القائمة — كل عنصر له:
 //   key: للتنقل
@@ -54,14 +57,14 @@ const ITEMS = [
     icon: Cloud, color: 'sky',
     label: { ar: 'النسخ الاحتياطي', en: 'Backup' },
     desc: { ar: 'تصدير واستيراد البيانات بالفرع أو الكل', en: 'Export and import data by branch or all' },
-    enabled: false, // قيد التطوير - يحتاج xlsx package
+    enabled: true,
   },
   {
     key: 'notif',
     icon: Bell, color: 'rose',
     label: { ar: 'التنبيهات والإشعارات', en: 'Notifications' },
     desc: { ar: 'تفعيل وإدارة تنبيهات النظام والأهداف', en: 'Enable and manage system notifications' },
-    enabled: false, // قيد التطوير - يحتاج FCM
+    enabled: true,
   },
   {
     key: 'users',
@@ -89,7 +92,7 @@ const ITEMS = [
     icon: Gear, color: 'gray',
     label: { ar: 'الإعدادات العامة', en: 'General Settings' },
     desc: { ar: 'اللغة، العملة، نظام التاريخ', en: 'Language, currency, date system' },
-    enabled: false, // قيد التطوير
+    enabled: true,
   },
 ];
 
@@ -134,6 +137,9 @@ export default function AdminSettingsV2({
   if (screen === 'adminEntry' && AdminDataEntryComponent) return <AdminDataEntryComponent onBack={goBack} />;
   if (screen === 'goals') return <ManagerGoals onBack={goBack} lang={lang} />;
   if (screen === 'branches') return <ManagerBranches onBack={goBack} lang={lang} />;
+  if (screen === 'general') return <ManagerGeneralSettings onBack={goBack} lang={lang} />;
+  if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;
+  if (screen === 'backup') return <ManagerBackup onBack={goBack} lang={lang} />;
 
   return (
     <div
