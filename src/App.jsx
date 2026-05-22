@@ -32,7 +32,7 @@ import ManagerKpis from './components/ManagerKpis';
 import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
 import EmployeeHistory from './components/EmployeeHistory';
-// Batch 12: Shared last-7-days list used in EmployeeHistory + AdminDataEntry
+// Batch 12: Shared last-7-days list used in AdminDataEntry
 import RecHistorySection from './components/RecHistorySection';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
@@ -2810,12 +2810,18 @@ function ChangeMyPin({ onBack }) {
 // ==========================================
 // شاشة تسجيل المبيعات/المصاريف للمدير (لأي فرع)
 // ==========================================
-// Batch 11: شاشة "المبيعات والمصروفات" للمدير = نفس شاشة الموظف + اختيار فرع
-// يعيد استخدام EmployeeHome / SalesFormV2 / ExpenseFormV2 بالكامل
+// Batch 12: تصميم 1:1 مع البروتوتايب
+//   - بدون شاشة اختيار فرع منفصلة
+//   - يفتح مباشرة على شاشة "المبيعات والمصروفات" مع فرع تويا افتراضياً
+//   - زرّان (مبيعات + مصاريف) + قائمة "آخر 7 أيام"
+//   - الفرع يُغيَّر من داخل النماذج عبر pill قابل للنقر → bottom sheet
 function AdminDataEntry({ onBack }) {
-  const [step, setStep] = useState('chooseBranch'); // chooseBranch | home | salesForm | expenseForm
-  const [chosenBranch, setChosenBranch] = useState(null);
+  const [step, setStep] = useState('home'); // home | salesForm | expenseForm
+  // الافتراضي: فرع تويا (السؤال 2 → ب)
+  const [chosenBranch, setChosenBranch] = useState('toia');
   const [branches, setBranches] = useState([]);
+  // مفتاح لتحديث قائمة آخر 7 أيام بعد كل حفظ
+  const [refreshKey, setRefreshKey] = useState(0);
 
   useEffect(() => {
     (async () => {
@@ -2824,83 +2830,34 @@ function AdminDataEntry({ onBack }) {
     })();
   }, []);
 
-  const branchName = chosenBranch
-    ? (branches.find((b) => b.id === chosenBranch)?.name
-       || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا'))
-    : '';
+  const branchName = branches.find((b) => b.id === chosenBranch)?.name
+    || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا');
 
-  // setView يستقبله SalesFormV2 و ExpenseFormV2 (نفس الموظف)
+  // setView يستقبله SalesFormV2 و ExpenseFormV2
   const setView = (v) => {
     if (v === 'salesForm') setStep('salesForm');
     else if (v === 'expenseForm') setStep('expenseForm');
-    else if (v === 'employeeHome' || v === 'home') setStep('home');
-    else if (v === 'employeeHistory') setStep('home'); // fallback - not used here
+    else if (v === 'employeeHome' || v === 'home') {
+      setStep('home');
+      // تحديث القائمة بعد العودة (في حال تم حفظ شيء)
+      setRefreshKey((k) => k + 1);
+    }
   };
 
-  // مرحلة 1: اختيار الفرع
-  if (step === 'chooseBranch' || !chosenBranch) {
-    const branchList = branches.length
-      ? branches
-      : [{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }];
-    return (
-      <div className="flex flex-col h-full bg-white pb-20">
-        <div className="flex items-center p-4 border-b border-tw-line">
-          <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
-            <ChevronRight size={20} className="rotate-180" />
-          </button>
-          <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">
-            المبيعات والمصروفات
-          </h2>
-        </div>
-        <div className="p-6 space-y-5 flex-1">
-          <div className="bg-tw-soft border border-tw-blue/20 rounded-xl p-4 text-center">
-            <p className="text-tw-navy font-bold text-sm mb-1">اختر الفرع</p>
-            <p className="text-tw-muted text-xs">
-              ستفتح الشاشة كموظف لذلك الفرع — لتسجيل المبيعات والمصاريف
-            </p>
-          </div>
-          <div className="space-y-3">
-            {branchList.map((b) => (
-              <button
-                key={b.id}
-                onClick={() => { setChosenBranch(b.id); setStep('home'); }}
-                className="w-full bg-white border-2 border-tw-line rounded-2xl p-5 text-right hover:border-tw-blue hover:bg-tw-soft/40 transition-all active:scale-95"
-              >
-                <div className="flex items-center justify-between">
-                  <ChevronRight size={20} className="text-tw-muted rotate-180" />
-                  <div>
-                    <h3 className="font-bold text-tw-navy text-base mb-0.5">فرع {b.name}</h3>
-                    <p className="text-tw-muted text-xs">دخول كموظف في هذا الفرع</p>
-                  </div>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
-    );
-  }
+  // تغيير الفرع من داخل النماذج (pill bottom sheet)
+  const handleBranchChange = (newBranchId) => {
+    setChosenBranch(newBranchId);
+  };
 
-  // مرحلة 2: شاشة "المبيعات والمصروفات" للمدير
-  // تصميم 1:1 مع الـ prototype (screen-recordOps):
-  //   - زرّان كبيران: تسجيل المبيعات + تسجيل المصروفات
-  //   - قائمة "آخر 7 أيام" تحتها (RecHistorySection المشترك)
-  //   - شريط علوي صغير: "وضع المدير — فرع X | تغيير الفرع"
+  // الشاشة الرئيسية: زرّان + قائمة آخر 7 أيام
   if (step === 'home') {
     return (
       <div className="flex flex-col h-full tw-page-bg">
-        {/* شريط علوي صغير لإظهار الفرع المختار + زر تغيير */}
-        <div className="bg-tw-soft/60 border-b border-tw-line px-4 py-2 flex items-center justify-between text-xs flex-shrink-0">
-          <span className="text-tw-muted">
-            وضع المدير — فرع <b className="text-tw-navy">{branchName}</b>
-          </span>
-          <button
-            onClick={() => { setChosenBranch(null); setStep('chooseBranch'); }}
-            className="text-tw-blue font-bold"
-          >
-            تغيير الفرع
-          </button>
-        </div>
+        {/* خلفية زخرفية */}
+        <div
+          className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
+          style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
+        />
 
         {/* شريط العنوان */}
         <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm flex-shrink-0">
@@ -2919,13 +2876,14 @@ function AdminDataEntry({ onBack }) {
         </div>
 
         {/* المحتوى — قابل للتمرير */}
-        <div className="flex-1 overflow-y-auto p-4 pb-8">
+        <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-8">
           {/* الزر 1: تسجيل المبيعات */}
           <div
             className="tw-card tw-action"
             onClick={() => setView('salesForm')}
             role="button"
             tabIndex={0}
+            style={{ marginBottom: 10 }}
           >
             <div className="tw-action-icon">
               <TrendingUp />
@@ -2943,6 +2901,7 @@ function AdminDataEntry({ onBack }) {
             onClick={() => setView('expenseForm')}
             role="button"
             tabIndex={0}
+            style={{ marginBottom: 10 }}
           >
             <div className="tw-action-icon">
               <Receipt />
@@ -2954,14 +2913,18 @@ function AdminDataEntry({ onBack }) {
             <div className="arrow">‹</div>
           </div>
 
-          {/* قائمة آخر 7 أيام */}
-          <RecHistorySection branchId={chosenBranch} lang="ar" />
+          {/* قائمة آخر 7 أيام للفرع الافتراضي (تويا) */}
+          <RecHistorySection
+            branchId={chosenBranch}
+            lang="ar"
+            refreshKey={refreshKey}
+          />
         </div>
       </div>
     );
   }
 
-  // مرحلة 3: نموذج المبيعات
+  // نموذج المبيعات — الفرع قابل للتغيير عبر pill
   if (step === 'salesForm') {
     return (
       <SalesFormV2
@@ -2969,11 +2932,13 @@ function AdminDataEntry({ onBack }) {
         branch={branchName}
         branchId={chosenBranch}
         lang="ar"
+        allowBranchSwitch={true}
+        onBranchChange={handleBranchChange}
       />
     );
   }
 
-  // مرحلة 4: نموذج المصاريف
+  // نموذج المصاريف — الفرع قابل للتغيير عبر pill
   if (step === 'expenseForm') {
     return (
       <ExpenseFormV2
@@ -2981,6 +2946,8 @@ function AdminDataEntry({ onBack }) {
         branch={branchName}
         branchId={chosenBranch}
         lang="ar"
+        allowBranchSwitch={true}
+        onBranchChange={handleBranchChange}
       />
     );
   }

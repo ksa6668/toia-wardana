@@ -10,6 +10,7 @@
 //
 // التصميم الجديد (Batch 12):
 //   - .tw-controls-row pills للتاريخ + الفرع
+//   - pill الفرع قابل للنقر → bottom sheet (للمدير)
 //   - .tw-chips مع .tw-chip.primary للتصنيفات الأساسية (cyan tint)
 //   - .tw-form-card لتفاصيل المصروف
 //   - .tw-photo-up (dashed → solid عند الإرفاق)
@@ -20,10 +21,11 @@ import {
   Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronRight, X, Image as ImageIcon,
 } from 'lucide-react';
 import {
-  addExpense, getCategories, getPaymentMethods, uploadInvoiceImage,
+  addExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,
 } from '../firebase';
 import { t, translateCategory, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
+import BranchPickerSheet from './BranchPickerSheet';
 
 function todayStr() {
   const d = new Date();
@@ -33,10 +35,19 @@ function todayStr() {
 // التصنيفات الأساسية الأربعة (chip primary بلون cyan tint)
 const PRIMARY_TYPES = ['flower', 'delivery', 'customerOrders', 'supplies'];
 
-export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }) {
+export default function ExpenseFormV2({
+  setView,
+  branch,
+  branchId,
+  lang = 'ar',
+  allowBranchSwitch = false,
+  onBranchChange,
+}) {
   const [date, setDate] = useState(todayStr());
   const [categories, setCategories] = useState([]);
   const [methods, setMethods] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [loadingCats, setLoadingCats] = useState(true);
   const [categoryId, setCategoryId] = useState('');
   const [amount, setAmount] = useState('');
@@ -79,6 +90,17 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
     })();
     return () => { cancelled = true; };
   }, [lang]);
+
+  // جلب الفروع للـ bottom sheet (للمدير فقط)
+  useEffect(() => {
+    if (!allowBranchSwitch) return;
+    (async () => {
+      try { setBranches(await getBranches()); }
+      catch {
+        setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]);
+      }
+    })();
+  }, [allowBranchSwitch]);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const requiresImage = selectedCategory?.requiresImage || false;
@@ -192,9 +214,21 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
               style={{ width: '100%', height: '100%' }}
             />
           </div>
-          <div className="tw-pill">
+          <div
+            className="tw-pill"
+            onClick={() => allowBranchSwitch && setSheetOpen(true)}
+            role={allowBranchSwitch ? 'button' : undefined}
+            tabIndex={allowBranchSwitch ? 0 : undefined}
+            style={{ cursor: allowBranchSwitch ? 'pointer' : 'default' }}
+          >
             <MapPin size={14} />
             <span>{lang === 'en' ? branch : `فرع ${branch}`}</span>
+            {allowBranchSwitch && (
+              <ChevronRight
+                size={12}
+                style={{ marginInlineStart: 'auto', opacity: 0.5, transform: 'rotate(90deg)' }}
+              />
+            )}
           </div>
         </div>
 
@@ -348,7 +382,7 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
           </p>
         )}
 
-        {/* أزرار الإجراءات — صف (إلغاء + حفظ) مطابق للـ prototype */}
+        {/* أزرار الإجراءات */}
         <div className="tw-btn-row" style={{ marginTop: 14 }}>
           <button
             onClick={() => setView('employeeHome')}
@@ -374,6 +408,18 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
           </button>
         </div>
       </div>
+
+      {/* Bottom sheet لاختيار الفرع — يظهر فقط للمدير */}
+      {allowBranchSwitch && (
+        <BranchPickerSheet
+          open={sheetOpen}
+          branches={branches}
+          currentBranchId={branchId}
+          onPick={(id) => onBranchChange?.(id)}
+          onClose={() => setSheetOpen(false)}
+          lang={lang}
+        />
+      )}
     </div>
   );
 }

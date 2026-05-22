@@ -16,7 +16,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar } from 'lucide-react';
 import { getSales, getExpenses } from '../firebase';
-import { t, translateCategory } from '../i18n';
+import { translateCategory } from '../i18n';
 import SarSymbol from './SarSymbol';
 
 // تنسيق التاريخ "YYYY-MM-DD" إلى "اليوم"/"أمس"/"21 مايو"
@@ -34,14 +34,14 @@ function formatDayHeader(dateStr, lang) {
   });
 }
 
-export default function RecHistorySection({ branchId, lang = 'ar', showTitle = true }) {
+export default function RecHistorySection({ branchId, lang = 'ar', showTitle = true, refreshKey = 0 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sales, setSales] = useState([]);
   const [expenses, setExpenses] = useState([]);
 
   useEffect(() => {
-    if (!branchId) return;
+    if (!branchId) { setLoading(false); return; }
     let cancelled = false;
     async function load() {
       setLoading(true);
@@ -66,9 +66,9 @@ export default function RecHistorySection({ branchId, lang = 'ar', showTitle = t
     }
     load();
     return () => { cancelled = true; };
-  }, [branchId, lang]);
+  }, [branchId, lang, refreshKey]);
 
-  // دمج + ترتيب تنازلي حسب التاريخ ثم الوقت إن وُجد
+  // دمج + ترتيب تنازلي حسب التاريخ
   const allEntries = useMemo(() => {
     const items = [
       ...sales.map((s) => ({ kind: 'sale', ...s })),
@@ -76,8 +76,7 @@ export default function RecHistorySection({ branchId, lang = 'ar', showTitle = t
     ];
     return items.sort((a, b) => {
       const k = (a.date || '').localeCompare(b.date || '');
-      if (k !== 0) return -k; // الأحدث أولاً
-      // عند تساوي التاريخ، نرتب حسب createdAt إن وُجد
+      if (k !== 0) return -k;
       const ta = a.createdAt?.toMillis?.() || 0;
       const tb = b.createdAt?.toMillis?.() || 0;
       return tb - ta;
@@ -95,7 +94,7 @@ export default function RecHistorySection({ branchId, lang = 'ar', showTitle = t
     return map;
   }, [allEntries]);
 
-  const days = Object.keys(groupedByDay); // الأيام مرتبة لأن allEntries مرتب
+  const days = Object.keys(groupedByDay);
 
   return (
     <div className="tw-rec-history-section">

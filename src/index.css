@@ -1287,3 +1287,68 @@ body {
   gap: 8px;
   margin: 4px 0 12px;
 }
+
+/* ---- Bottom sheet (branch picker, date picker, etc.) ---- */
+.tw-sheet-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(6, 23, 66, .55);
+  z-index: 60;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity .2s;
+}
+.tw-sheet-overlay.show {
+  opacity: 1;
+  pointer-events: auto;
+}
+.tw-sheet-panel {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  padding: 18px 18px 26px;
+  z-index: 61;
+  transform: translateY(100%);
+  transition: transform .25s;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 -8px 24px rgba(6, 23, 66, .15);
+}
+.tw-sheet-panel.show { transform: translateY(0); }
+.tw-sheet-panel h3 {
+  margin: 0 0 14px;
+  font-size: 16px;
+  font-weight: 800;
+  text-align: center;
+  color: var(--tw-navy);
+}
+.tw-sheet-grab {
+  width: 40px;
+  height: 4px;
+  background: #D6DEEB;
+  border-radius: 99px;
+  margin: 0 auto 12px;
+}
+.tw-sheet-opt {
+  padding: 14px;
+  border: 1.5px solid var(--tw-line);
+  border-radius: 12px;
+  margin-bottom: 8px;
+  font-weight: 700;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  cursor: pointer;
+  color: var(--tw-navy);
+  transition: background .15s, border-color .15s;
+}
+.tw-sheet-opt:active { background: var(--tw-soft); }
+.tw-sheet-opt.active {
+  background: var(--tw-soft);
+  border-color: var(--tw-blue);
+  color: var(--tw-blue);
+}

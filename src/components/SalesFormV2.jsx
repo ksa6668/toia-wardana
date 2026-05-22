@@ -9,6 +9,7 @@
 //
 // التصميم الجديد (Batch 12):
 //   - .tw-controls-row pills للتاريخ والفرع
+//   - pill الفرع قابل للنقر → bottom sheet
 //   - .tw-form-card مع .tw-payment-row لكل طريقة دفع
 //   - .tw-total-strip (gradient navy → blue)
 //   - .tw-btn-row (إلغاء + حفظ)
@@ -18,22 +19,32 @@ import {
   Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronRight,
 } from 'lucide-react';
 import {
-  addDailySales, getPaymentMethods, madaFees, madaNet, MADA_FEE_RATE,
+  addDailySales, getPaymentMethods, getBranches, madaFees, madaNet, MADA_FEE_RATE,
 } from '../firebase';
 import { t, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
+import BranchPickerSheet from './BranchPickerSheet';
 
 function todayStr() {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
-export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) {
+export default function SalesFormV2({
+  setView,
+  branch,
+  branchId,
+  lang = 'ar',
+  allowBranchSwitch = false,  // للمدير: السماح بتغيير الفرع من pill
+  onBranchChange,              // callback عند تغيير الفرع
+}) {
   const [date, setDate] = useState(todayStr());
   const [cash, setCash] = useState('');
   const [mada, setMada] = useState('');
   const [transfer, setTransfer] = useState('');
   const [methods, setMethods] = useState([]);
+  const [branches, setBranches] = useState([]);
+  const [sheetOpen, setSheetOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -44,6 +55,17 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
       catch { /* تسميات افتراضية */ }
     })();
   }, []);
+
+  // جلب الفروع للـ bottom sheet (للمدير فقط)
+  useEffect(() => {
+    if (!allowBranchSwitch) return;
+    (async () => {
+      try { setBranches(await getBranches()); }
+      catch {
+        setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]);
+      }
+    })();
+  }, [allowBranchSwitch]);
 
   const labelFor = (id, fallback) => {
     const tr = translatePM(lang, id);
@@ -112,13 +134,25 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
               style={{ width: '100%', height: '100%' }}
             />
           </div>
-          <div className="tw-pill">
+          <div
+            className="tw-pill"
+            onClick={() => allowBranchSwitch && setSheetOpen(true)}
+            role={allowBranchSwitch ? 'button' : undefined}
+            tabIndex={allowBranchSwitch ? 0 : undefined}
+            style={{ cursor: allowBranchSwitch ? 'pointer' : 'default' }}
+          >
             <MapPin size={14} />
             <span>{lang === 'en' ? branch : `فرع ${branch}`}</span>
+            {allowBranchSwitch && (
+              <ChevronRight
+                size={12}
+                style={{ marginInlineStart: 'auto', opacity: 0.5, transform: 'rotate(90deg)' }}
+              />
+            )}
           </div>
         </div>
 
-        {/* كارت تفاصيل المبيعات — مطابق للـ prototype */}
+        {/* كارت تفاصيل المبيعات */}
         <div className="tw-form-card">
           <h4>
             {lang === 'en'
@@ -175,7 +209,7 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
           </div>
         </div>
 
-        {/* شريط الإجمالي - navy gradient (مطابق للـ prototype) */}
+        {/* شريط الإجمالي - navy gradient */}
         <div className="tw-total-strip">
           <small>{t(lang, 'sales.total')}</small>
           <b>
@@ -236,7 +270,7 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
           </p>
         )}
 
-        {/* أزرار الإجراءات — صف (إلغاء + حفظ) مطابق للـ prototype */}
+        {/* أزرار الإجراءات */}
         <div className="tw-btn-row" style={{ marginTop: 14 }}>
           <button
             onClick={() => setView('employeeHome')}
@@ -258,6 +292,18 @@ export default function SalesFormV2({ setView, branch, branchId, lang = 'ar' }) 
           </button>
         </div>
       </div>
+
+      {/* Bottom sheet لاختيار الفرع — يظهر فقط للمدير */}
+      {allowBranchSwitch && (
+        <BranchPickerSheet
+          open={sheetOpen}
+          branches={branches}
+          currentBranchId={branchId}
+          onPick={(id) => onBranchChange?.(id)}
+          onClose={() => setSheetOpen(false)}
+          lang={lang}
+        />
+      )}
     </div>
   );
 }
