@@ -1,26 +1,8 @@
 // src/components/ExpenseFormV2.jsx
-// ----------------------------------------------------------
-// نموذج تسجيل/تعديل المصروف — تصميم 1:1 مع الـ prototype (screen-addExpense)
-//
-// المنطق المحفوظ:
-//   - addExpense / updateExpense من firebase.js
-//   - uploadInvoiceImage (Cloudflare R2)
-//   - getCategories + getPaymentMethods
-//   - منطق الكاميرا الإجبارية: requiresImage → cameraInput, غيرها → fileInput
-//
-// التصميم (Batch 12):
-//   - .tw-controls-row pills للتاريخ + الفرع
-//   - pill التاريخ يفتح date picker (مُصلَح)
-//   - pill الفرع قابل للنقر → bottom sheet (للمدير)
-//   - .tw-chips مع .tw-chip.primary للتصنيفات الأساسية (cyan tint)
-//   - .tw-form-card لتفاصيل المصروف
-//   - .tw-photo-up (dashed → solid عند الإرفاق)
-//
-// وضع التعديل:
-//   - إذا existingRecord موجود → يعبّئ القيم + الصورة القديمة كـ preview
-//   - يحفظ بـ updateExpense
-//   - عنوان الشاشة يصير "تعديل المصروف"
-// ----------------------------------------------------------
+// نموذج تسجيل/تعديل المصروف — تصميم 1:1 مع الـ prototype
+// FIX (Batch 12.3):
+//   - التاريخ مُصلَح: label يحوي input absolute بكامل الـ pill
+//   - padding-bottom كافي عشان الزرّين ما يختفون خلف Bottom Nav
 import { useState, useEffect, useRef } from 'react';
 import {
   Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronRight, ChevronDown, X, Image as ImageIcon,
@@ -60,7 +42,6 @@ export default function ExpenseFormV2({
   const [amount, setAmount] = useState(existingRecord?.amount != null ? String(existingRecord.amount) : '');
   const [notes, setNotes] = useState(existingRecord?.notes || '');
   const [payMethod, setPayMethod] = useState(existingRecord?.paymentMethodId || 'Cash');
-  // الصورة القديمة من السجل (URL) — تُعرض كـ preview بدون تغيير حتى يختار المدير صورة جديدة
   const [existingImageUrl, setExistingImageUrl] = useState(existingRecord?.invoiceUrl || '');
   const [existingImagePath, setExistingImagePath] = useState(existingRecord?.invoicePath || '');
   const [imageFile, setImageFile] = useState(null);
@@ -87,7 +68,6 @@ export default function ExpenseFormV2({
           });
           setCategories(sorted);
           setMethods(pm);
-          // التصنيف الافتراضي فقط لو ما في categoryId مسبقاً
           if (!existingRecord) {
             const firstPrimary = sorted.find((c) => PRIMARY_TYPES.includes(c.expenseType));
             if (firstPrimary) setCategoryId(firstPrimary.id);
@@ -114,8 +94,6 @@ export default function ExpenseFormV2({
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const requiresImage = selectedCategory?.requiresImage || false;
-
-  // الصورة الفعلية المعروضة (إما الجديدة preview أو القديمة existingImageUrl)
   const visibleImage = imagePreview || existingImageUrl;
 
   const triggerPhotoCapture = () => {
@@ -136,7 +114,6 @@ export default function ExpenseFormV2({
   const removePhoto = () => {
     setImageFile(null);
     setImagePreview('');
-    // في وضع التعديل: نمسح أيضاً الصورة القديمة (لو ضغط × على القديمة)
     if (isEdit) {
       setExistingImageUrl('');
       setExistingImagePath('');
@@ -149,7 +126,6 @@ export default function ExpenseFormV2({
     setError('');
     if (!categoryId) { setError(t(lang, 'expense.err.cat')); return; }
     if (!(Number(amount) > 0)) { setError(t(lang, 'expense.err.amount')); return; }
-    // الصورة إجبارية لو التصنيف يطلبها — إلا في وضع التعديل وعنده صورة قديمة محفوظة
     if (requiresImage && !imageFile && !existingImageUrl) {
       setError(t(lang, 'expense.err.img'));
       return;
@@ -160,7 +136,6 @@ export default function ExpenseFormV2({
       let invoiceUrl = existingImageUrl || null;
       let invoicePath = existingImagePath || null;
 
-      // لو فيه صورة جديدة، نرفعها (تستبدل القديمة)
       if (imageFile) {
         setUploading(true);
         const up = await uploadInvoiceImage(imageFile);
@@ -237,8 +212,8 @@ export default function ExpenseFormV2({
         <div style={{ width: 36 }} />
       </div>
 
-      <div className="relative z-10 p-4 pb-8">
-        {/* Pills: التاريخ + الفرع — التاريخ مُصلَح */}
+      {/* FIX: pb-24 ليضمن أن الزرّين لا يختفون خلف Bottom Nav */}
+      <div className="relative z-10 p-4 pb-24">
         <div className="tw-controls-row">
           <label className="tw-pill" style={{ position: 'relative', cursor: 'pointer', flex: 1 }}>
             <Calendar size={14} />
@@ -321,12 +296,8 @@ export default function ExpenseFormV2({
           <label>{t(lang, 'expense.amount')}</label>
           <div className="tw-field">
             <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0"
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              dir="ltr"
+              type="number" inputMode="decimal" placeholder="0"
+              value={amount} onChange={(e) => setAmount(e.target.value)} dir="ltr"
             />
             <span className="tw-field-suffix">{t(lang, 'sales.currency')}</span>
           </div>
@@ -368,16 +339,13 @@ export default function ExpenseFormV2({
 
           <input
             ref={cameraInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
+            type="file" accept="image/*" capture="environment"
             onChange={onPhotoSelected}
             style={{ display: 'none' }}
           />
           <input
             ref={fileInputRef}
-            type="file"
-            accept="image/*"
+            type="file" accept="image/*"
             onChange={onPhotoSelected}
             style={{ display: 'none' }}
           />
@@ -388,7 +356,6 @@ export default function ExpenseFormV2({
               <button type="button" onClick={removePhoto} className="tw-photo-remove" aria-label="Remove photo">
                 <X size={14} />
               </button>
-              {/* في وضع التعديل: زر استبدال الصورة بصورة جديدة */}
               {isEdit && (
                 <button
                   type="button"

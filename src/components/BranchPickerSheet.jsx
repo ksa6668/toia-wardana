@@ -1,18 +1,5 @@
 // src/components/BranchPickerSheet.jsx
-// ----------------------------------------------------------
 // Bottom sheet لاختيار الفرع — مطابق للـ prototype (.tw-sheet-panel)
-//
-// الاستخدام:
-//   const [open, setOpen] = useState(false);
-//   <BranchPickerSheet
-//     open={open}
-//     branches={branches}             // [{id, name}, ...]
-//     currentBranchId={branchId}
-//     onPick={(id) => setBranchId(id)}
-//     onClose={() => setOpen(false)}
-//     lang="ar"
-//   />
-// ----------------------------------------------------------
 import { useEffect } from 'react';
 
 export default function BranchPickerSheet({
@@ -23,7 +10,6 @@ export default function BranchPickerSheet({
   onClose,
   lang = 'ar',
 }) {
-  // إغلاق بـ Escape (مفيد على الديسكتوب)
   useEffect(() => {
     if (!open) return;
     const handler = (e) => { if (e.key === 'Escape') onClose?.(); };

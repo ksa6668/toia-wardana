@@ -1,23 +1,8 @@
 // src/components/SalesFormV2.jsx
-// ----------------------------------------------------------
-// نموذج تسجيل/تعديل المبيعات — تصميم 1:1 مع الـ prototype (screen-addSale)
-//
-// المنطق المحفوظ:
-//   - addDailySales / updateDailySales من firebase.js
-//   - حسبة Mada fees (MADA_FEE_RATE, madaFees, madaNet)
-//   - i18n
-//
-// التصميم (Batch 12):
-//   - .tw-controls-row pills للتاريخ والفرع
-//   - pill التاريخ يفتح date picker (مُصلَح في هذا الـ batch)
-//   - pill الفرع قابل للنقر → bottom sheet (للمدير)
-//   - .tw-form-card مع .tw-payment-row لكل طريقة دفع
-//   - .tw-total-strip (gradient navy → blue)
-//
-// وضع التعديل:
-//   - إذا existingRecord موجود → يعبّئ القيم القديمة + يحفظ بـ updateDailySales
-//   - عنوان الشاشة يصير "تعديل المبيعات"
-// ----------------------------------------------------------
+// نموذج تسجيل/تعديل المبيعات — تصميم 1:1 مع الـ prototype
+// FIX (Batch 12.3):
+//   - التاريخ مُصلَح: label يحوي input absolute بكامل الـ pill
+//   - padding-bottom للـ container كافي عشان الزرّين ما يختفون خلف Bottom Nav
 import { useState, useEffect } from 'react';
 import {
   Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronRight, ChevronDown,
@@ -59,8 +44,7 @@ export default function SalesFormV2({
 
   useEffect(() => {
     (async () => {
-      try { setMethods(await getPaymentMethods()); }
-      catch { /* تسميات افتراضية */ }
+      try { setMethods(await getPaymentMethods()); } catch { /* ignore */ }
     })();
   }, []);
 
@@ -137,10 +121,10 @@ export default function SalesFormV2({
         <div style={{ width: 36 }} />
       </div>
 
-      <div className="relative z-10 p-4 pb-8">
+      {/* FIX: pb-24 ليضمن أن زر الحفظ لا يختفي خلف Bottom Nav */}
+      <div className="relative z-10 p-4 pb-24">
         {/* Pills: التاريخ + الفرع — التاريخ مُصلَح */}
         <div className="tw-controls-row">
-          {/* Pill التاريخ — label يحوي input فوقه opacity:0 */}
           <label className="tw-pill" style={{ position: 'relative', cursor: 'pointer', flex: 1 }}>
             <Calendar size={14} />
             <span>{dateLabel}</span>
@@ -163,7 +147,6 @@ export default function SalesFormV2({
             />
           </label>
 
-          {/* Pill الفرع */}
           <div
             className="tw-pill"
             onClick={() => allowBranchSwitch && setSheetOpen(true)}
@@ -198,12 +181,8 @@ export default function SalesFormV2({
               <span>{labelFor('Cash', t(lang, 'sales.cash'))}</span>
             </label>
             <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0"
-              value={cash}
-              onChange={(e) => setCash(e.target.value)}
-              dir="ltr"
+              type="number" inputMode="decimal" placeholder="0"
+              value={cash} onChange={(e) => setCash(e.target.value)} dir="ltr"
             />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
@@ -214,12 +193,8 @@ export default function SalesFormV2({
               <span>{labelFor('Mada', t(lang, 'sales.mada'))}</span>
             </label>
             <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0"
-              value={mada}
-              onChange={(e) => setMada(e.target.value)}
-              dir="ltr"
+              type="number" inputMode="decimal" placeholder="0"
+              value={mada} onChange={(e) => setMada(e.target.value)} dir="ltr"
             />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
@@ -230,12 +205,8 @@ export default function SalesFormV2({
               <span>{labelFor('Transfer', t(lang, 'sales.transfer'))}</span>
             </label>
             <input
-              type="number"
-              inputMode="decimal"
-              placeholder="0"
-              value={transfer}
-              onChange={(e) => setTransfer(e.target.value)}
-              dir="ltr"
+              type="number" inputMode="decimal" placeholder="0"
+              value={transfer} onChange={(e) => setTransfer(e.target.value)} dir="ltr"
             />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
@@ -250,15 +221,7 @@ export default function SalesFormV2({
         </div>
 
         {Number(mada) > 0 && (
-          <div
-            className="mt-3 rounded-2xl p-4"
-            style={{
-              background: '#FFF6E6',
-              border: '1px solid #FFD980',
-              fontSize: 12,
-              fontWeight: 700,
-            }}
-          >
+          <div className="mt-3 rounded-2xl p-4" style={{ background: '#FFF6E6', border: '1px solid #FFD980', fontSize: 12, fontWeight: 700 }}>
             <p className="text-amber-900 mb-2 flex items-center gap-1.5">
               💳 {t(lang, 'sales.madaFees')} ({(MADA_FEE_RATE * 100).toFixed(2)}%)
             </p>

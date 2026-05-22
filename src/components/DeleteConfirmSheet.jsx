@@ -1,8 +1,5 @@
 // src/components/DeleteConfirmSheet.jsx
-// ----------------------------------------------------------
 // Bottom sheet لتأكيد حذف سجل (مبيعة أو مصروف)
-// يستخدم نفس .tw-sheet-overlay و .tw-sheet-panel من index.css
-// ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import { Trash2, Loader2 } from 'lucide-react';
 
@@ -23,7 +20,6 @@ export default function DeleteConfirmSheet({
     return () => window.removeEventListener('keydown', handler);
   }, [open, onClose, deleting]);
 
-  // إعادة تعيين عند الإغلاق
   useEffect(() => {
     if (!open) setDeleting(false);
   }, [open]);

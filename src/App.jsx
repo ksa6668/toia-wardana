@@ -25,16 +25,14 @@ import {
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 import SarSymbol from './components/SarSymbol';
-// Manager screens redesigned to match the prototype experience
 import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
 import ManagerOverview from './components/ManagerOverview';
 import ManagerKpis from './components/ManagerKpis';
-// Employee screens redesigned to match the prototype experience (Batch 2)
 import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
 import EmployeeHistory from './components/EmployeeHistory';
-// Batch 12: Shared last-7-days list + delete confirmation
+// Batch 12
 import RecHistorySection from './components/RecHistorySection';
 import DeleteConfirmSheet from './components/DeleteConfirmSheet';
 // Admin settings + Goals + Branches (Batch 3)
@@ -198,7 +196,7 @@ export default function App() {
     <div className={`min-h-screen bg-tw-bg md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
          dir={pageDir}
          style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}>
-      <div className="w-full bg-white overflow-hidden flex flex-col
+      <div className="w-full bg-white overflow-hidden flex flex-col tw-app-frame
                       min-h-screen
                       md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
                       md:border-8 md:border-slate-900 md:h-[850px] md:relative">
@@ -2811,24 +2809,19 @@ function ChangeMyPin({ onBack }) {
 }
 
 // ==========================================
-// شاشة تسجيل المبيعات/المصاريف للمدير (لأي فرع)
+// شاشة "المبيعات والمصروفات" للمدير (Batch 12)
 // ==========================================
-// Batch 12: تصميم 1:1 مع البروتوتايب + تعديل/حذف للمدير
-//   - بدون شاشة اختيار فرع منفصلة
-//   - يفتح مباشرة على شاشة "المبيعات والمصروفات" مع فرع تويا افتراضياً
-//   - زرّان (مبيعات + مصاريف) + قائمة "آخر 7 أيام"
-//   - الفرع يُغيَّر من داخل النماذج عبر pill قابل للنقر → bottom sheet
-//   - كل سطر في القائمة فيه ✎ تعديل + 🗑 حذف (للمدير فقط)
+// - بدون شاشة اختيار فرع منفصلة
+// - يفتح مباشرة على شاشة الزرّين + قائمة آخر 7 أيام
+// - فرع تويا افتراضياً (للمدير)
+// - الفرع يُغيَّر من داخل النماذج عبر pill قابل للنقر → bottom sheet
+// - كل سطر في القائمة فيه ✎ تعديل + 🗑 حذف (للمدير فقط)
 function AdminDataEntry({ onBack }) {
   const [step, setStep] = useState('home'); // home | salesForm | expenseForm | editSalesForm | editExpenseForm
   const [chosenBranch, setChosenBranch] = useState('toia');
   const [branches, setBranches] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
-
-  // وضع التحرير: السجل المختار للتعديل
   const [editingRecord, setEditingRecord] = useState(null);
-
-  // وضع الحذف: السجل + التأكيد
   const [deletingRecord, setDeletingRecord] = useState(null);
   const [deleteError, setDeleteError] = useState('');
 
@@ -2856,20 +2849,17 @@ function AdminDataEntry({ onBack }) {
     setChosenBranch(newBranchId);
   };
 
-  // فتح شاشة تعديل سجل
   const handleEdit = (entry) => {
     setEditingRecord(entry);
     if (entry.kind === 'sale') setStep('editSalesForm');
     else setStep('editExpenseForm');
   };
 
-  // طلب حذف سجل (يفتح dialog التأكيد)
   const handleDeleteRequest = (entry) => {
     setDeleteError('');
     setDeletingRecord(entry);
   };
 
-  // تنفيذ الحذف فعلياً بعد التأكيد
   const handleDeleteConfirm = async () => {
     if (!deletingRecord) return;
     setDeleteError('');
@@ -2883,11 +2873,10 @@ function AdminDataEntry({ onBack }) {
       setRefreshKey((k) => k + 1);
     } catch (err) {
       setDeleteError(err?.message || 'تعذّر الحذف');
-      throw err; // للسماح للـ sheet أن يعرف فشل العملية
+      throw err;
     }
   };
 
-  // الشاشة الرئيسية: زرّان + قائمة آخر 7 أيام
   if (step === 'home') {
     return (
       <>
@@ -2912,7 +2901,7 @@ function AdminDataEntry({ onBack }) {
             <div style={{ width: 36 }} />
           </div>
 
-          <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-8">
+          <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-24">
             <div
               className="tw-card tw-action"
               onClick={() => setView('salesForm')}
@@ -2947,7 +2936,6 @@ function AdminDataEntry({ onBack }) {
               <div className="arrow">‹</div>
             </div>
 
-            {/* قائمة آخر 7 أيام مع أزرار التعديل/الحذف */}
             <RecHistorySection
               branchId={chosenBranch}
               lang="ar"
@@ -2965,7 +2953,6 @@ function AdminDataEntry({ onBack }) {
           </div>
         </div>
 
-        {/* Dialog التأكيد على الحذف */}
         <DeleteConfirmSheet
           open={!!deletingRecord}
           title={deletingRecord?.kind === 'sale' ? 'حذف هذه المبيعة؟' : 'حذف هذا المصروف؟'}
@@ -2978,7 +2965,6 @@ function AdminDataEntry({ onBack }) {
     );
   }
 
-  // نموذج المبيعات — وضع التسجيل أو التعديل
   if (step === 'salesForm' || step === 'editSalesForm') {
     return (
       <SalesFormV2
@@ -2993,7 +2979,6 @@ function AdminDataEntry({ onBack }) {
     );
   }
 
-  // نموذج المصاريف — وضع التسجيل أو التعديل
   if (step === 'expenseForm' || step === 'editExpenseForm') {
     return (
       <ExpenseFormV2

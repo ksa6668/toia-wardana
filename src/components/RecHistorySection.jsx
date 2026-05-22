@@ -1,20 +1,6 @@
 // src/components/RecHistorySection.jsx
-// ----------------------------------------------------------
-// قائمة "آخر 7 أيام" — مكوّن مشترك يُستخدم في:
-//   1) شاشة EmployeeHistory (الموظف) — read-only
-//   2) شاشة AdminDataEntry → recordOps (المدير) — مع تعديل/حذف
-//
-// تصميم 1:1 مع الـ prototype:
-//   - .tw-rec-history-section
-//   - .tw-rec-day-header  (تجميع حسب اليوم)
-//   - .tw-rec-card        (مبيعة أو مصروف)
-//   - .tw-rec-empty       (حالة فارغة)
-//
-// Batch 12: إضافة أزرار التعديل/الحذف (للمدير فقط)
-//   - props.editable=true → يظهر زر ✎ + 🗑 على كل سطر
-//   - props.onEdit(entry) → callback لفتح شاشة التعديل
-//   - props.onDelete(entry) → callback لتأكيد الحذف
-// ----------------------------------------------------------
+// قائمة "آخر 7 أيام" — مكوّن مشترك
+// editable=true → يظهر زر ✎ + 🗑 على كل سطر (للمدير)
 import { useState, useEffect, useMemo } from 'react';
 import {
   TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar, Pencil, Trash2,
@@ -42,9 +28,9 @@ export default function RecHistorySection({
   lang = 'ar',
   showTitle = true,
   refreshKey = 0,
-  editable = false,   // Batch 12: تفعيل أزرار التعديل/الحذف (للمدير)
-  onEdit,             // callback(entry) عند الضغط على ✎
-  onDelete,           // callback(entry) عند الضغط على 🗑
+  editable = false,
+  onEdit,
+  onDelete,
 }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -62,9 +48,7 @@ export default function RecHistorySection({
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
         const iso = (d) => d.toISOString().slice(0, 10);
-        const from = iso(sevenDaysAgo);
-        const to = iso(today);
-        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
+        const [s, e] = await Promise.all([getSales(iso(sevenDaysAgo), iso(today)), getExpenses(iso(sevenDaysAgo), iso(today))]);
         if (!cancelled) {
           setSales(s.filter((x) => x.branchId === branchId));
           setExpenses(e.filter((x) => x.branchId === branchId));
@@ -164,7 +148,6 @@ export default function RecHistorySection({
                   {sub && <small>{sub}</small>}
                 </div>
 
-                {/* أيقونة الصورة لو موجودة */}
                 {entry.invoiceUrl && (
                   <a
                     href={entry.invoiceUrl}
@@ -178,13 +161,11 @@ export default function RecHistorySection({
                   </a>
                 )}
 
-                {/* المبلغ */}
                 <div className={`tw-rec-amt ${isSale ? 'sale' : 'expense'}`}>
                   <span dir="ltr">{isSale ? '+' : '−'}{amt.toLocaleString('en-US')}</span>
                   <SarSymbol />
                 </div>
 
-                {/* أزرار التعديل/الحذف (للمدير فقط) */}
                 {editable && (
                   <div className="tw-rec-actions">
                     <button
@@ -192,7 +173,6 @@ export default function RecHistorySection({
                       className="tw-rec-action-btn edit"
                       onClick={() => onEdit?.(entry)}
                       title={lang === 'en' ? 'Edit' : 'تعديل'}
-                      aria-label={lang === 'en' ? 'Edit' : 'تعديل'}
                     >
                       <Pencil size={13} />
                     </button>
@@ -201,7 +181,6 @@ export default function RecHistorySection({
                       className="tw-rec-action-btn delete"
                       onClick={() => onDelete?.(entry)}
                       title={lang === 'en' ? 'Delete' : 'حذف'}
-                      aria-label={lang === 'en' ? 'Delete' : 'حذف'}
                     >
                       <Trash2 size={13} />
                     </button>

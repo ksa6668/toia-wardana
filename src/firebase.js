@@ -207,10 +207,9 @@ export async function addExpense({
 }
 
 // ========== Batch 12: تعديل/حذف المبيعات والمصاريف (للمدير فقط) ==========
-// ملاحظة: التحقق من صلاحيات المدير يتم على مستوى الـ UI (شاشة AdminDataEntry)
-// + Firestore Security Rules (يجب تحديثها للسماح بالـ update/delete للأدوار admin/owner فقط).
+// التحقق من صلاحيات المدير يتم على مستوى الـ UI + Firestore Security Rules.
 
-// تحديث مبيعة يومية مسجَّلة — يعيد حساب total/madaFees/madaNet/netTotal تلقائياً
+// تحديث مبيعة يومية — يعيد حساب total/madaFees/madaNet/netTotal تلقائياً
 export async function updateDailySales(id, { date, branchId, cash, mada, transfer }) {
   const cashN = Number(cash) || 0;
   const madaN = Number(mada) || 0;
@@ -235,12 +234,10 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
   });
 }
 
-// حذف مبيعة يومية مسجَّلة
 export async function deleteDailySales(id) {
   return deleteDoc(doc(db, "dailySales", id));
 }
 
-// تحديث مصروف مسجَّل
 export async function updateExpense(id, {
   date,
   branchId,
@@ -253,7 +250,6 @@ export async function updateExpense(id, {
   invoiceUrl,
   invoicePath,
 }) {
-  // نبني payload ديناميكياً عشان نسمح بالحفاظ على الصورة القديمة لو ما تم تغييرها
   const payload = {
     date,
     branchId,
@@ -266,14 +262,11 @@ export async function updateExpense(id, {
     updatedBy: auth.currentUser.uid,
     updatedAt: serverTimestamp(),
   };
-  // لو تم تمرير صورة جديدة (حتى لو null لإزالتها)، نُحدّثها
   if (invoiceUrl !== undefined) payload.invoiceUrl = invoiceUrl;
   if (invoicePath !== undefined) payload.invoicePath = invoicePath;
-
   return updateDoc(doc(db, "expenses", id), payload);
 }
 
-// حذف مصروف مسجَّل
 export async function deleteExpense(id) {
   return deleteDoc(doc(db, "expenses", id));
 }
