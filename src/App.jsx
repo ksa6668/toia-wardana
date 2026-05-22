@@ -26,6 +26,10 @@ import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
 import ManagerOverview from './components/ManagerOverview';
 import ManagerKpis from './components/ManagerKpis';
+// Employee screens redesigned to match the prototype experience (Batch 2)
+import SalesFormV2 from './components/SalesFormV2';
+import ExpenseFormV2 from './components/ExpenseFormV2';
+import EmployeeHistory from './components/EmployeeHistory';
 
 // ==========================================
 // أدوات تواريخ مساعدة
@@ -217,10 +221,13 @@ export default function App() {
             <EmployeeHome setView={setCurrentView} branch={branch} lang={lang} setLang={changeLang} />
           )}
           {!authLoading && currentView === 'salesForm' && (
-            <SalesForm setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+            <SalesFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
           )}
           {!authLoading && currentView === 'expenseForm' && (
-            <ExpenseForm setView={setCurrentView} branchId={branchId} lang={lang} />
+            <ExpenseFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+          )}
+          {!authLoading && currentView === 'employeeHistory' && (
+            <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
           )}
           {/* ====== شاشات المدير — مطابقة لتجربة الـ prototype ====== */}
           {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" />}
@@ -1355,7 +1362,7 @@ function EmployeeHome({ setView, branch, lang, setLang }) {
       {/* كارت تسجيل المصروفات — أبيض ناعم */}
       <button
         onClick={() => setView('expenseForm')}
-        className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform"
+        className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center gap-4 active:scale-95 transition-transform mb-3"
       >
         <div className="bg-blue-50 text-blue-600 p-3.5 rounded-xl">
           <Receipt size={28} />
@@ -1364,6 +1371,15 @@ function EmployeeHome({ setView, branch, lang, setLang }) {
           <h3 className="font-bold text-gray-800 text-lg mb-0.5">{t(lang, 'home.recordExpense')}</h3>
           <p className="text-gray-500 text-xs">{t(lang, 'home.recordExpenseD')}</p>
         </div>
+      </button>
+
+      {/* زر "آخر 7 أيام" — مدمج صغير */}
+      <button
+        onClick={() => setView('employeeHistory')}
+        className="relative z-10 w-full flex items-center justify-center gap-2 bg-white/70 backdrop-blur-sm border border-blue-100 text-blue-700 py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
+      >
+        <Calendar size={16} />
+        {lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام'}
       </button>
     </div>
   );
