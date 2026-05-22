@@ -35,6 +35,8 @@ import EmployeeHistory from './components/EmployeeHistory';
 // Batch 12
 import RecHistorySection from './components/RecHistorySection';
 import DeleteConfirmSheet from './components/DeleteConfirmSheet';
+// Batch 13
+import ProfileMenuSheet from './components/ProfileMenuSheet';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
 // Batch 5: Notifications + Receipts + Logout confirm
@@ -140,6 +142,8 @@ export default function App() {
   const [showReceipts, setShowReceipts] = useState(false);
   const [showReceiptsCategories, setShowReceiptsCategories] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [showChangePinModal, setShowChangePinModal] = useState(false);
 
   const userRole = user?.role || null;
   const branchId = user?.branchId || 'toia';
@@ -212,7 +216,7 @@ export default function App() {
                 : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`
             }
             notifCount={isAdmin ? 2 : 0}
-            onProfileClick={() => setShowLogoutConfirm(true)}
+            onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
             onNotifClick={() => isAdmin && setShowNotifications(true)}
             rtl={pageDir === 'rtl'}
           />
@@ -251,7 +255,6 @@ export default function App() {
               ManageUsersComponent={ManageUsers}
               ManageFixedExpensesComponent={ManageFixedExpenses}
               ManageCategoriesComponent={ManageCategories}
-              ChangeMyPinComponent={ChangeMyPin}
               AdminDataEntryComponent={AdminDataEntry}
             />
           )}
@@ -269,15 +272,15 @@ export default function App() {
           >
             {/*
               في RTL، أول عنصر بالـ array يظهر يمين.
-              ترتيب الـ prototype (يمين → يسار):
-                الإعدادات / المؤشرات / الرئيسية / نظرة عامة / كشف
+              ترتيب جديد (يمين → يسار):
+                كشف / المؤشرات / الرئيسية / نظرة عامة / الإعدادات
             */}
             {[
-              { key: 'settings', icon: Settings,   label: 'الإعدادات' },
+              { key: 'monthly',  icon: List,       label: 'كشف' },
               { key: 'kpis',     icon: Activity,   label: 'المؤشرات' },
               { key: 'home',     icon: Home,       label: 'الرئيسية' },
               { key: 'overview', icon: PieChart,   label: 'نظرة عامة' },
-              { key: 'monthly',  icon: List,       label: 'كشف' },
+              { key: 'settings', icon: Settings,   label: 'الإعدادات' },
             ].map((tab) => {
               const Icon = tab.icon;
               const active = adminTab === tab.key;
@@ -335,6 +338,22 @@ export default function App() {
             }}
             onCancel={() => setShowLogoutConfirm(false)}
           />
+        )}
+
+        {/* Batch 13: قائمة الحساب (تغيير الرمز + الخروج) */}
+        <ProfileMenuSheet
+          open={showProfileMenu}
+          onClose={() => setShowProfileMenu(false)}
+          onChangePin={() => setShowChangePinModal(true)}
+          onLogout={() => setShowLogoutConfirm(true)}
+          userName={user?.displayName || user?.username || 'المدير'}
+        />
+
+        {/* Batch 13: شاشة تغيير الرمز السري كـ overlay */}
+        {showChangePinModal && (
+          <div className="absolute inset-0 z-40 bg-white overflow-y-auto">
+            <ChangeMyPin onBack={() => setShowChangePinModal(false)} />
+          </div>
         )}
       </div>
     </div>

@@ -35,6 +35,7 @@ function StatCard({ value, label }) {
 export default function ManagerBackup({ onBack, lang = 'ar' }) {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [exportingType, setExportingType] = useState(null); // 'excel' | 'json' | null
   const [error, setError] = useState('');
   const [done, setDone] = useState('');
   const [branches, setBranches] = useState([]);
@@ -86,6 +87,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
   const handleExportJSON = async () => {
     setError('');
     setExporting(true);
+    setExportingType('json');
     try {
       const data = await getAllDataForBackup();
       // فلترة حسب النطاق المحدد
@@ -111,6 +113,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       setError(err?.message || 'تعذّر التصدير');
     } finally {
       setExporting(false);
+      setExportingType(null);
     }
   };
 
@@ -118,6 +121,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
   const handleExportExcel = async () => {
     setError('');
     setExporting(true);
+    setExportingType('excel');
     try {
       // dynamic import — لو ما فيه xlsx، نعرض رسالة
       let XLSX;
@@ -130,6 +134,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
             : 'تصدير Excel يحتاج تثبيت حزمة xlsx. شغّل: npm install xlsx'
         );
         setExporting(false);
+        setExportingType(null);
         return;
       }
       const data = await getAllDataForBackup();
@@ -304,8 +309,9 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
                 boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
               }}
             >
-              <Cloud size={16} />
-              {exporting && <Loader2 size={16} className="animate-spin" />}
+              {exportingType === 'excel'
+                ? <Loader2 size={16} className="animate-spin" />
+                : <Cloud size={16} />}
               {lang === 'en' ? 'Export Excel file' : 'تصدير ملف Excel'}
             </button>
 
@@ -319,8 +325,9 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
                 boxShadow: '0 6px 16px rgba(8, 39, 101, 0.25)',
               }}
             >
-              <Cloud size={16} />
-              {exporting && <Loader2 size={16} className="animate-spin" />}
+              {exportingType === 'json'
+                ? <Loader2 size={16} className="animate-spin" />
+                : <Cloud size={16} />}
               {lang === 'en' ? 'Export full backup (JSON)' : 'تصدير نسخة كاملة (JSON)'}
             </button>
 

@@ -16,6 +16,7 @@ import {
   getBranches, getMonthlyGoal, setMonthlyGoal,
 } from '../firebase';
 import BottomSheet from './BottomSheet';
+import BranchIcon from './BranchIcon';
 import SarSymbol from './SarSymbol';
 import { getAvailableMonths, formatMonthLabel } from '../utils/periodHelpers';
 
@@ -151,7 +152,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
             <div className="flex items-center gap-3">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
               <div className="flex items-center gap-2 px-3 py-1.5 bg-tw-soft border border-tw-line rounded-full">
-                <span className="text-tw-blue">🌸</span>
+                <BranchIcon size={14} className="text-tw-blue" />
                 <span className="text-sm font-bold text-tw-navy">
                   {lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`)}
                 </span>

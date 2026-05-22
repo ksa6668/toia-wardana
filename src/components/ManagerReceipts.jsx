@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { ChevronRight, Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, FileText, X, Settings } from 'lucide-react';
 import { getExpenses } from '../firebase';
 import SarSymbol from './SarSymbol';
+import SheetPortal from './SheetPortal';
 
 // شاشة الإيصالات والفواتير — تعرض المصاريف اللي عليها صورة فاتورة
 // الفلاتر: الفترة (آخر 7 أيام / آخر 30 يوم / الكل) + الفرع (تويا / وردانة / الكل)
@@ -197,23 +198,26 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
 
       {/* Modal عرض الصورة */}
       {selectedImage && (
-        <div
-          className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4"
-          onClick={() => setSelectedImage(null)}
-        >
-          <button
+        <SheetPortal>
+          <div
+            className="absolute inset-0 bg-black/80 flex items-center justify-center p-4"
+            style={{ zIndex: 70 }}
             onClick={() => setSelectedImage(null)}
-            className="absolute top-4 left-4 p-2 bg-white/10 backdrop-blur rounded-full text-white hover:bg-white/20"
           >
-            <X size={24} />
-          </button>
-          <img
-            src={selectedImage}
-            alt="فاتورة"
-            className="max-w-full max-h-full rounded-xl shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          />
-        </div>
+            <button
+              onClick={() => setSelectedImage(null)}
+              className="absolute top-4 left-4 p-2 bg-white/10 backdrop-blur rounded-full text-white hover:bg-white/20"
+            >
+              <X size={24} />
+            </button>
+            <img
+              src={selectedImage}
+              alt="فاتورة"
+              className="max-w-full max-h-full rounded-xl shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            />
+          </div>
+        </SheetPortal>
       )}
     </div>
   );
@@ -268,21 +272,21 @@ function ReceiptCard({ expense, onViewImage }) {
 
 function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-end justify-center bg-black/40"
-      onClick={onClose}
-    >
+    <SheetPortal>
       <div
-        className="bg-white w-full md:max-w-md rounded-t-3xl p-5 space-y-5 max-h-[80vh] overflow-y-auto"
-        onClick={(e) => e.stopPropagation()}
+        className="tw-sheet-overlay show"
+        onClick={onClose}
+      />
+      <div
+        className="tw-sheet-panel show"
+        style={{ padding: '18px 18px 26px' }}
       >
-        {/* مقبض السحب */}
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto"></div>
+        <div className="tw-sheet-grab"></div>
 
-        <h3 className="text-lg font-bold text-tw-navy text-center">تصفية الفواتير</h3>
+        <h3 className="text-lg font-bold text-tw-navy text-center" style={{ marginBottom: 14 }}>تصفية الفواتير</h3>
 
         {/* الفترة */}
-        <div>
+        <div style={{ marginBottom: 14 }}>
           <label className="text-xs font-bold text-tw-muted mb-2 block">الفترة</label>
           <div className="grid grid-cols-3 gap-2">
             {PERIOD_OPTIONS.map((p) => (
@@ -302,7 +306,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
         </div>
 
         {/* الفرع */}
-        <div>
+        <div style={{ marginBottom: 18 }}>
           <label className="text-xs font-bold text-tw-muted mb-2 block">الفرع</label>
           <div className="grid grid-cols-3 gap-2">
             {BRANCH_OPTIONS.map((b) => (
@@ -329,6 +333,6 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
           تطبيق
         </button>
       </div>
-    </div>
+    </SheetPortal>
   );
 }

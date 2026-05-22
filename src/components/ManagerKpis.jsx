@@ -1,19 +1,19 @@
 // src/components/ManagerKpis.jsx
 // ----------------------------------------------------------
 // شاشة المؤشرات (KPIs) للمدير
-// مطابقة لتصميم section#screen-kpis في الـ prototype.
-//
-// تعرض:
-//   1) تبويبات شهري/سنوي
-//   2) منتقي الفترة + منتقي الفرع
-//   3) أداء أسبوعي (4 كروت) أو ربعي (4 كروت)
-//   4) قائمة مؤشرات إضافية (مثل: نسبة الورد، التوصيل، التسويق)
-//
-// يحسب المؤشرات من Firestore عبر firebase.js
+// Batch 13:
+//   - تبويبات شهري/سنوي بنفس tw-tabs style كـ ManagerHome
+//   - period-picker بنفس tw-period-picker style
+//   - النسب الجديدة:
+//       • نسبة الكاش من المبيعات
+//       • نسبة مدى من المبيعات
+//       • نسبة التحويل (أون لاين) من المبيعات
+//       • نسبة الأون من المتجر (التحويل / كاش+مدى)
+//   - حذف: نسبة التسويق، نسبة المصاريف من المبيعات
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, ChevronDown, MapPin, Flower2, Truck, Megaphone, Wallet, Loader2 } from 'lucide-react';
-import { getSales, getExpenses } from '../firebase';
+import { Calendar, ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Loader2 } from 'lucide-react';
+import { getSales } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import {
@@ -54,7 +54,7 @@ function PeriodCard({ label, amount, pct }) {
 
 // صف KPI واحد (أيقونة + اسم + نسبة)
 function KpiRow({ icon: Icon, label, pct }) {
-  const p = Math.max(0, Math.min(100, pct));
+  const p = Math.max(0, Math.min(100, Math.round(pct) || 0));
   return (
     <div className="flex items-center justify-between py-3 border-b border-tw-line last:border-0">
       <div className="flex items-center gap-3">
@@ -63,7 +63,6 @@ function KpiRow({ icon: Icon, label, pct }) {
         </div>
         <span className="text-sm font-bold text-tw-navy">{label}</span>
       </div>
-      {/* مؤشر دائري بسيط: نص داخل دائرة ملونة */}
       <div className="relative w-11 h-11 flex items-center justify-center">
         <svg className="absolute inset-0 -rotate-90" viewBox="0 0 44 44">
           <circle cx="22" cy="22" r="18" fill="none" stroke="#e5e7eb" strokeWidth="4" />
@@ -93,7 +92,6 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => {
@@ -103,8 +101,8 @@ export default function ManagerKpis({ lang = 'ar' }) {
       setError('');
       try {
         const { from, to } = period === 'month' ? monthRange(selectedMonth) : yearRange(selectedYear);
-        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
-        if (!cancelled) { setSales(s); setExpenses(e); }
+        const s = await getSales(from, to);
+        if (!cancelled) setSales(s);
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
       } finally {
@@ -119,12 +117,8 @@ export default function ManagerKpis({ lang = 'ar' }) {
     () => branchFilter === 'all' ? sales : sales.filter((s) => s.branchId === branchFilter),
     [sales, branchFilter]
   );
-  const filteredExpenses = useMemo(
-    () => branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter),
-    [expenses, branchFilter]
-  );
 
-  // حساب أداء الأسابيع/الأرباع
+  // أداء الأسابيع/الأرباع
   const periodCards = useMemo(() => {
     const ranges = period === 'month'
       ? splitMonthToWeeks(selectedMonth)
@@ -142,40 +136,37 @@ export default function ManagerKpis({ lang = 'ar' }) {
     });
   }, [period, selectedMonth, selectedYear, filteredSales, lang]);
 
-  // مؤشرات نسبية: مصاريف الورد/التوصيل/التسويق كنسبة من المبيعات
+  // النسب الجديدة (Batch 13.10)
   const kpiRows = useMemo(() => {
-    const totalSales = filteredSales.reduce((sum, s) => sum + (s.total || 0), 0) || 1;
-    const sumByType = (type) =>
-      filteredExpenses
-        .filter((e) => e.expenseType === type || e.category === type)
-        .reduce((sum, e) => sum + (e.amount || 0), 0);
-    const flowers = sumByType('flower');
-    const delivery = sumByType('delivery');
-    const marketing = sumByType('marketing');
-    const totalExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
+    const totalMada = filteredSales.reduce((s, x) => s + (Number(x.mada) || 0), 0);
+    const totalTransfer = filteredSales.reduce((s, x) => s + (Number(x.transfer) || 0), 0);
+    const totalSales = totalCash + totalMada + totalTransfer || 1;
+    const storeOnly = totalCash + totalMada || 1; // كاش + مدى = المتجر
+
     return [
       {
-        icon: Flower2,
-        label: lang === 'en' ? 'Flowers cost ratio' : 'نسبة تكلفة الورد',
-        pct: Math.round((flowers / totalSales) * 100),
-      },
-      {
-        icon: Truck,
-        label: lang === 'en' ? 'Delivery cost ratio' : 'نسبة تكلفة التوصيل',
-        pct: Math.round((delivery / totalSales) * 100),
-      },
-      {
-        icon: Megaphone,
-        label: lang === 'en' ? 'Marketing ratio' : 'نسبة التسويق',
-        pct: Math.round((marketing / totalSales) * 100),
-      },
-      {
         icon: Wallet,
-        label: lang === 'en' ? 'Total expenses ratio' : 'إجمالي المصاريف من المبيعات',
-        pct: Math.round((totalExp / totalSales) * 100),
+        label: lang === 'en' ? 'Cash ratio of sales' : 'نسبة الكاش من المبيعات',
+        pct: (totalCash / totalSales) * 100,
+      },
+      {
+        icon: CreditCard,
+        label: lang === 'en' ? 'Mada ratio of sales' : 'نسبة مدى من المبيعات',
+        pct: (totalMada / totalSales) * 100,
+      },
+      {
+        icon: Send,
+        label: lang === 'en' ? 'Transfer ratio of sales' : 'نسبة التحويل من المبيعات',
+        pct: (totalTransfer / totalSales) * 100,
+      },
+      {
+        icon: Globe,
+        label: lang === 'en' ? 'Online ratio of store sales' : 'نسبة الأون لاين من المتجر',
+        pct: (totalTransfer / storeOnly) * 100,
       },
     ];
-  }, [filteredSales, filteredExpenses, lang]);
+  }, [filteredSales, lang]);
 
   const openPeriodPicker = () => {
     if (period === 'month') {
@@ -194,6 +185,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
       });
     }
   };
+
   const openBranchPicker = () => setSheet({
     title: lang === 'en' ? 'Pick branch' : 'اختر الفرع',
     options: [
@@ -217,52 +209,42 @@ export default function ManagerKpis({ lang = 'ar' }) {
 
   return (
     <div
-      className="min-h-full px-4 pt-4 pb-8"
-      style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
-        fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
-      }}
+      className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
+      style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
-      {/* تبويبات شهري/سنوي */}
-      <div className="flex bg-tw-soft p-1 rounded-xl mb-3">
-        <button
+      {/* تبويبات شهري/سنوي — نفس style كـ ManagerHome */}
+      <div className="tw-tabs relative z-10">
+        <span
           onClick={() => setPeriod('month')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-            period === 'month' ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
-          }`}
+          className={period === 'month' ? 'active' : ''}
         >
           {lang === 'en' ? 'Monthly' : 'شهري'}
-        </button>
-        <button
+        </span>
+        <span
           onClick={() => setPeriod('year')}
-          className={`flex-1 py-2 rounded-lg text-xs font-bold transition-all ${
-            period === 'year' ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
-          }`}
+          className={period === 'year' ? 'active' : ''}
         >
           {lang === 'en' ? 'Yearly' : 'سنوي'}
-        </button>
+        </span>
       </div>
 
-      {/* أزرار التحكم */}
-      <div className="flex gap-2 mb-4">
-        <button
-          onClick={openPeriodPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
-        >
-          <Calendar size={14} className="text-tw-blue" />
-          <span className="font-bold text-xs text-tw-navy">{periodLabel}</span>
-          <ChevronDown size={12} className="text-tw-muted/70" />
-        </button>
-        <button
-          onClick={openBranchPicker}
-          className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
-        >
+      {/* منتقي الفترة + منتقي الفرع */}
+      <div className="flex gap-2 relative z-10 mb-3">
+        <div onClick={openPeriodPicker} className="tw-period-picker" style={{ flex: 1, margin: 0 }}>
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          <span className="font-num">{periodLabel}</span>
+          <ChevronDown size={14} className="text-tw-muted" />
+        </div>
+        <div onClick={openBranchPicker} className="tw-period-picker" style={{ flex: 1, margin: 0 }}>
           <MapPin size={14} className="text-tw-blue" />
-          <span className="font-bold text-xs text-tw-navy">
-            {lang === 'en' ? `Branch: ${branchLabel}` : `الفرع: ${branchLabel}`}
-          </span>
-          <ChevronDown size={12} className="text-tw-muted/70" />
-        </button>
+          <span>{lang === 'en' ? `Branch: ${branchLabel}` : `الفرع: ${branchLabel}`}</span>
+          <ChevronDown size={14} className="text-tw-muted" />
+        </div>
       </div>
 
       {loading && (
@@ -291,7 +273,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
             ))}
           </div>
 
-          {/* قائمة المؤشرات */}
+          {/* قائمة المؤشرات الجديدة */}
           <div className="bg-white rounded-2xl border border-tw-line shadow-sm px-4 py-2">
             {kpiRows.map((row, i) => (
               <KpiRow key={i} icon={row.icon} label={row.label} pct={row.pct} />

@@ -1,15 +1,14 @@
 // src/components/AdminSettingsV2.jsx
 // ----------------------------------------------------------
 // قائمة إعدادات المدير الرئيسية
-// مطابقة لتصميم section#screen-settings في الـ prototype.
-//
-// يتنقل بين شاشات فرعية باستخدام state داخلي screen.
-// كل شاشة فرعية تستقبل onBack للعودة لـ menu.
+// Batch 13:
+//   - "تغيير الرمز السري" انتقل لقائمة الحساب من زر الـ profile
+//   - "المبيعات والمصروفات" صار بنفس لون باقي الإعدادات (blue)
 // ----------------------------------------------------------
 import { useState } from 'react';
 import {
   ChevronRight, Target, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
-  Activity, Key, PieChart, FileText,
+  PieChart,
 } from 'lucide-react';
 import ManagerGoals from './ManagerGoals';
 import ManagerBranches from './ManagerBranches';
@@ -18,20 +17,10 @@ import ManagerNotifications from './ManagerNotifications';
 import ManagerBackup from './ManagerBackup';
 import ManagerReceipts from './ManagerReceipts';
 
-// عناصر القائمة — كل عنصر له:
-//   key: للتنقل
-//   label, desc: للعرض
-//   icon: من lucide
-//   color: نمط الأيقونة
-//   enabled: هل الميزة جاهزة؟
-// عناصر القائمة بترتيب الـ prototype:
-// المبيعات والمصروفات / الأهداف الشهرية / المصاريف الثابتة / الإيصالات والفواتير
-// النسخ الاحتياطي / التنبيهات والإشعارات / المستخدمون والصلاحيات / إدارة الفروع
-// التصنيفات / تغيير رمزي السري / الإعدادات العامة
 const ITEMS = [
   {
     key: 'adminEntry',
-    icon: PieChart, color: 'cyan',
+    icon: PieChart, color: 'blue',
     label: { ar: 'المبيعات والمصروفات', en: 'Sales & Expenses' },
     desc: { ar: 'تسجيل وتعديل وحذف عمليات آخر 7 أيام', en: 'Record, edit and delete operations from last 7 days' },
     enabled: true,
@@ -92,56 +81,29 @@ const ITEMS = [
     desc: { ar: 'اللغة، العملة، نظام التاريخ، اسم النشاط', en: 'Language, currency, date system, business name' },
     enabled: true,
   },
-  {
-    key: 'myPin',
-    icon: Key, color: 'slate',
-    label: { ar: 'تغيير رمزي السري', en: 'Change My PIN' },
-    desc: { ar: 'تحديث رمزك أنت', en: 'Update your own PIN' },
-    enabled: true,
-  },
 ];
 
 const colorMap = {
   blue: 'bg-tw-soft text-tw-blue',
   emerald: 'bg-emerald-50 text-tw-green',
   amber: 'bg-amber-50 text-tw-orange',
-  sky: 'bg-sky-50 text-sky-600',
-  rose: 'bg-rose-50 text-rose-600',
-  violet: 'bg-violet-50 text-violet-600',
-  orange: 'bg-orange-50 text-orange-600',
   slate: 'bg-tw-soft text-tw-muted',
-  gray: 'bg-tw-soft text-tw-muted',
-  cyan: 'bg-cyan-50 text-cyan-600',
-  indigo: 'bg-indigo-50 text-indigo-600',
 };
 
-/**
- * AdminSettingsV2: قائمة الإعدادات الرئيسية + التنقل للشاشات الفرعية.
- *
- * يستخدم الـ legacy components من App.jsx للشاشات القديمة (users, fixed, categories, myPin, adminEntry)
- * لتجنب إعادة كتابتها (تعمل ممتازة، فقط تصميم القائمة الذي يحتاج تحديث).
- *
- * يستخدم الـ V2 الجديد للشاشات الجديدة (goals, branches).
- */
 export default function AdminSettingsV2({
   lang = 'ar',
-  // الشاشات القديمة (تأتي كـ children من App.jsx بدل ما نعيد كتابتها)
   ManageUsersComponent,
   ManageFixedExpensesComponent,
   ManageCategoriesComponent,
-  ChangeMyPinComponent,
   AdminDataEntryComponent,
 }) {
   const [screen, setScreen] = useState('menu');
-  // Batch 11: شاشة التصنيفات المنبثقة من داخل الإيصالات
   const [showCategoriesFromReceipts, setShowCategoriesFromReceipts] = useState(false);
   const goBack = () => setScreen('menu');
 
-  // التنقل للشاشات الفرعية
   if (screen === 'users' && ManageUsersComponent) return <ManageUsersComponent onBack={goBack} />;
   if (screen === 'fixed' && ManageFixedExpensesComponent) return <ManageFixedExpensesComponent onBack={goBack} />;
   if (screen === 'categories' && ManageCategoriesComponent) return <ManageCategoriesComponent onBack={goBack} />;
-  if (screen === 'myPin' && ChangeMyPinComponent) return <ChangeMyPinComponent onBack={goBack} />;
   if (screen === 'adminEntry' && AdminDataEntryComponent) return <AdminDataEntryComponent onBack={goBack} />;
   if (screen === 'goals') return <ManagerGoals onBack={goBack} lang={lang} />;
   if (screen === 'branches') return <ManagerBranches onBack={goBack} lang={lang} />;
@@ -149,7 +111,6 @@ export default function AdminSettingsV2({
   if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;
   if (screen === 'backup') return <ManagerBackup onBack={goBack} lang={lang} />;
   if (screen === 'receipts') {
-    // Batch 11: التصنيفات تُفتح كـ overlay من داخل شاشة الإيصالات
     if (showCategoriesFromReceipts && ManageCategoriesComponent) {
       return <ManageCategoriesComponent onBack={() => setShowCategoriesFromReceipts(false)} />;
     }
@@ -189,19 +150,13 @@ export default function AdminSettingsV2({
                   : 'opacity-50 cursor-not-allowed'
               }`}
             >
-              {/* السهم — يسار في RTL */}
               <ChevronRight size={18} className={`text-tw-muted flex-shrink-0 ${lang === 'en' ? '' : 'rotate-180'}`} />
-              {/* النص في الوسط — اتجاه يميني */}
               <div className={`flex-1 ${lang === 'en' ? 'text-left' : 'text-right'} min-w-0`}>
                 <p className="text-base font-extrabold text-tw-navy truncate">
                   {item.label[lang]}
-                  {!isActive && <span className="text-xs text-tw-muted font-normal mr-2">
-                    ({lang === 'en' ? 'soon' : 'قريباً'})
-                  </span>}
                 </p>
                 <p className="text-xs text-tw-muted truncate mt-0.5">{item.desc[lang]}</p>
               </div>
-              {/* الأيقونة — يمين في RTL */}
               <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorMap[item.color]}`}>
                 <Icon size={20} strokeWidth={2} />
               </div>

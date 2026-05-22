@@ -60,11 +60,19 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
     setSaving(true);
     try {
       await setAppSettings({ businessName, contactPhone, defaultLang, currency, dateSystem });
+      // حفظ اللغة في localStorage عشان تُطبَّق فوراً عند إعادة التحميل
+      try {
+        localStorage.setItem('tw-lang', defaultLang);
+        localStorage.setItem('tw-currency', currency);
+        localStorage.setItem('tw-dateSystem', dateSystem);
+      } catch { /* ignore */ }
       setDone(true);
-      setTimeout(() => setDone(false), 2500);
+      // إعادة تحميل الصفحة بعد ثانية ليطبّق التغييرات (اللغة/الاتجاه)
+      setTimeout(() => {
+        window.location.reload();
+      }, 1200);
     } catch (err) {
       setError(err?.message || 'تعذّر حفظ الإعدادات');
-    } finally {
       setSaving(false);
     }
   };
