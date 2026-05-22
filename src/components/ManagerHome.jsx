@@ -17,6 +17,7 @@ import {
   getAvailableMonths, getAvailableYears, formatMonthLabel,
   monthRange, yearRange,
 } from '../utils/periodHelpers';
+import { addNotification } from './NotificationsCenter';
 
 const NAVY_GRADIENT = {
   background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
@@ -46,18 +47,55 @@ function KpiCard({ label, percent, showStars }) {
   );
 }
 
+// SVG شعار صغير يطابق الـ prototype: 4 ورقات أزرق
+// أيقونة الفرع — مطابقة لـ #i-flower symbol في الـ prototype
+// شكل دوّار بأربع أذرع منحنية متعامدة، خطوط زرقاء stroke فقط
+function WindmillIcon({ size = 16 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="#005BFF"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <circle cx="12" cy="12" r="2.5" />
+      <path d="M12 9.5V4a3 3 0 1 1 3 3" />
+      <path d="M14.5 12H20a3 3 0 1 1-3 3" />
+      <path d="M12 14.5V20a3 3 0 1 1-3-3" />
+      <path d="M9.5 12H4a3 3 0 1 1 3-3" />
+    </svg>
+  );
+}
+
 // قسم لكل فرع (عنوان + شبكة 2×1)
 function BranchSection({ name, budgetPct, reviewsPct, lang }) {
   return (
-    <div className="mb-5">
-      {/* فاصل اسم الفرع — خطين مع الاسم في المنتصف */}
-      <div className="flex items-center gap-3 mb-3">
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-blue-50 border border-blue-100 rounded-full">
-          <span className="text-blue-600">🌸</span>
-          <span className="text-sm font-bold text-slate-700">{name}</span>
+    <div className="mb-7">
+      {/* فاصل اسم الفرع — خطين مع chip في المنتصف */}
+      <div className="flex items-center gap-2.5 mb-4">
+        <div
+          className="flex-1 h-px opacity-50"
+          style={{ background: 'linear-gradient(90deg, transparent, #005BFF, transparent)' }}
+        />
+        <div
+          className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-full whitespace-nowrap"
+          style={{
+            background: '#EEF5FF',
+            border: '1.5px solid #005BFF',
+          }}
+        >
+          <WindmillIcon size={14} />
+          <span className="text-sm font-extrabold text-tw-navy2">{name}</span>
         </div>
-        <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
+        <div
+          className="flex-1 h-px opacity-50"
+          style={{ background: 'linear-gradient(90deg, transparent, #005BFF, transparent)' }}
+        />
       </div>
       <div className="grid grid-cols-2 gap-3">
         <KpiCard
@@ -153,6 +191,23 @@ export default function ManagerHome({ lang }) {
         }
         setBranches(brs);
         setBranchKpis(kpisMap);
+
+        // إذا لم يتم تحديد أي أهداف، أرسل إشعاراً (مرة واحدة في اليوم لكل شهر)
+        const hasAnyGoals = Object.values(kpisMap).some((k) => k.hasGoal);
+        if (!hasAnyGoals && brs.length > 0) {
+          const notifKey = `goals_reminder_${selectedMonth || selectedYear}_${new Date().toDateString()}`;
+          try {
+            if (!localStorage.getItem(notifKey)) {
+              addNotification({
+                title: 'تذكير: الأهداف الشهرية',
+                body: 'لم يتم تحديد أهداف لهذا الشهر بعد. حدّدها من الإعدادات.',
+                emoji: '🎯',
+                type: 'reminder',
+              });
+              localStorage.setItem(notifKey, '1');
+            }
+          } catch { /* localStorage may fail in private mode */ }
+        }
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
       } finally {
@@ -248,15 +303,6 @@ export default function ManagerHome({ lang }) {
           />
         );
       })}
-
-      {/* رسالة لو ما فيه أهداف محددة */}
-      {!loading && !error && branches.length > 0 && Object.values(branchKpis).every((k) => !k.hasGoal) && (
-        <p className="text-amber-700 text-xs text-center bg-amber-50 border border-amber-100 rounded-lg p-3 mt-2">
-          {lang === 'en'
-            ? 'No goals set yet. Set monthly goals from Settings.'
-            : 'لم يتم تحديد أهداف بعد. حدّد الأهداف الشهرية من الإعدادات.'}
-        </p>
-      )}
 
       {/* القائمة المنبثقة */}
       <BottomSheet

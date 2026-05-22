@@ -6,7 +6,7 @@ import {
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
   Key, UserX, UserCheck, Trash2, Edit3,
-  Home
+  Home, List
 } from 'lucide-react';
 import {
   login, logout, watchAuth,
@@ -202,8 +202,10 @@ export default function App() {
             title="Toia & Wardana"
             subtitle={
               isAdmin
-                ? (user?.displayName ? `مرحباً، ${user.displayName}` : 'لوحة المدير')
-                : (branch ? `مرحباً، ${branch}` : (user?.displayName || ''))
+                // شاشة المدير: "مرحباً، {اسمه الشخصي}"
+                ? `مرحباً، ${user?.displayName || user?.username || 'المدير'}`
+                // شاشة الموظف: "مرحباً، تويا" أو "مرحباً، وردانة" حسب الفرع
+                : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`
             }
             notifCount={isAdmin ? 2 : 0}
             onProfileClick={() => setShowLogoutConfirm(true)}
@@ -271,7 +273,7 @@ export default function App() {
               { key: 'kpis',     icon: Activity,   label: 'المؤشرات' },
               { key: 'home',     icon: Home,       label: 'الرئيسية' },
               { key: 'overview', icon: PieChart,   label: 'نظرة عامة' },
-              { key: 'monthly',  icon: BarChart3,  label: 'كشف' },
+              { key: 'monthly',  icon: List,       label: 'كشف' },
             ].map((tab) => {
               const Icon = tab.icon;
               const active = adminTab === tab.key;
