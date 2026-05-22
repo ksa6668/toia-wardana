@@ -171,13 +171,21 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
 
 // تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
 export function classifyExpense(categoryId) {
+  if (!categoryId) return "general";
+  // normalize: lowercase + strip whitespace + remove "ال" prefix for matching
+  const k = String(categoryId).trim();
   // التصنيفات الأربعة الأساسية — مظللة باللون الأزرق المميّز في الـ UI
-  if (categoryId === "ورد") return "flower";
-  if (categoryId === "توصيل") return "delivery";
-  if (categoryId === "طلبات عملاء" || categoryId === "طلبات العملاء") return "customerOrders";
-  if (categoryId === "مستلزمات وبضائع" || categoryId === "مستلزمات" || categoryId === "بضائع") return "supplies";
+  if (k === "ورد" || k === "flower" || k === "الورد") return "flower";
+  if (k === "توصيل" || k === "delivery" || k === "التوصيل") return "delivery";
+  if (
+    k === "طلبات العملاء" || k === "طلبات عملاء" || k === "customer_orders" || k === "customerOrders"
+  ) return "customerOrders";
+  if (
+    k === "مستلزمات وبضائع" || k === "مستلزمات" || k === "بضائع" || k === "supplies" ||
+    k === "المستلزمات" || k === "المستلزمات والبضائع"
+  ) return "supplies";
   // التصنيفات الثانوية
-  if (categoryId === "تسويق") return "marketing";
+  if (k === "تسويق" || k === "marketing" || k === "التسويق") return "marketing";
   return "general";
 }
 
@@ -451,7 +459,17 @@ export async function getCategories() {
     return DEFAULT_CATEGORIES.map((c) => ({ ...c, active: true }));
   }
   return snap.docs
-    .map((d) => ({ id: d.id, ...d.data() }))
+    .map((d) => {
+      const data = { id: d.id, ...d.data() };
+      // Batch 16: auto-heal — إذا expenseType مفقود أو غلط، استنتجه من name/id
+      if (!data.expenseType || data.expenseType === 'general') {
+        const inferred = classifyExpense(data.id) !== 'general'
+          ? classifyExpense(data.id)
+          : classifyExpense(data.name);
+        if (inferred !== 'general') data.expenseType = inferred;
+      }
+      return data;
+    })
     .filter((c) => c.active !== false)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
 }
@@ -643,22 +661,28 @@ export async function getMonthlyGoal(branchId, monthStr) {
 }
 
 /**
- * يحفظ هدف فرع لشهر معين. الـ data: { budget, reviewsTarget }
+ * يحفظ هدف فرع لشهر معين. الـ data: { budget, reviewsTarget, reviewsAchieved? }
+ * Batch 16: يدعم تحديث reviewsAchieved (التقييمات المُحقّقة) باستقلال.
  */
 export async function setMonthlyGoal(branchId, monthStr, data) {
   const goalId = `${branchId}_${monthStr}`;
   const ref = doc(db, "goals", goalId);
-  await setDoc(
-    ref,
-    {
-      budget: Number(data.budget) || 0,
-      reviewsTarget: Number(data.reviewsTarget) || 0,
-      branchId,
-      month: monthStr,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
+  const payload = {
+    branchId,
+    month: monthStr,
+    updatedAt: serverTimestamp(),
+  };
+  if (data.budget !== undefined) payload.budget = Number(data.budget) || 0;
+  if (data.reviewsTarget !== undefined) payload.reviewsTarget = Number(data.reviewsTarget) || 0;
+  if (data.reviewsAchieved !== undefined) payload.reviewsAchieved = Number(data.reviewsAchieved) || 0;
+  await setDoc(ref, payload, { merge: true });
+}
+
+/**
+ * Batch 16: تحديث عدد التقييمات المُحقّقة فقط (للنقر المزدوج على كرت التقييمات)
+ */
+export async function setReviewsAchieved(branchId, monthStr, achieved) {
+  return setMonthlyGoal(branchId, monthStr, { reviewsAchieved: achieved });
 }
 
 /**

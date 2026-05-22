@@ -82,7 +82,14 @@ export default function ExpenseFormV2({
         const [cats, pm] = await Promise.all([getCategories(), getPaymentMethods()]);
         if (!cancelled) {
           const orderMap = { flower: 1, delivery: 2, customerOrders: 3, supplies: 4 };
-          const typeOf = (c) => c.expenseType || classifyExpense(c.name || c.id);
+          const typeOf = (c) => {
+            const t1 = c.expenseType;
+            const t2 = classifyExpense(c.id);
+            const t3 = classifyExpense(c.name);
+            return PRIMARY_TYPES.includes(t1) ? t1
+              : PRIMARY_TYPES.includes(t2) ? t2
+              : t3;
+          };
           const sorted = [...cats].sort((a, b) => {
             const ra = orderMap[typeOf(a)] || 99;
             const rb = orderMap[typeOf(b)] || 99;
@@ -281,8 +288,13 @@ export default function ExpenseFormV2({
         ) : (
           <div className="tw-chips">
             {categories.map((c) => {
-              // primary إذا كان expenseType من الأربعة، أو إذا الـ classifier يعتبره أحدها
-              const effectiveType = c.expenseType || classifyExpense(c.name || c.id);
+              // primary check: نتحقق من expenseType، id، name — أي منها يطابق الأربعة
+              const t1 = c.expenseType;
+              const t2 = classifyExpense(c.id);
+              const t3 = classifyExpense(c.name);
+              const effectiveType = PRIMARY_TYPES.includes(t1) ? t1
+                : PRIMARY_TYPES.includes(t2) ? t2
+                : t3;
               const isPrimary = PRIMARY_TYPES.includes(effectiveType);
               const isActive = c.id === categoryId;
               const classes = ['tw-chip'];

@@ -1309,41 +1309,39 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
   const align = lang === 'en' ? 'text-left' : 'text-right';
   const toggleLang = () => setLang(lang === 'ar' ? 'en' : 'ar');
 
-  // اسم الشهر الحالي بتنسيق "مايو 2026" / "May 2026"
+  // اسم الشهر الحالي بالميلادي (Gregorian) فقط — Batch 16
   const monthLabel = new Date().toLocaleDateString(
-    lang === 'en' ? 'en-US' : 'ar-SA',
+    lang === 'en' ? 'en-US' : 'ar-EG', // ar-EG يستخدم الميلادي
     { month: 'long', year: 'numeric' }
   );
 
-  // ====== KPIs الحقيقية من Firestore (Batch 3) ======
+  // ====== KPIs الحقيقية من Firestore ======
   const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, loaded: false });
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
     (async () => {
       try {
-        // الشهر الحالي بصيغة YYYY-MM
         const d = new Date();
         const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-        // نطاق الشهر
         const from = `${monthStr}-01`;
         const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
         const to = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
-        // جلب الهدف + المبيعات بالتوازي
         const [goal, allSales] = await Promise.all([
           getMonthlyGoal(branchId, monthStr),
           getSales(from, to),
         ]);
-        // فلتر مبيعات هذا الفرع
         const branchSales = allSales.filter((s) => s.branchId === branchId);
         const totalSales = branchSales.reduce((sum, s) => sum + (s.total || 0), 0);
         const budgetPct = goal.budget > 0
           ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
           : 0;
-        // التقييمات: نقرأها من الـ goal (لا يوجد API لقراءتها من Google Maps حالياً)
-        // ⚠️ TODO: ربط Google Places API لاحقاً.
-        // الآن: الـ goal يحوي reviewsTarget فقط، نعرض 0% حتى يتم الربط.
-        const reviewsPct = 0;
+        // التقييمات المُحقّقة من Firestore (Batch 16)
+        const reviewsAchieved = Number(goal.reviewsAchieved) || 0;
+        const reviewsTarget = Number(goal.reviewsTarget) || 0;
+        const reviewsPct = reviewsTarget > 0
+          ? Math.min(100, Math.round((reviewsAchieved / reviewsTarget) * 100))
+          : 0;
         if (!cancelled) {
           setKpis({ budgetPct, reviewsPct, loaded: true, hasGoal: goal.exists });
         }
@@ -1356,175 +1354,130 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
 
   return (
     <div
-      className="relative min-h-full flex flex-col px-5 pt-6 pb-8 overflow-hidden"
+      className="relative min-h-full flex flex-col px-5 pt-3 pb-8"
       style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        background: 'transparent',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* خلفية زخرفية ناعمة — نفس طابع شاشة الدخول للاتساق البصري */}
-      <div
-        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-      />
-      <div
-        className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full opacity-15 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(0,91,255,0.25), transparent 70%)' }}
-      />
-
-      {/* شريط اللغة */}
-      <div className={`relative z-10 flex ${lang === 'en' ? 'justify-start' : 'justify-end'} mb-3`}>
+      {/* شريط اللغة — في الأقصى اليمين (نفس تصميم زر التنبيهات الدائري) */}
+      <div className="relative z-10 flex justify-end mb-3">
         <button
           onClick={toggleLang}
-          className="bg-white/80 backdrop-blur-sm border border-tw-line text-tw-navy px-3 py-1.5 rounded-full shadow-sm hover:bg-white hover:shadow-md transition-all flex items-center gap-1.5 text-xs font-bold"
+          className="tw-circle-btn"
+          aria-label={lang === 'en' ? 'Change language' : 'تغيير اللغة'}
+          type="button"
+          title={t(lang, 'home.langToggle')}
         >
-          <Globe size={14} className="text-tw-blue" />
-          {t(lang, 'home.langToggle')}
+          <Globe size={18} strokeWidth={1.8} />
         </button>
       </div>
 
-      {/* بطاقة الترحيب — مدمجة وأنيقة */}
-      <div className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-tw-line text-center mb-3">
+      {/* بطاقة الترحيب */}
+      <div className="relative z-10 bg-white p-4 rounded-2xl shadow-sm border border-tw-line text-center mb-3">
         <p className="text-tw-muted text-sm mb-1">{t(lang, 'home.greeting')}</p>
-        <h2 className="text-2xl font-bold" style={{ color: '#061742' }}>
+        <h2 className="text-xl font-bold" style={{ color: '#061742' }}>
           {lang === 'en' ? branch : `فرع ${branch}`}
         </h2>
       </div>
 
-      {/* شريط الشهر — قراءة فقط، يعطي السياق الزمني */}
-      <div className="relative z-10 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-4 mb-4 shadow-sm">
+      {/* شريط الشهر — ميلادي */}
+      <div className="relative z-10 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-4 mb-3 shadow-sm">
         <Calendar size={16} className="text-tw-blue" />
         <span className="font-bold text-sm text-tw-navy">{monthLabel}</span>
       </div>
 
-      {/* ============================================================
-          كرتا مؤشرات الأداء (KPI) — تحقيق الميزانية + التقييمات
-          ⚠️ TODO (ربط Firestore):
-            1) أنشئ collection 'goals' في Firestore بهذا الشكل:
-                 goals/{branchId}_{YYYY-MM}  →  { budget: 50000, reviewsTarget: 100 }
-            2) أضف في firebase.js:
-                 export async function getMonthlyGoal(branchId, monthStr) {...}
-                 export async function getCurrentMonthSales(branchId) {...}
-                 export async function getCurrentReviews(branchId) {...}
-            3) استبدل الأرقام التجريبية أدناه بـ useState + useEffect:
-                 const [budget, setBudget] = useState({ achieved: 0, target: 1 });
-                 const [reviews, setReviews] = useState({ achieved: 0, target: 1 });
-                 useEffect(() => { ... fetch ... }, [branch]);
-            4) أضف شاشة إدارية للمدير لإدخال الأهداف الشهرية.
-         الآن: أرقام تجريبية لاستعراض التصميم.
-         ============================================================ */}
-      {(() => {
-        // أرقام حقيقية من Firestore عبر useEffect أعلاه
-        const budgetPct = kpis.budgetPct;
-        const reviewsPct = kpis.reviewsPct;
-        return (
-          <div className="relative z-10 space-y-3 mb-4">
-            {/* كارت تحقيق الميزانية */}
-            <div
-              className="text-white p-4 rounded-2xl overflow-hidden relative"
-              style={{
-                background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
-                boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
-              }}
-            >
+      {/* الكروت الأربعة — موزّعة بشكل متوازن (flex-1 لكل واحد) */}
+      <div className="relative z-10 flex-1 flex flex-col gap-3">
+        {/* كارت تحقيق الميزانية */}
+        <div
+          className="flex-1 text-white p-4 rounded-2xl overflow-hidden relative flex flex-col justify-center"
+          style={{
+            background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+            boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+            minHeight: 90,
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-30 pointer-events-none"
+            style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+          />
+          <div className="relative">
+            <p className="text-center text-xs font-semibold opacity-95 mb-1.5">
+              {t(lang, 'home.kpiBudget') || 'نسبة تحقيق الميزانية'}
+            </p>
+            <p className="text-center text-3xl font-extrabold leading-none mb-2 tracking-tight">
+              {kpis.budgetPct}%
+            </p>
+            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
               <div
-                className="absolute inset-0 opacity-30 pointer-events-none"
-                style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+                className="h-full bg-white rounded-full transition-all duration-500"
+                style={{ width: `${kpis.budgetPct}%` }}
               />
-              <div className="relative">
-                <p className="text-center text-sm font-semibold opacity-95 mb-2">
-                  {t(lang, 'home.kpiBudget') || 'نسبة تحقيق الميزانية'}
-                </p>
-                <p className="text-center text-4xl font-extrabold leading-none mb-3 tracking-tight">
-                  {budgetPct}%
-                </p>
-                {/* شريط التقدم */}
-                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white rounded-full transition-all duration-500"
-                    style={{ width: `${budgetPct}%` }}
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* كارت تقييمات قوقل ماب */}
-            <div
-              className="text-white p-4 rounded-2xl overflow-hidden relative"
-              style={{
-                background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
-                boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
-              }}
-            >
-              <div
-                className="absolute inset-0 opacity-30 pointer-events-none"
-                style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
-              />
-              <div className="relative">
-                <p className="text-center text-sm font-semibold opacity-95 mb-2">
-                  {t(lang, 'home.kpiReviews') || 'نسبة تحقيق تقييمات قوقل ماب'}
-                </p>
-                <p className="text-center text-4xl font-extrabold leading-none mb-2 tracking-tight">
-                  {reviewsPct}%
-                </p>
-                <p className="text-center text-sm tracking-[0.15em] mb-2">⭐⭐⭐⭐⭐</p>
-                <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                  <div
-                    className="h-full bg-white rounded-full transition-all duration-500"
-                    style={{ width: `${reviewsPct}%` }}
-                  />
-                </div>
-              </div>
             </div>
           </div>
-        );
-      })()}
+        </div>
 
-      {/* كارت تسجيل المبيعات — gradient navy بنفس طابع الـ prototype */}
-      <button
-        onClick={() => setView('salesForm')}
-        className="relative z-10 text-white p-5 rounded-2xl flex items-center gap-4 active:scale-95 transition-transform mb-3 overflow-hidden"
-        style={{
-          background: 'linear-gradient(135deg, #082765 0%, #061742 60%, #1E3A8A 100%)',
-          boxShadow: '0 12px 30px -8px rgba(8, 39, 101, 0.4)',
-        }}
-      >
-        {/* لمعة خفيفة */}
+        {/* كارت تقييمات قوقل ماب */}
         <div
-          className="absolute inset-0 opacity-30 pointer-events-none"
-          style={{ background: 'radial-gradient(circle at 20% 20%, rgba(40,223,255,0.4), transparent 50%)' }}
-        />
-        <div className="relative bg-white/15 backdrop-blur-sm p-3.5 rounded-xl">
-          <TrendingUp size={28} />
+          className="flex-1 text-white p-4 rounded-2xl overflow-hidden relative flex flex-col justify-center"
+          style={{
+            background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+            boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+            minHeight: 90,
+          }}
+        >
+          <div
+            className="absolute inset-0 opacity-30 pointer-events-none"
+            style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+          />
+          <div className="relative">
+            <p className="text-center text-xs font-semibold opacity-95 mb-1.5">
+              {t(lang, 'home.kpiReviews') || 'نسبة تحقيق تقييمات قوقل ماب'}
+            </p>
+            <p className="text-center text-3xl font-extrabold leading-none mb-1.5 tracking-tight">
+              {kpis.reviewsPct}%
+            </p>
+            <p className="text-center text-xs tracking-[0.15em] mb-1.5 opacity-90">⭐⭐⭐⭐⭐</p>
+            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-white rounded-full transition-all duration-500"
+                style={{ width: `${kpis.reviewsPct}%` }}
+              />
+            </div>
+          </div>
         </div>
-        <div className={`relative flex-1 ${align}`}>
-          <h3 className="font-bold text-lg mb-0.5">{t(lang, 'home.recordSales')}</h3>
-          <p className="text-blue-100 text-xs">{t(lang, 'home.recordSalesD')}</p>
-        </div>
-      </button>
 
-      {/* كارت تسجيل المصروفات — أبيض ناعم */}
-      <button
-        onClick={() => setView('expenseForm')}
-        className="relative z-10 bg-white p-5 rounded-2xl shadow-sm border border-tw-line flex items-center gap-4 active:scale-95 transition-transform mb-3"
-      >
-        <div className="bg-tw-soft text-tw-blue p-3.5 rounded-xl">
-          <Receipt size={28} />
-        </div>
-        <div className={`flex-1 ${align}`}>
-          <h3 className="font-bold text-tw-navy text-lg mb-0.5">{t(lang, 'home.recordExpense')}</h3>
-          <p className="text-tw-muted text-xs">{t(lang, 'home.recordExpenseD')}</p>
-        </div>
-      </button>
+        {/* كارت تسجيل المبيعات — موحّد بنفس تصميم تسجيل المصروفات (أبيض ناعم) */}
+        <button
+          onClick={() => setView('salesForm')}
+          className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-tw-line flex items-center gap-3 active:scale-95 transition-transform"
+          style={{ minHeight: 80 }}
+        >
+          <div className="bg-tw-soft text-tw-blue p-3 rounded-xl flex-shrink-0">
+            <TrendingUp size={24} />
+          </div>
+          <div className={`flex-1 ${align}`}>
+            <h3 className="font-bold text-tw-navy text-base mb-0.5">{t(lang, 'home.recordSales')}</h3>
+            <p className="text-tw-muted text-xs">{t(lang, 'home.recordSalesD')}</p>
+          </div>
+        </button>
 
-      {/* زر "آخر 7 أيام" — مدمج صغير */}
-      <button
-        onClick={() => setView('employeeHistory')}
-        className="relative z-10 w-full flex items-center justify-center gap-2 bg-white/70 backdrop-blur-sm border border-tw-line text-tw-blue py-3 rounded-xl font-bold text-sm hover:bg-white transition-colors"
-      >
-        <Calendar size={16} />
-        {lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام'}
-      </button>
+        {/* كارت تسجيل المصروفات — أبيض ناعم */}
+        <button
+          onClick={() => setView('expenseForm')}
+          className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-tw-line flex items-center gap-3 active:scale-95 transition-transform"
+          style={{ minHeight: 80 }}
+        >
+          <div className="bg-tw-soft text-tw-blue p-3 rounded-xl flex-shrink-0">
+            <Receipt size={24} />
+          </div>
+          <div className={`flex-1 ${align}`}>
+            <h3 className="font-bold text-tw-navy text-base mb-0.5">{t(lang, 'home.recordExpense')}</h3>
+            <p className="text-tw-muted text-xs">{t(lang, 'home.recordExpenseD')}</p>
+          </div>
+        </button>
+      </div>
     </div>
   );
 }
