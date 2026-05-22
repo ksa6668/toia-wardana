@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronRight, Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, FileText, X } from 'lucide-react';
+import { ChevronRight, Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, FileText, X, Settings } from 'lucide-react';
 import { getExpenses } from '../firebase';
 import SarSymbol from './SarSymbol';
 
@@ -33,7 +33,7 @@ function formatDate(iso) {
   }
 }
 
-export default function ManagerReceipts({ onBack }) {
+export default function ManagerReceipts({ onBack, onOpenCategories }) {
   const [period, setPeriod] = useState('7days');
   const [branch, setBranch] = useState('toia');
   const [expenses, setExpenses] = useState([]);
@@ -123,6 +123,17 @@ export default function ManagerReceipts({ onBack }) {
             <MapPin size={16} className="text-tw-blue" />
             <span className="text-sm font-bold text-tw-navy">{currentBranchLabel}</span>
           </button>
+          {/* زر إعدادات التصنيفات */}
+          {onOpenCategories && (
+            <button
+              onClick={onOpenCategories}
+              className="bg-white rounded-xl border border-tw-line p-3 hover:bg-tw-soft/40 transition-colors"
+              title="إعدادات التصنيفات"
+              aria-label="إعدادات التصنيفات"
+            >
+              <Settings size={18} className="text-tw-muted" />
+            </button>
+          )}
         </div>
 
         {/* بطاقات الإحصائيات */}

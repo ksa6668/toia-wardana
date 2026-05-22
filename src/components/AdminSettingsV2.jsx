@@ -86,13 +86,6 @@ const ITEMS = [
     enabled: true,
   },
   {
-    key: 'categories',
-    icon: FileText, color: 'blue',
-    label: { ar: 'التصنيفات', en: 'Categories' },
-    desc: { ar: 'تحديد التصنيفات وإلزامية الصورة', en: 'Configure categories and image requirements' },
-    enabled: true,
-  },
-  {
     key: 'general',
     icon: Gear, color: 'blue',
     label: { ar: 'الإعدادات العامة', en: 'General Settings' },

@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import {
   Receipt, TrendingUp, TrendingDown,
-  Settings, Camera, ChevronRight, Building2,
+  Settings, Camera, ChevronRight, ChevronUp, ChevronDown, Building2,
   BarChart3, Wallet, UploadCloud,
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
@@ -13,7 +13,7 @@ import {
   addDailySales, addExpense,
   getSales, getExpenses, getFixedExpenses, setFixedExpense,
   getUsers, createStaffUser, uploadInvoiceImage,
-  getCategories, setCategoryRequiresImage, addCategory, deleteCategory,
+  getCategories, setCategoryRequiresImage, addCategory, deleteCategory, reorderCategories,
   changeMyPin, setUserActive, adminChangeUserPin, adminDeleteUser, adminUpdateUserProfile,
   getBranches, getPaymentMethods,
   madaFees, madaNet, MADA_FEE_RATE,
@@ -135,6 +135,7 @@ export default function App() {
   // Batch 5: حالات الإشعارات + تأكيد الخروج + الإيصالات
   const [showNotifications, setShowNotifications] = useState(false);
   const [showReceipts, setShowReceipts] = useState(false);
+  const [showReceiptsCategories, setShowReceiptsCategories] = useState(false);
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   const userRole = user?.role || null;
@@ -308,7 +309,17 @@ export default function App() {
         {/* Batch 5: شاشة الإيصالات والفواتير (overlay) */}
         {showReceipts && (
           <div className="fixed inset-0 z-40 md:absolute bg-white overflow-y-auto">
-            <ManagerReceipts onBack={() => setShowReceipts(false)} />
+            <ManagerReceipts
+              onBack={() => setShowReceipts(false)}
+              onOpenCategories={() => setShowReceiptsCategories(true)}
+            />
+          </div>
+        )}
+
+        {/* Batch 11: شاشة التصنيفات المفتوحة من داخل الإيصالات */}
+        {showReceiptsCategories && (
+          <div className="fixed inset-0 z-50 md:absolute bg-white overflow-y-auto">
+            <ManageCategories onBack={() => setShowReceiptsCategories(false)} />
           </div>
         )}
 
@@ -2503,6 +2514,32 @@ function ManageCategories({ onBack }) {
     }
   };
 
+  // Batch 11: تحريك تصنيف لأعلى/أسفل القائمة
+  const moveCategory = async (catId, direction) => {
+    const idx = cats.findIndex((c) => c.id === catId);
+    if (idx === -1) return;
+    const targetIdx = direction === 'up' ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= cats.length) return;
+
+    // تحديث محلي فوري (optimistic)
+    const newCats = [...cats];
+    [newCats[idx], newCats[targetIdx]] = [newCats[targetIdx], newCats[idx]];
+    setCats(newCats);
+
+    // حفظ على Firestore
+    setBusyId(catId);
+    setError('');
+    try {
+      await reorderCategories(newCats.map((c) => c.id));
+    } catch (err) {
+      setError(err?.message || 'تعذّر تحديث الترتيب');
+      // rollback
+      await load();
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <div
       className="min-h-full relative overflow-hidden pb-20"
@@ -2614,7 +2651,7 @@ function ManageCategories({ onBack }) {
           </div>
         ) : (
           <div className="space-y-3">
-            {cats.map((cat) => (
+            {cats.map((cat, idx) => (
               <div key={cat.id} className="bg-white border border-tw-line rounded-2xl p-4 flex items-center gap-3 shadow-sm">
                 {/* Toggle أخضر كبير على اليسار (لـ RTL) — مطابق للـ prototype */}
                 <button
@@ -2638,6 +2675,28 @@ function ManageCategories({ onBack }) {
                     <span>{cat.requiresImage ? 'صورة إجبارية' : 'صورة اختيارية'}</span>
                     <span className={`w-2 h-2 rounded-full ${cat.requiresImage ? 'bg-tw-red' : 'bg-gray-300'}`}></span>
                   </p>
+                </div>
+
+                {/* Batch 11: أسهم تحريك أعلى/أسفل */}
+                <div className="flex flex-col gap-1 flex-shrink-0">
+                  <button
+                    onClick={() => moveCategory(cat.id, 'up')}
+                    disabled={busyId === cat.id || idx === 0}
+                    className="p-1 text-tw-muted hover:text-tw-blue hover:bg-tw-soft rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="نقل لأعلى"
+                    aria-label="نقل لأعلى"
+                  >
+                    <ChevronUp size={16} strokeWidth={2.5} />
+                  </button>
+                  <button
+                    onClick={() => moveCategory(cat.id, 'down')}
+                    disabled={busyId === cat.id || idx === cats.length - 1}
+                    className="p-1 text-tw-muted hover:text-tw-blue hover:bg-tw-soft rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                    title="نقل لأسفل"
+                    aria-label="نقل لأسفل"
+                  >
+                    <ChevronDown size={16} strokeWidth={2.5} />
+                  </button>
                 </div>
 
                 {/* زر الحذف صغير */}
@@ -2749,9 +2808,11 @@ function ChangeMyPin({ onBack }) {
 // ==========================================
 // شاشة تسجيل المبيعات/المصاريف للمدير (لأي فرع)
 // ==========================================
+// Batch 11: شاشة "المبيعات والمصروفات" للمدير = نفس شاشة الموظف + اختيار فرع
+// يعيد استخدام EmployeeHome / SalesFormV2 / ExpenseFormV2 بالكامل
 function AdminDataEntry({ onBack }) {
-  const [step, setStep] = useState('menu');
-  const [chosenBranch, setChosenBranch] = useState('toia');
+  const [step, setStep] = useState('chooseBranch'); // chooseBranch | home | salesForm | expenseForm
+  const [chosenBranch, setChosenBranch] = useState(null);
   const [branches, setBranches] = useState([]);
 
   useEffect(() => {
@@ -2761,68 +2822,117 @@ function AdminDataEntry({ onBack }) {
     })();
   }, []);
 
-  const branchName = branches.find((b) => b.id === chosenBranch)?.name
-    || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا');
+  const branchName = chosenBranch
+    ? (branches.find((b) => b.id === chosenBranch)?.name
+       || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا'))
+    : '';
 
-  if (step === 'sales') {
+  // setView يستقبله SalesFormV2 و ExpenseFormV2 (نفس الموظف)
+  const setView = (v) => {
+    if (v === 'salesForm') setStep('salesForm');
+    else if (v === 'expenseForm') setStep('expenseForm');
+    else if (v === 'employeeHome' || v === 'home') setStep('home');
+    else if (v === 'employeeHistory') setStep('home'); // fallback - not used here
+  };
+
+  // مرحلة 1: اختيار الفرع
+  if (step === 'chooseBranch' || !chosenBranch) {
+    const branchList = branches.length
+      ? branches
+      : [{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }];
     return (
-      <AdminSalesForm onBack={() => setStep('menu')} branchId={chosenBranch} branchName={branchName} />
-    );
-  }
-  if (step === 'expense') {
-    return (
-      <AdminExpenseForm onBack={() => setStep('menu')} branchId={chosenBranch} />
-    );
-  }
-
-  return (
-    <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">تسجيل بيانات (مدير)</h2>
-      </div>
-
-      <div className="p-6 space-y-4 flex-1">
-        <div className="bg-indigo-50 border border-indigo-100 rounded-xl p-3 text-center">
-          <p className="text-indigo-800 font-bold text-sm">إدخال نيابة عن أي فرع</p>
-          <p className="text-indigo-500 text-[11px] mt-1">اختر الفرع، ثم نوع التسجيل</p>
+      <div className="flex flex-col h-full bg-white pb-20">
+        <div className="flex items-center p-4 border-b border-tw-line">
+          <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
+            <ChevronRight size={20} className="rotate-180" />
+          </button>
+          <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">
+            المبيعات والمصروفات
+          </h2>
         </div>
-
-        <div>
-          <label className="text-xs font-bold text-tw-muted mb-2 block">اختر الفرع</label>
-          <div className="flex gap-2 flex-wrap">
-            {(branches.length ? branches : [{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]).map((b) => (
-              <button key={b.id} onClick={() => setChosenBranch(b.id)}
-                className={`flex-1 min-w-[120px] py-3 rounded-xl text-sm font-bold border ${chosenBranch === b.id ? 'bg-slate-900 text-white border-slate-900' : 'bg-white text-tw-muted border-tw-line'}`}>
-                {b.name}
+        <div className="p-6 space-y-5 flex-1">
+          <div className="bg-tw-soft border border-tw-blue/20 rounded-xl p-4 text-center">
+            <p className="text-tw-navy font-bold text-sm mb-1">اختر الفرع</p>
+            <p className="text-tw-muted text-xs">
+              ستفتح الشاشة كموظف لذلك الفرع — لتسجيل المبيعات والمصاريف
+            </p>
+          </div>
+          <div className="space-y-3">
+            {branchList.map((b) => (
+              <button
+                key={b.id}
+                onClick={() => { setChosenBranch(b.id); setStep('home'); }}
+                className="w-full bg-white border-2 border-tw-line rounded-2xl p-5 text-right hover:border-tw-blue hover:bg-tw-soft/40 transition-all active:scale-95"
+              >
+                <div className="flex items-center justify-between">
+                  <ChevronRight size={20} className="text-tw-muted rotate-180" />
+                  <div>
+                    <h3 className="font-bold text-tw-navy text-base mb-0.5">فرع {b.name}</h3>
+                    <p className="text-tw-muted text-xs">دخول كموظف في هذا الفرع</p>
+                  </div>
+                </div>
               </button>
             ))}
           </div>
         </div>
+      </div>
+    );
+  }
 
-        <div className="pt-2 space-y-3">
-          <button onClick={() => setStep('sales')}
-            className="w-full bg-tw-blue text-white p-5 rounded-2xl shadow-md flex items-center gap-4 active:scale-95 transition-transform">
-            <div className="bg-white/20 p-3 rounded-xl"><TrendingUp size={24} /></div>
-            <div className="text-right">
-              <h3 className="font-bold text-base mb-0.5">تسجيل المبيعات</h3>
-              <p className="text-blue-100 text-xs">فرع {branchName}</p>
-            </div>
-          </button>
-          <button onClick={() => setStep('expense')}
-            className="w-full bg-white p-5 rounded-2xl shadow-sm border border-tw-line flex items-center gap-4 active:scale-95 transition-transform">
-            <div className="bg-tw-soft text-tw-blue p-3 rounded-xl"><Receipt size={24} /></div>
-            <div className="text-right">
-              <h3 className="font-bold text-tw-navy text-base mb-0.5">تسجيل مصروف</h3>
-              <p className="text-tw-muted text-xs">فرع {branchName}</p>
-            </div>
+  // مرحلة 2: شاشة الموظف (EmployeeHome)
+  if (step === 'home') {
+    return (
+      <div className="flex flex-col h-full">
+        {/* شريط علوي صغير لإظهار الفرع المختار + زر تغيير */}
+        <div className="bg-tw-soft/60 border-b border-tw-line px-4 py-2 flex items-center justify-between text-xs">
+          <span className="text-tw-muted">
+            وضع المدير — فرع <b className="text-tw-navy">{branchName}</b>
+          </span>
+          <button
+            onClick={() => { setChosenBranch(null); setStep('chooseBranch'); }}
+            className="text-tw-blue font-bold"
+          >
+            تغيير الفرع
           </button>
         </div>
+        <div className="flex-1 overflow-y-auto">
+          <EmployeeHome
+            setView={setView}
+            branch={branchName}
+            branchId={chosenBranch}
+            lang="ar"
+            setLang={() => {}}
+          />
+        </div>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // مرحلة 3: نموذج المبيعات
+  if (step === 'salesForm') {
+    return (
+      <SalesFormV2
+        setView={setView}
+        branch={branchName}
+        branchId={chosenBranch}
+        lang="ar"
+      />
+    );
+  }
+
+  // مرحلة 4: نموذج المصاريف
+  if (step === 'expenseForm') {
+    return (
+      <ExpenseFormV2
+        setView={setView}
+        branch={branchName}
+        branchId={chosenBranch}
+        lang="ar"
+      />
+    );
+  }
+
+  return null;
 }
 
 // نسخة من SalesForm للمدير (الفرق: زر "رجوع" يرجع لشاشة الإدخال بدل الموظف)

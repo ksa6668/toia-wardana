@@ -326,11 +326,12 @@ export async function getPaymentMethods() {
 // ========== تصنيفات المصاريف (قابلة للإدارة من المدير) ==========
 
 // التصنيفات الافتراضية — تُزرع تلقائياً أول مرة
+// Batch 11: الترتيب الجديد ورد → توصيل → طلبات → مستلزمات (التصنيفات الأربعة الأساسية)
 const DEFAULT_CATEGORIES = [
   { id: "flower", name: "ورد", requiresImage: true, expenseType: "flower", order: 1 },
-  { id: "customer_orders", name: "طلبات العملاء", requiresImage: true, expenseType: "general", order: 2 },
-  { id: "supplies", name: "مستلزمات وبضائع", requiresImage: true, expenseType: "general", order: 3 },
-  { id: "delivery", name: "توصيل", requiresImage: false, expenseType: "delivery", order: 4 },
+  { id: "delivery", name: "توصيل", requiresImage: false, expenseType: "delivery", order: 2 },
+  { id: "customer_orders", name: "طلبات العملاء", requiresImage: true, expenseType: "customerOrders", order: 3 },
+  { id: "supplies", name: "مستلزمات وبضائع", requiresImage: true, expenseType: "supplies", order: 4 },
   { id: "marketing", name: "تسويق", requiresImage: false, expenseType: "marketing", order: 5 },
   { id: "electricity", name: "كهرباء", requiresImage: false, expenseType: "general", order: 6 },
   { id: "internet", name: "إنترنت", requiresImage: false, expenseType: "general", order: 7 },
@@ -396,6 +397,22 @@ export async function addCategory({ name, requiresImage = false, expenseType = "
 // حذف تصنيف (نخفيه بدل حذف نهائي، حتى لا تتأثر سجلات قديمة)
 export async function deleteCategory(id) {
   await updateDoc(doc(db, "categories", id), { active: false });
+}
+
+// Batch 11: تحديث ترتيب تصنيف واحد
+export async function setCategoryOrder(id, order) {
+  await updateDoc(doc(db, "categories", id), { order: Number(order) || 0 });
+}
+
+// Batch 11: إعادة ترتيب مجموعة تصنيفات دفعة واحدة (atomic)
+// orderedIds: مصفوفة معرّفات بالترتيب الجديد (الفهرس 0 = الأول)
+export async function reorderCategories(orderedIds) {
+  if (!Array.isArray(orderedIds) || orderedIds.length === 0) return;
+  const batch = writeBatch(db);
+  orderedIds.forEach((id, idx) => {
+    batch.update(doc(db, "categories", id), { order: idx + 1 });
+  });
+  await batch.commit();
 }
 
 // ========== إدارة المستخدمين (الرموز والتعطيل) ==========

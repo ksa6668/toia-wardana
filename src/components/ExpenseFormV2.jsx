@@ -215,9 +215,9 @@ export default function ExpenseFormV2({ setView, branch, branchId, lang = 'ar' }
                     onClick={() => setCategoryId(c.id)}
                     className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-all ${
                       isActive
-                        ? 'bg-tw-blue text-white border-blue-600 shadow-md scale-105'
+                        ? 'bg-tw-blue text-white border-tw-blue shadow-md scale-105'
                         : isPrimary
-                        ? 'bg-cyan-50 text-cyan-700 border-cyan-200 hover:bg-cyan-100'
+                        ? 'bg-tw-soft text-tw-navy2 border-tw-blue/30 hover:bg-tw-blue/10'
                         : 'bg-white text-tw-muted border-tw-line hover:bg-tw-soft/40'
                     }`}
                   >
