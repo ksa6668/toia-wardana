@@ -1,53 +1,81 @@
-import React from 'react';
-
-// Bottom Sheet لتأكيد تسجيل الخروج — يطابق التصميم في prototype
-// الاستخدام: <LogoutConfirmSheet onConfirm={...} onCancel={...} />
+// src/components/LogoutConfirmSheet.jsx
+// Bottom Sheet لتأكيد تسجيل الخروج — يستخدم Portal
+import SheetPortal from './SheetPortal';
 
 export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-end justify-center bg-black/40 backdrop-blur-sm"
-      onClick={onCancel}
-      style={{ fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif' }}
-    >
+    <SheetPortal>
       <div
-        className="bg-white w-full md:max-w-md rounded-t-3xl p-5 space-y-5 animate-slide-up"
-        onClick={(e) => e.stopPropagation()}
+        onClick={onCancel}
         style={{
-          animation: 'slideUp 0.25s ease-out',
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          backdropFilter: 'blur(2px)',
+          zIndex: 60,
+          display: 'flex',
+          alignItems: 'flex-end',
+          justifyContent: 'center',
+          fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+          animation: 'fadeInLogout 0.2s ease',
         }}
       >
-        {/* مقبض السحب */}
-        <div className="w-12 h-1.5 bg-gray-300 rounded-full mx-auto"></div>
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: '#fff',
+            width: '100%',
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            padding: 20,
+            animation: 'slideUpLogout 0.25s ease-out',
+          }}
+        >
+          {/* مقبض السحب */}
+          <div style={{ width: 48, height: 6, background: '#D6DEEB', borderRadius: 99, margin: '0 auto 14px' }} />
 
-        {/* السؤال */}
-        <h3 className="text-lg font-bold text-tw-navy text-center py-2">
-          تسجيل الخروج؟
-        </h3>
+          {/* السؤال */}
+          <h3 style={{
+            fontSize: 18, fontWeight: 800, color: 'var(--tw-navy)',
+            textAlign: 'center', margin: '0 0 18px',
+          }}>
+            تسجيل الخروج؟
+          </h3>
 
-        {/* الأزرار: تأكيد بالأحمر + إلغاء بالأبيض */}
-        <div className="flex gap-3 pt-1">
-          <button
-            onClick={onConfirm}
-            className="flex-1 bg-tw-red hover:bg-tw-red text-white font-bold py-3.5 rounded-2xl transition-colors text-base"
-          >
-            تأكيد
-          </button>
-          <button
-            onClick={onCancel}
-            className="flex-1 bg-white border border-tw-line hover:bg-tw-soft/40 text-tw-navy font-bold py-3.5 rounded-2xl transition-colors text-base"
-          >
-            إلغاء
-          </button>
+          {/* الأزرار */}
+          <div style={{ display: 'flex', gap: 12, paddingTop: 4 }}>
+            <button
+              onClick={onConfirm}
+              style={{
+                flex: 1, padding: '14px',
+                background: 'var(--tw-red)', color: '#fff',
+                fontWeight: 800, fontSize: 15,
+                borderRadius: 16, border: 'none', cursor: 'pointer',
+                fontFamily: 'inherit',
+              }}
+            >
+              تأكيد
+            </button>
+            <button
+              onClick={onCancel}
+              style={{
+                flex: 1, padding: '14px',
+                background: '#fff', color: 'var(--tw-navy)',
+                fontWeight: 800, fontSize: 15,
+                borderRadius: 16,
+                border: '1.5px solid var(--tw-line)',
+                cursor: 'pointer', fontFamily: 'inherit',
+              }}
+            >
+              إلغاء
+            </button>
+          </div>
         </div>
       </div>
-
       <style>{`
-        @keyframes slideUp {
-          from { transform: translateY(100%); }
-          to { transform: translateY(0); }
-        }
+        @keyframes fadeInLogout { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUpLogout { from { transform: translateY(100%); } to { transform: translateY(0); } }
       `}</style>
-    </div>
+    </SheetPortal>
   );
 }

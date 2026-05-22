@@ -1,7 +1,8 @@
 // src/components/DeleteConfirmSheet.jsx
-// Bottom sheet لتأكيد حذف سجل — يستخدم .tw-sheet-* (absolute, prototype-style)
+// Bottom sheet لتأكيد حذف سجل — يستخدم Portal
 import { useState, useEffect } from 'react';
 import { Trash2, Loader2 } from 'lucide-react';
+import SheetPortal from './SheetPortal';
 
 export default function DeleteConfirmSheet({
   open,
@@ -40,7 +41,7 @@ export default function DeleteConfirmSheet({
     : 'لا يمكن التراجع عن هذا الإجراء.';
 
   return (
-    <>
+    <SheetPortal>
       <div className="tw-sheet-overlay show" onClick={() => !deleting && onClose?.()} />
       <div className="tw-sheet-panel show" role="alertdialog" aria-modal="true">
         <div className="tw-sheet-grab" />
@@ -92,6 +93,6 @@ export default function DeleteConfirmSheet({
           </div>
         </div>
       </div>
-    </>
+    </SheetPortal>
   );
 }

@@ -1,12 +1,8 @@
 // src/components/DateSheet.jsx
-// ----------------------------------------------------------
 // Bottom sheet لاختيار التاريخ — مطابق لـ openSheet('date') في الـ prototype.
-// خيارات البروتوتايب:
-//   اليوم / أمس / قبل يومين / تاريخ مخصص…
-//
-// عند اختيار "تاريخ مخصص…" → يفتح <input type="date"> native لاختيار اليوم.
-// ----------------------------------------------------------
+// خيارات البروتوتايب: اليوم / أمس / قبل يومين / تاريخ مخصص…
 import { useState, useEffect, useRef } from 'react';
+import SheetPortal from './SheetPortal';
 
 function isoDay(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
@@ -53,7 +49,7 @@ export default function DateSheet({ open, currentDate, onPick, onClose, lang = '
   };
 
   return (
-    <>
+    <SheetPortal>
       <div className="tw-sheet-overlay show" onClick={onClose} />
       <div className="tw-sheet-panel show" role="dialog" aria-modal="true">
         <div className="tw-sheet-grab" />
@@ -145,6 +141,6 @@ export default function DateSheet({ open, currentDate, onPick, onClose, lang = '
           </div>
         )}
       </div>
-    </>
+    </SheetPortal>
   );
 }

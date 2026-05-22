@@ -1,14 +1,10 @@
 // src/components/EditSheet.jsx
 // ----------------------------------------------------------
-// Bottom Sheet modal للنماذج الكاملة (تعديل المستخدم، تعديل الفرع، إلخ)
-// أكبر من BottomSheet العادي ويدعم scroll داخلي.
-//
-// الاستخدام:
-//   <EditSheet open={!!editing} onClose={() => setEditing(null)} title="تعديل المستخدم">
-//     <form ...>...</form>
-//   </EditSheet>
+// Bottom Sheet modal كبير للنماذج الكاملة (تعديل المستخدم، تعديل الفرع، إلخ)
+// يستخدم Portal للـ phone-frame عشان لا يتقص بـ overflow-hidden للمكوّن الأب
 // ----------------------------------------------------------
-import React, { useEffect } from 'react';
+import { useEffect } from 'react';
+import SheetPortal from './SheetPortal';
 
 export default function EditSheet({ open, onClose, title, children }) {
   // قفل التمرير في الخلفية عند الفتح
@@ -23,20 +19,36 @@ export default function EditSheet({ open, onClose, title, children }) {
   if (!open) return null;
 
   return (
-    <>
+    <SheetPortal>
       {/* خلفية شفافة قابلة للنقر للإغلاق */}
       <div
         onClick={onClose}
-        className="fixed inset-0 bg-black/40 z-[55] backdrop-blur-sm"
-        style={{ animation: 'fadeIn 0.2s ease' }}
-      />
-      {/* اللوحة السفلية - أكبر، لـ form كامل */}
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white rounded-t-3xl z-[60] max-h-[92vh] overflow-y-auto md:max-w-md md:left-1/2 md:-translate-x-1/2"
         style={{
-          animation: 'slideUpSheet 0.28s ease',
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(0,0,0,0.4)',
+          backdropFilter: 'blur(2px)',
+          zIndex: 55,
+          animation: 'fadeInEdit 0.2s ease',
+        }}
+      />
+      {/* اللوحة السفلية — كبيرة، لـ form كامل */}
+      <div
+        style={{
+          position: 'absolute',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: '#fff',
+          borderTopLeftRadius: 24,
+          borderTopRightRadius: 24,
+          zIndex: 60,
+          maxHeight: '92%',
+          overflowY: 'auto',
           boxShadow: '0 -10px 30px rgba(0,0,0,0.15)',
+          animation: 'slideUpEdit 0.28s ease',
           fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
+          overscrollBehavior: 'contain',
         }}
       >
         {/* مقبض السحب */}
@@ -55,9 +67,9 @@ export default function EditSheet({ open, onClose, title, children }) {
         </div>
       </div>
       <style>{`
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-        @keyframes slideUpSheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
+        @keyframes fadeInEdit { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes slideUpEdit { from { transform: translateY(100%); } to { transform: translateY(0); } }
       `}</style>
-    </>
+    </SheetPortal>
   );
 }

@@ -1,7 +1,7 @@
 // src/components/BranchPickerSheet.jsx
-// Bottom sheet لاختيار الفرع — مطابق للـ prototype
-// يستخدم .tw-sheet-overlay و .tw-sheet-panel (المعدّلة لـ position:absolute في index.css)
+// Bottom sheet لاختيار الفرع — يستخدم Portal للـ phone-frame
 import { useEffect } from 'react';
+import SheetPortal from './SheetPortal';
 
 export default function BranchPickerSheet({
   open,
@@ -23,7 +23,7 @@ export default function BranchPickerSheet({
   const title = lang === 'en' ? 'Select branch' : 'اختر الفرع';
 
   return (
-    <>
+    <SheetPortal>
       <div className="tw-sheet-overlay show" onClick={onClose} />
       <div className="tw-sheet-panel show" role="dialog" aria-modal="true">
         <div className="tw-sheet-grab" />
@@ -52,6 +52,6 @@ export default function BranchPickerSheet({
           );
         })}
       </div>
-    </>
+    </SheetPortal>
   );
 }

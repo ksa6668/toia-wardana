@@ -2,18 +2,30 @@
 // ----------------------------------------------------------
 // قائمة منبثقة من الأسفل — مطابقة لـ openSheet() في الـ prototype.
 //
-// تصميم البروتوتايب (Batch 12.6 — exact match):
-//   .sheet-bg → position:absolute; inset:0; z-index:30
-//   .sheet    → position:absolute; bottom:0; z-index:31; max-height:80%
-// (داخل .phone بـ position:relative)
+// تصميم البروتوتايب 1:1:
+//   .sheet-bg → position:absolute; inset:0; z-index:30; rgba(6,23,66,.55)
+//   .sheet    → position:absolute; bottom:0; z-index:31; border-radius:24px 24px 0 0
+//                padding:18px 18px 26px; max-height:80%; overflow-y:auto
 //
-// CSS مكتوب inline ليتجاوز قواعد Tailwind ولا يحتاج index.css.
+// يستخدم Portal للـ phone-frame عشان يطلع فوق Bottom Nav
+// ولا يتأثر بـ overflow-hidden للمكوّن الأب.
 // ----------------------------------------------------------
+import { useEffect } from 'react';
+import SheetPortal from './SheetPortal';
+
 export default function BottomSheet({ open, title, options = [], current, onPick, onClose }) {
+  // إغلاق بـ Escape
+  useEffect(() => {
+    if (!open) return;
+    const handler = (e) => { if (e.key === 'Escape') onClose?.(); };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [open, onClose]);
+
   if (!open) return null;
 
   return (
-    <>
+    <SheetPortal>
       {/* Overlay (sheet-bg) */}
       <div
         onClick={onClose}
@@ -27,6 +39,8 @@ export default function BottomSheet({ open, title, options = [], current, onPick
       />
       {/* Panel (sheet) */}
       <div
+        role="dialog"
+        aria-modal="true"
         style={{
           position: 'absolute',
           left: 0,
@@ -63,7 +77,8 @@ export default function BottomSheet({ open, title, options = [], current, onPick
                 onClick={() => onPick(value)}
                 style={{
                   padding: 14,
-                  border: '1.5px solid var(--tw-line)',
+                  border: '1.5px solid',
+                  borderColor: isCurrent ? 'var(--tw-blue)' : 'var(--tw-line)',
                   borderRadius: 12,
                   marginBottom: 8,
                   fontWeight: 700,
@@ -74,7 +89,6 @@ export default function BottomSheet({ open, title, options = [], current, onPick
                   cursor: 'pointer',
                   color: isCurrent ? 'var(--tw-blue)' : 'var(--tw-navy)',
                   background: isCurrent ? 'var(--tw-soft)' : '#fff',
-                  borderColor: isCurrent ? 'var(--tw-blue)' : 'var(--tw-line)',
                   transition: 'background .15s, border-color .15s',
                 }}
               >
@@ -87,10 +101,11 @@ export default function BottomSheet({ open, title, options = [], current, onPick
           })}
         </div>
       </div>
+
       <style>{`
         @keyframes twSheetFadeIn { from { opacity: 0; } to { opacity: 1; } }
         @keyframes twSheetSlideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
       `}</style>
-    </>
+    </SheetPortal>
   );
 }

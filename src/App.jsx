@@ -196,7 +196,7 @@ export default function App() {
     <div className={`min-h-screen bg-tw-bg md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
          dir={pageDir}
          style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}>
-      <div className="w-full bg-white overflow-hidden flex flex-col tw-app-frame relative
+      <div id="tw-app-frame" className="w-full bg-white overflow-hidden flex flex-col tw-app-frame relative
                       min-h-screen
                       md:min-h-0 md:max-w-md md:rounded-[2.5rem] md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.15)]
                       md:border-8 md:border-slate-900 md:h-[850px]">
