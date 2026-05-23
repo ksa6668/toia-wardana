@@ -20,6 +20,7 @@ import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
 import BottomSheet from './BottomSheet';
+import { useScreenHeader } from '../App';
 
 function todayStr() {
   const d = new Date();
@@ -53,6 +54,7 @@ export default function ExpenseFormV2({
   onBranchChange,
   existingRecord = null,
   isAdmin = false, // Batch 36: المدير يحصل على خيارات صور إضافية
+  onBack, // Batch 38: callback للعودة لـ AppHeader الموحّد
 }) {
   const isEdit = !!existingRecord;
 
@@ -229,6 +231,9 @@ export default function ExpenseFormV2({
     ? (lang === 'en' ? 'Edit expense' : 'تعديل المصروف')
     : t(lang, 'expense.title');
 
+  // Batch 38: استخدام AppHeader الموحّد
+  useScreenHeader(screenTitle, onBack || (() => setView && setView('employeeHome')));
+
   const saveBtnLabel = isEdit
     ? (lang === 'en' ? 'Save changes' : 'حفظ التعديلات')
     : t(lang, 'expense.save');
@@ -240,20 +245,7 @@ export default function ExpenseFormV2({
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
 
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button
-          onClick={() => setView('employeeHome')}
-          className="tw-circle-btn"
-          type="button"
-          aria-label="Back"
-        >
-          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {screenTitle}
-        </h2>
-        <div style={{ width: 36 }} />
-      </div>
+      {/* Batch 38: تم حذف الـ inline header — العنوان وزر العودة في AppHeader الموحّد */}
 
       <div className="relative z-10 p-4 pb-8">
         <div className="tw-controls-row">

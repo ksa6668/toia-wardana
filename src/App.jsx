@@ -3055,6 +3055,7 @@ function AdminDataEntry({ onBack }) {
         allowBranchSwitch={true}
         onBranchChange={handleBranchChange}
         existingRecord={step === 'editSalesForm' ? editingRecord : null}
+        onBack={() => setStep('home')}
       />
     );
   }
@@ -3070,6 +3071,7 @@ function AdminDataEntry({ onBack }) {
         onBranchChange={handleBranchChange}
         existingRecord={step === 'editExpenseForm' ? editingRecord : null}
         isAdmin={true}
+        onBack={() => setStep('home')}
       />
     );
   }

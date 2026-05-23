@@ -21,6 +21,7 @@ import { t, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
+import { useScreenHeader } from '../App';
 
 function todayStr() {
   const d = new Date();
@@ -52,8 +53,17 @@ export default function SalesFormV2({
   allowBranchSwitch = false,
   onBranchChange,
   existingRecord = null,
+  onBack, // Batch 38: callback للعودة — لو موجود، نستخدم header الموحّد
 }) {
   const isEdit = !!existingRecord;
+  
+  // Batch 38: استخدام الـ header الموحّد (AppHeader) لمنع تكرار الزر والعنوان
+  // - لو فيه onBack callback (لوحة المدير): نسجّل header مع العنوان + زر العودة الموحّد
+  // - لو لا (الموظف القديم): نُسجّله بـ setView('employeeHome')
+  const screenTitle = isEdit
+    ? (lang === 'en' ? 'Edit sales' : 'تعديل المبيعات')
+    : t(lang, 'sales.title');
+  useScreenHeader(screenTitle, onBack || (() => setView && setView('employeeHome')));
 
   const [date, setDate] = useState(existingRecord?.date || todayStr());
   const [cash, setCash] = useState(existingRecord?.cash != null ? String(existingRecord.cash) : '');
@@ -112,10 +122,6 @@ export default function SalesFormV2({
     }
   };
 
-  const screenTitle = isEdit
-    ? (lang === 'en' ? 'Edit sales' : 'تعديل المبيعات')
-    : t(lang, 'sales.title');
-
   const saveBtnLabel = isEdit
     ? (lang === 'en' ? 'Save changes' : 'حفظ التعديلات')
     : t(lang, 'sales.save');
@@ -127,20 +133,7 @@ export default function SalesFormV2({
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
 
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button
-          onClick={() => setView('employeeHome')}
-          className="tw-circle-btn"
-          type="button"
-          aria-label="Back"
-        >
-          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {screenTitle}
-        </h2>
-        <div style={{ width: 36 }} />
-      </div>
+      {/* Batch 38: تم حذف الـ inline header — العنوان وزر العودة في AppHeader الموحّد */}
 
       <div className="relative z-10 p-4 pb-8">
         {/* Pills: التاريخ + الفرع — كلاهما يفتح bottom sheet */}
