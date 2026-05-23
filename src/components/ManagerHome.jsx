@@ -51,7 +51,14 @@ function KpiCard({ label, percent, showStars, onDoubleClick, subtext }) {
           <p className="text-[10px] opacity-80 font-bold">{subtext}</p>
         )}
         <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
-          <div className="h-full bg-white rounded-full transition-all" style={{ width: `${pct}%` }} />
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${pct}%`,
+              background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+              boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+            }}
+          />
         </div>
       </div>
     </div>

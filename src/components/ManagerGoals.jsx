@@ -18,7 +18,7 @@ import {
 import BottomSheet from './BottomSheet';
 import BranchIcon from './BranchIcon';
 import SarSymbol from './SarSymbol';
-import { getAvailableMonths, formatMonthLabel } from '../utils/periodHelpers';
+import { getNext3Months, formatMonthLabel } from '../utils/periodHelpers';
 
 export default function ManagerGoals({ onBack, lang = 'ar' }) {
   const [selectedMonth, setSelectedMonth] = useState(() => {
@@ -92,7 +92,7 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
 
   const openMonthPicker = () => setSheet({
     title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-    options: getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+    options: getNext3Months().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
     current: selectedMonth,
     onPick: (v) => { setSelectedMonth(v); setSheet(null); },
   });

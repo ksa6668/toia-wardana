@@ -68,10 +68,9 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  border-bottom: 1px solid rgba(230, 236, 246, 0.6);
-  background: rgba(255, 255, 255, 0.78);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  /* شفاف بالكامل ليتطابق مع gradient phone-frame تحته */
+  background: transparent;
+  border-bottom: none;
   z-index: 5;
 }
 .tw-phone-head h3 {

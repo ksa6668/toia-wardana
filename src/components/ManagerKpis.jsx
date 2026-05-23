@@ -42,9 +42,9 @@ function PeriodCard({ label, amount, pct }) {
       />
       <div className="relative flex flex-col items-center text-center gap-1.5">
         <span className="text-[11px] font-bold opacity-95">{label}</span>
-        <b className="text-base font-extrabold flex items-center gap-1">
+        <b className="text-2xl font-extrabold flex items-center gap-1 leading-tight">
           {Math.round(amount).toLocaleString()}
-          <SarSymbol className="text-[10px]" />
+          <SarSymbol className="text-xs" />
         </b>
         <small className="text-[10px] opacity-80">{pct}%</small>
       </div>
@@ -75,7 +75,7 @@ function KpiRow({ icon: Icon, label, pct }) {
             strokeDasharray={`${(p / 100) * 113} 113`}
           />
         </svg>
-        <span className="text-[10px] font-bold text-tw-blue relative">{p}%</span>
+        <span className="text-[10px] font-bold text-black relative">{p}%</span>
       </div>
     </div>
   );

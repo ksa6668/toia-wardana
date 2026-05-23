@@ -131,7 +131,8 @@ export default function AdminSettingsV2({
       className="min-h-full px-4 pt-4 pb-8 page-bg-soft"
       style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
-      <h2 className="text-lg font-extrabold text-tw-navy mb-3 px-1">
+      {/* العنوان — Batch 18: مصغّر بنفس مقاس "تسجيل المبيعات/المصاريف" */}
+      <h2 className="text-base font-extrabold text-tw-navy mb-3 px-1">
         {lang === 'en' ? 'System Settings' : 'الإعدادات'}
       </h2>
 
@@ -150,16 +151,22 @@ export default function AdminSettingsV2({
                   : 'opacity-50 cursor-not-allowed'
               }`}
             >
-              <ChevronRight size={18} className={`text-tw-muted flex-shrink-0 ${lang === 'en' ? '' : 'rotate-180'}`} />
+              {/* الأيقونة قبل الاسم — في RTL تظهر يمين بجانب الاسم */}
+              <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorMap[item.color]}`}>
+                <Icon size={18} strokeWidth={2} />
+              </div>
               <div className={`flex-1 ${lang === 'en' ? 'text-left' : 'text-right'} min-w-0`}>
-                <p className="text-base font-extrabold text-tw-navy truncate">
+                <p className="text-sm font-extrabold text-tw-navy truncate">
                   {item.label[lang]}
                 </p>
-                <p className="text-xs text-tw-muted truncate mt-0.5">{item.desc[lang]}</p>
+                <p className="text-[11px] text-tw-muted truncate mt-0.5">{item.desc[lang]}</p>
               </div>
-              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorMap[item.color]}`}>
-                <Icon size={20} strokeWidth={2} />
-              </div>
+              {/* سهم صغير على أقصى اليسار في RTL — يشير للاسم (يميناً) */}
+              <ChevronRight
+                size={14}
+                className={`text-tw-muted flex-shrink-0 ${lang === 'en' ? 'rotate-180' : ''}`}
+                strokeWidth={2.2}
+              />
             </button>
           );
         })}

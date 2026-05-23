@@ -76,6 +76,23 @@ export function getAvailableYears() {
 }
 
 /**
+ * Batch 18: يرجع 3 أشهر قادمة بدءاً من الشهر الحالي بصيغة YYYY-MM.
+ * يستخدم لشاشة الأهداف الشهرية (التاريخ دائماً للأشهر الـ3 القادمة).
+ */
+export function getNext3Months() {
+  const now = new Date();
+  let y = now.getFullYear();
+  let m = now.getMonth() + 1; // 1-12
+  const list = [];
+  for (let i = 0; i < 3; i++) {
+    list.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return list;
+}
+
+/**
  * تنسيق YYYY-MM إلى اسم شهر مفهوم.
  * مثال: '2026-05' بالعربي → 'مايو 2026'
  */

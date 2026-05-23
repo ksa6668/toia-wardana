@@ -299,14 +299,14 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
               </button>
             </div>
 
-            {/* زر تصدير Excel - أزرق فاتح gradient */}
+            {/* زر تصدير Excel - تدرج مطابق لأزرار شهري/سنوي */}
             <button
               onClick={handleExportExcel}
               disabled={exporting}
               className="w-full text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2 mb-3"
               style={{
-                background: 'linear-gradient(135deg, #168BFF 0%, #005BFF 100%)',
-                boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
+                background: 'linear-gradient(145deg, #082765 0%, #005BFF 100%)',
+                boxShadow: '0 4px 10px rgba(0,91,255,0.18)',
               }}
             >
               {exportingType === 'excel'

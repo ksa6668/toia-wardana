@@ -208,11 +208,9 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                       onClick={() => openEdit(b)}
                       className={`w-full p-4 flex items-center gap-3 hover:bg-tw-soft/40 transition-colors text-right ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
                     >
-                      {/* شارة الحالة */}
-                      <div className={`text-xs font-bold ${isActive ? 'text-tw-green' : 'text-tw-muted/70'}`}>
-                        {isActive
-                          ? (lang === 'en' ? 'Active' : 'نشط')
-                          : (lang === 'en' ? 'Disabled' : 'معطّل')}
+                      {/* الأيقونة قبل الاسم (في RTL تظهر يمين) */}
+                      <div className="w-11 h-11 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
+                        <Store size={18} />
                       </div>
                       {/* النص */}
                       <div className="flex-1 min-w-0">
@@ -223,9 +221,13 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
                             : (b.nameEn || (lang === 'en' ? 'Custom branch' : 'فرع إضافي'))}
                         </p>
                       </div>
-                      {/* أيقونة */}
-                      <div className="w-11 h-11 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
-                        <Store size={18} />
+                      {/* شارة الحالة على أقصى اليسار */}
+                      <div className={`text-xs font-bold flex-shrink-0 px-2.5 py-1 rounded-full ${
+                        isActive ? 'bg-emerald-50 text-tw-green' : 'bg-gray-100 text-tw-muted/70'
+                      }`}>
+                        {isActive
+                          ? (lang === 'en' ? 'Active' : 'نشط')
+                          : (lang === 'en' ? 'Disabled' : 'معطّل')}
                       </div>
                     </button>
                   );

@@ -17,18 +17,23 @@ import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import { yearRange, getAvailableYears } from '../utils/periodHelpers';
 
-// كارت متري واحد في الشبكة السفلية
+// كارت متري واحد — Batch 18: الاسم بجانب الأيقونة في الأعلى، الرقم تحت بخط أكبر
 function MetricCard({ icon: Icon, label, value, alt }) {
   return (
-    <div className="bg-white p-3 rounded-2xl border border-tw-line shadow-sm">
-      <div className={`w-9 h-9 rounded-xl flex items-center justify-center mb-2 ${
-        alt ? 'bg-red-50 text-tw-red' : 'bg-tw-soft text-tw-blue'
-      }`}>
-        <Icon size={18} />
+    <div className="bg-white p-4 rounded-2xl border border-tw-line shadow-sm">
+      {/* الصف العلوي: اسم التصنيف بجانب الأيقونة */}
+      <div className="flex items-center justify-between gap-2 mb-3">
+        <p className="text-[11px] text-tw-muted font-bold flex-1 text-right truncate">{label}</p>
+        <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${
+          alt ? 'bg-red-50 text-tw-red' : 'bg-tw-soft text-tw-blue'
+        }`}>
+          <Icon size={18} />
+        </div>
       </div>
-      <p className="text-[10px] text-tw-muted mb-1 font-bold">{label}</p>
-      <p className="text-sm font-bold text-tw-navy flex items-center gap-1">
-        {value.toLocaleString()} <SarSymbol className="text-xs text-tw-muted" />
+      {/* الرقم تحت بخط أكبر */}
+      <p className="text-xl font-extrabold text-tw-navy flex items-center gap-1.5 justify-start">
+        <SarSymbol className="text-base text-tw-muted" />
+        <span>{value.toLocaleString()}</span>
       </p>
     </div>
   );
@@ -151,34 +156,32 @@ export default function ManagerOverview({ lang = 'ar' }) {
 
       {!loading && !error && (
         <>
-          {/* كارت hero بصافي الربح */}
+          {/* كارت hero بصافي الربح — Batch 18: أكبر، بدون شريط نسبة */}
           <div
-            className="text-white p-5 rounded-2xl overflow-hidden relative mb-4"
+            className="text-white p-6 rounded-2xl overflow-hidden relative mb-4"
             style={{
               background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
               boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+              minHeight: 180,
             }}
           >
             <div
               className="absolute inset-0 opacity-30 pointer-events-none"
               style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
             />
-            <div className="relative">
-              <p className="text-xs font-bold opacity-95 text-right mb-2">
+            <div className="relative flex flex-col justify-between" style={{ minHeight: 140 }}>
+              <p className="text-sm font-bold opacity-95 text-right mb-3">
                 {lang === 'en' ? 'Net Profit' : 'صافي الربح'}
               </p>
-              <div className="flex items-center justify-end gap-2 mb-2">
-                <span className="text-3xl font-extrabold leading-none">
+              <div className="flex items-center justify-start gap-2 my-4">
+                <SarSymbol className="text-2xl" />
+                <span className="text-5xl font-extrabold leading-none tracking-tight">
                   {Math.round(stats.profit).toLocaleString()}
                 </span>
-                <SarSymbol className="text-xl" />
               </div>
-              <p className="text-[11px] opacity-80 text-right mb-3">
+              <p className="text-xs opacity-80 text-right">
                 {lang === 'en' ? 'Sales − Expenses' : 'المبيعات − المصاريف'}
               </p>
-              <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div className="h-full bg-white rounded-full transition-all" style={{ width: `${stats.profitPct}%` }} />
-              </div>
             </div>
           </div>
 

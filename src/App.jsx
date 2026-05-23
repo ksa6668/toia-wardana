@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, createContext, useContext } from 'react';
 import {
   Receipt, TrendingUp, TrendingDown,
   Settings, Camera, ChevronRight, ChevronUp, ChevronDown, Building2,
@@ -6,7 +6,7 @@ import {
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
   Key, UserX, UserCheck, Trash2, Edit3,
-  Home, List
+  Home, List, GripVertical
 } from 'lucide-react';
 import {
   login, logout, watchAuth,
@@ -128,6 +128,25 @@ function periodRange(period, customFrom, customTo) {
 }
 
 // ==========================================
+// Batch 18: Context للهيدر — تنشره الشاشات الفرعية لإظهار العنوان وزر العودة
+// ==========================================
+export const ScreenCtxContext = createContext({ setScreenCtx: () => {} });
+
+/**
+ * Hook لاستخدامه في أي شاشة فرعية:
+ *   useScreenHeader('عنوان الشاشة', () => onBackHandler);
+ * عند unmount: يُمسح تلقائياً.
+ */
+export function useScreenHeader(title, onBack) {
+  const { setScreenCtx } = useContext(ScreenCtxContext);
+  useEffect(() => {
+    if (title) setScreenCtx({ title, onBack });
+    return () => setScreenCtx(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [title]);
+}
+
+// ==========================================
 // التطبيق الرئيسي
 // ==========================================
 export default function App() {
@@ -144,6 +163,8 @@ export default function App() {
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
   const [showChangePinModal, setShowChangePinModal] = useState(false);
+  // Batch 18: عنوان الشاشة الفرعية + handler العودة (للهيدر)
+  const [screenCtx, setScreenCtx] = useState(null); // { title, onBack } | null
 
   const userRole = user?.role || null;
   const branchId = user?.branchId || 'toia';
@@ -197,6 +218,7 @@ export default function App() {
   const pageAlign = pageDir === 'rtl' ? 'text-right' : 'text-left';
 
   return (
+    <ScreenCtxContext.Provider value={{ setScreenCtx }}>
     <div className={`min-h-screen md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
          dir={pageDir}
          style={{
@@ -222,20 +244,19 @@ export default function App() {
 
         {currentView !== 'login' && !authLoading && (
           <AppHeader
-            title="Toia & Wardana"
-            subtitle={
+            mode={screenCtx ? 'screen' : 'home'}
+            screenTitle={screenCtx?.title}
+            onBack={screenCtx?.onBack}
+            greeting={
               isAdmin
-                // شاشة المدير: "مرحباً، {اسمه الشخصي}"
                 ? `مرحباً، ${user?.displayName || user?.username || 'المدير'}`
-                // شاشة الموظف: "مرحباً، تويا" أو "مرحباً، وردانة" حسب الفرع
                 : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`
             }
             notifCount={isAdmin ? 2 : 0}
             onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
             onNotifClick={() => isAdmin && setShowNotifications(true)}
-            rtl={pageDir === 'rtl'}
             langButton={
-              !isAdmin ? (
+              (!isAdmin && !screenCtx) ? (
                 <button
                   onClick={() => changeLang(lang === 'ar' ? 'en' : 'ar')}
                   className="tw-circle-btn"
@@ -312,13 +333,13 @@ export default function App() {
             {/*
               في RTL، أول عنصر بالـ array يظهر يمين.
               ترتيب جديد (يمين → يسار):
-                كشف / المؤشرات / الرئيسية / نظرة عامة / الإعدادات
+                كشف / نظرة عامة / الرئيسية / المؤشرات / الإعدادات
             */}
             {[
               { key: 'monthly',  icon: List,       label: 'كشف' },
-              { key: 'kpis',     icon: Activity,   label: 'المؤشرات' },
-              { key: 'home',     icon: Home,       label: 'الرئيسية' },
               { key: 'overview', icon: PieChart,   label: 'نظرة عامة' },
+              { key: 'home',     icon: Home,       label: 'الرئيسية' },
+              { key: 'kpis',     icon: Activity,   label: 'المؤشرات' },
               { key: 'settings', icon: Settings,   label: 'الإعدادات' },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -396,6 +417,7 @@ export default function App() {
         )}
       </div>
     </div>
+    </ScreenCtxContext.Provider>
   );
 }
 
@@ -1415,8 +1437,12 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
             </p>
             <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
               <div
-                className="h-full bg-white rounded-full transition-all duration-500"
-                style={{ width: `${kpis.budgetPct}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${kpis.budgetPct}%`,
+                  background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                  boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                }}
               />
             </div>
           </div>
@@ -1445,8 +1471,12 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
             <p className="text-center text-xs tracking-[0.15em] mb-1.5 opacity-90">⭐⭐⭐⭐⭐</p>
             <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
               <div
-                className="h-full bg-white rounded-full transition-all duration-500"
-                style={{ width: `${kpis.reviewsPct}%` }}
+                className="h-full rounded-full transition-all duration-500"
+                style={{
+                  width: `${kpis.reviewsPct}%`,
+                  background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                  boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                }}
               />
             </div>
           </div>
@@ -2115,9 +2145,9 @@ function ManageUsers({ onBack }) {
                   onClick={() => openEdit(u)}
                   className={`w-full p-4 flex items-center gap-3 text-right hover:bg-tw-soft/40 transition-colors ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
                 >
-                  {/* شارة الحالة على اليسار (في RTL) */}
-                  <div className={`text-xs font-bold ${u.active === false ? 'text-tw-muted/70' : 'text-tw-green'}`}>
-                    {u.active === false ? 'معطّل' : 'نشط'}
+                  {/* الأيقونة قبل الاسم (في RTL تظهر يمين، بجانب الاسم) */}
+                  <div className="w-12 h-12 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
+                    <Users size={20} />
                   </div>
                   {/* النص في المنتصف */}
                   <div className="flex-1 min-w-0">
@@ -2128,9 +2158,13 @@ function ManageUsers({ onBack }) {
                       {u.role === 'admin' ? 'مدير' : 'موظف'} — {u.branchId === 'wardana' ? 'فرع وردانة' : u.branchId === 'toia' ? 'فرع تويا' : 'الكل'}
                     </p>
                   </div>
-                  {/* أيقونة دائرية على اليمين */}
-                  <div className="w-12 h-12 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
-                    <Users size={20} />
+                  {/* شارة الحالة على أقصى اليسار (في RTL = آخر DOM element) */}
+                  <div className={`text-xs font-bold flex-shrink-0 px-2.5 py-1 rounded-full ${
+                    u.active === false
+                      ? 'bg-gray-100 text-tw-muted/70'
+                      : 'bg-emerald-50 text-tw-green'
+                  }`}>
+                    {u.active === false ? 'معطّل' : 'نشط'}
                   </div>
                 </button>
               ))}
@@ -2561,6 +2595,29 @@ function ManageCategories({ onBack }) {
     }
   };
 
+  // Batch 18: ترتيب بالسحب — الضغط المطوّل ثم السحب
+  const [dragIdx, setDragIdx] = useState(null);
+  const handleDragStart = (idx) => setDragIdx(idx);
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    const newCats = [...cats];
+    const [moved] = newCats.splice(dragIdx, 1);
+    newCats.splice(idx, 0, moved);
+    setCats(newCats);
+    setDragIdx(idx);
+  };
+  const handleDragEnd = async () => {
+    if (dragIdx === null) return;
+    setDragIdx(null);
+    try {
+      await reorderCategories(cats.map((c) => c.id));
+    } catch (err) {
+      setError(err?.message || 'تعذّر تحديث الترتيب');
+      await load();
+    }
+  };
+
   return (
     <div
       className="min-h-full relative overflow-hidden pb-20"
@@ -2673,7 +2730,17 @@ function ManageCategories({ onBack }) {
         ) : (
           <div className="space-y-3">
             {cats.map((cat, idx) => (
-              <div key={cat.id} className="bg-white border border-tw-line rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+              <div
+                key={cat.id}
+                draggable
+                onDragStart={() => handleDragStart(idx)}
+                onDragOver={(e) => handleDragOver(e, idx)}
+                onDragEnd={handleDragEnd}
+                className={`bg-white border border-tw-line rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all ${
+                  dragIdx === idx ? 'opacity-50 scale-[0.98]' : ''
+                }`}
+                style={{ cursor: 'grab' }}
+              >
                 {/* Toggle موحّد بنفس تصميم التنبيهات والإشعارات */}
                 <button
                   onClick={() => toggleRequires(cat)}
@@ -2698,26 +2765,13 @@ function ManageCategories({ onBack }) {
                   </p>
                 </div>
 
-                {/* Batch 11: أسهم تحريك أعلى/أسفل */}
-                <div className="flex flex-col gap-1 flex-shrink-0">
-                  <button
-                    onClick={() => moveCategory(cat.id, 'up')}
-                    disabled={busyId === cat.id || idx === 0}
-                    className="p-1 text-tw-muted hover:text-tw-blue hover:bg-tw-soft rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="نقل لأعلى"
-                    aria-label="نقل لأعلى"
-                  >
-                    <ChevronUp size={16} strokeWidth={2.5} />
-                  </button>
-                  <button
-                    onClick={() => moveCategory(cat.id, 'down')}
-                    disabled={busyId === cat.id || idx === cats.length - 1}
-                    className="p-1 text-tw-muted hover:text-tw-blue hover:bg-tw-soft rounded disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
-                    title="نقل لأسفل"
-                    aria-label="نقل لأسفل"
-                  >
-                    <ChevronDown size={16} strokeWidth={2.5} />
-                  </button>
+                {/* Batch 18: مقبض السحب — يحل محل الأسهم */}
+                <div
+                  className="p-2 text-tw-muted/60 cursor-grab active:cursor-grabbing flex-shrink-0"
+                  title="اسحب لإعادة الترتيب"
+                  aria-label="drag handle"
+                >
+                  <GripVertical size={18} strokeWidth={2} />
                 </div>
 
                 {/* زر الحذف صغير */}
