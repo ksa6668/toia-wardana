@@ -16,7 +16,7 @@ import {
   getCategories, setCategoryRequiresImage, addCategory, deleteCategory, reorderCategories,
   changeMyPin, setUserActive, adminChangeUserPin, adminDeleteUser, adminUpdateUserProfile,
   getBranches, getPaymentMethods,
-  madaFees, madaNet, MADA_FEE_RATE,
+  madaFees, madaNet, MADA_FEE_RATE, salesNet,
   saveUserLanguage,
   getMonthlyGoal, setMonthlyGoal, getAllGoalsForMonth,
   addBranch, deleteBranch, updateBranch,
@@ -498,7 +498,7 @@ function SuperAdminDashboard() {
     for (const s of raw.sales) {
       const b = branches[s.branchId];
       if (!b) continue;
-      b.sales += s.total || 0;
+      b.sales += salesNet(s);
       b.cash += s.cash || 0;
       b.mada += s.mada || 0;
       b.transfer += s.transfer || 0;
@@ -625,7 +625,7 @@ function SuperAdminDashboard() {
         const d = new Date(s.date);
         const dom = d.getDate();
         const bucket = buckets.find((b) => dom >= b.start && dom <= b.end);
-        if (bucket) bucket.sales += s.total || 0;
+        if (bucket) bucket.sales += salesNet(s);
       }
       weeklyBreakdown = buckets;
     }
@@ -637,7 +637,7 @@ function SuperAdminDashboard() {
       for (const s of raw.sales) {
         if (branchFilter !== 'all' && s.branchId !== branchFilter) continue;
         const dom = new Date(s.date).getDate();
-        map.set(dom, (map.get(dom) || 0) + (s.total || 0));
+        map.set(dom, (map.get(dom) || 0) + salesNet(s));
       }
       const expMap = new Map();
       for (const e of raw.expenses) {
@@ -1395,7 +1395,7 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
           getSales(from, to),
         ]);
         const branchSales = allSales.filter((s) => s.branchId === branchId);
-        const totalSales = branchSales.reduce((sum, s) => sum + (s.total || 0), 0);
+        const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
         const budgetPct = goal.budget > 0
           ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
           : 0;

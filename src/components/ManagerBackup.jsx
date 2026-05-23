@@ -19,7 +19,7 @@ import {
   ChevronRight, Cloud, MapPin, FileText, AlertCircle, AlertTriangle,
   Loader2, CheckCircle2, Lightbulb,
 } from 'lucide-react';
-import { getBranches, getAllDataForBackup, getDataStats } from '../firebase';
+import { getBranches, getAllDataForBackup, getDataStats, salesNet as salesNetFn } from '../firebase';
 import BottomSheet from './BottomSheet';
 import { useScreenHeader } from '../App';
 
@@ -157,8 +157,11 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
           branchId: s.branchId,
           cash: s.cash,
           mada: s.mada,
+          madaFees: s.madaFees ?? +((Number(s.mada) || 0) * 0.0092).toFixed(2),
+          madaNet: s.madaNet ?? +((Number(s.mada) || 0) * (1 - 0.0092)).toFixed(2),
           transfer: s.transfer,
-          total: s.total,
+          total: s.total,        // الإجمالي قبل خصم رسوم مدى
+          netTotal: salesNetFn(s), // الصافي بعد خصم رسوم مدى (مطابق للحساب البنكي)
         }))
       );
       XLSX.utils.book_append_sheet(wb, salesSheet, 'Sales');

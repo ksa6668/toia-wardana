@@ -130,8 +130,10 @@ export async function createStaffUser({ username, pin, role, branchId, displayNa
 // ========== كتابة البيانات ==========
 
 // ========== حسبة رسوم مدى (طلب المالك) ==========
-// كل 10 ريال => 0.80 هلله رسوم + 15% ضريبة على الرسوم = 0.92 هلله
-// نسبة الرسوم الإجمالية على المبلغ = 0.092 / 10 = 0.92%
+// كل 100 ريال => 0.80 هلله رسوم أساسية + 15% ضريبة قيمة مضافة على الرسوم
+// = 0.80 + 0.12 = 0.92 هلله (≈ 0.92 ريال لكل 100 ريال)
+// نسبة الرسوم الإجمالية على المبلغ = 0.92 / 100 = 0.92%
+// النسبة تطبّق على أي مبلغ (ريال واحد أو 10,000)
 export const MADA_FEE_RATE = 0.0092;
 export function madaFees(grossMada) {
   const g = Number(grossMada) || 0;
@@ -140,6 +142,22 @@ export function madaFees(grossMada) {
 export function madaNet(grossMada) {
   const g = Number(grossMada) || 0;
   return +(g * (1 - MADA_FEE_RATE)).toFixed(2);
+}
+
+// Batch 29: helper موحّد لقراءة "صافي المبيعات بعد رسوم مدى" من سجل واحد
+// يدعم السجلات القديمة (التي لا تحتوي netTotal) عبر الحساب من cash/mada/transfer
+export function salesNet(sale) {
+  if (!sale) return 0;
+  // لو الحقل موجود (السجلات الجديدة) نستخدمه مباشرة
+  if (typeof sale.netTotal === 'number' && !Number.isNaN(sale.netTotal)) {
+    return sale.netTotal;
+  }
+  // fallback للسجلات القديمة: نحسبه من المكوّنات
+  const cashN = Number(sale.cash) || 0;
+  const madaN = Number(sale.mada) || 0;
+  const transferN = Number(sale.transfer) || 0;
+  const fees = +(madaN * MADA_FEE_RATE).toFixed(2);
+  return +(cashN + (madaN - fees) + transferN).toFixed(2);
 }
 
 // تسجيل مبيعات يومية (القسم 6 من المنطق)
@@ -844,4 +862,173 @@ export async function resetAllData({ alsoFixed = false, alsoGoals = true } = {})
     }
   }
   return { totalDeleted };
+}
+
+// ====================================================================
+// Batch 30: استيراد البيانات التاريخية من ملف JSON
+// ====================================================================
+
+/**
+ * يفحص هل توجد بيانات سابقة مستوردة لفرع معين.
+ * يستخدم قبل الاستيراد للتحذير من التكرار.
+ */
+export async function checkExistingImports(branchId) {
+  const result = { sales: 0, expenses: 0, oldestDate: null, newestDate: null };
+  
+  const salesSnap = await getDocs(query(
+    collection(db, "dailySales"),
+    where("branchId", "==", branchId),
+    where("imported", "==", true)
+  ));
+  result.sales = salesSnap.size;
+  
+  const expSnap = await getDocs(query(
+    collection(db, "expenses"),
+    where("branchId", "==", branchId),
+    where("imported", "==", true)
+  ));
+  result.expenses = expSnap.size;
+  
+  // اجلب أقدم وأحدث تاريخ من البيانات المستوردة
+  if (result.sales > 0) {
+    const dates = salesSnap.docs.map(d => d.data().date).filter(Boolean).sort();
+    if (dates.length) {
+      result.oldestDate = dates[0];
+      result.newestDate = dates[dates.length - 1];
+    }
+  }
+  
+  return result;
+}
+
+/**
+ * يستورد دفعة من سجلات المبيعات أو المصاريف.
+ * يقسمها إلى batches من 400 (الحد الأقصى لـ writeBatch).
+ * onProgress: callback يستدعى بـ ({done, total, phase})
+ */
+export async function importHistoricalData({
+  sales = [],
+  expenses = [],
+  onProgress = () => {},
+}) {
+  const BATCH_SIZE = 400;
+  const total = sales.length + expenses.length;
+  let done = 0;
+  const result = { salesImported: 0, expensesImported: 0, errors: [] };
+
+  // ===== 1) استيراد المبيعات =====
+  for (let i = 0; i < sales.length; i += BATCH_SIZE) {
+    const slice = sales.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    
+    slice.forEach((s) => {
+      const ref = doc(collection(db, "dailySales"));
+      batch.set(ref, {
+        date: s.date,
+        branchId: s.branchId,
+        cash: Number(s.cash) || 0,
+        mada: Number(s.mada) || 0,
+        madaFees: Number(s.madaFees) || 0,
+        madaNet: Number(s.madaNet) || 0,
+        transfer: Number(s.transfer) || 0,
+        total: Number(s.total) || 0,
+        netTotal: Number(s.netTotal) || 0,
+        imported: true, // علم مهم: يميّز السجلات المستوردة
+        createdBy: "historical-import",
+        createdAt: serverTimestamp(),
+      });
+    });
+    
+    try {
+      await batch.commit();
+      result.salesImported += slice.length;
+      done += slice.length;
+      onProgress({ done, total, phase: "sales" });
+    } catch (err) {
+      result.errors.push({
+        type: "sales",
+        batchStart: i,
+        message: err?.message || "Unknown error",
+      });
+    }
+  }
+
+  // ===== 2) استيراد المصاريف =====
+  for (let i = 0; i < expenses.length; i += BATCH_SIZE) {
+    const slice = expenses.slice(i, i + BATCH_SIZE);
+    const batch = writeBatch(db);
+    
+    slice.forEach((e) => {
+      const ref = doc(collection(db, "expenses"));
+      batch.set(ref, {
+        date: e.date,
+        branchId: e.branchId,
+        categoryId: e.categoryId,
+        categoryName: e.categoryName,
+        expenseType: e.expenseType || "general",
+        amount: Number(e.amount) || 0,
+        paymentMethodId: e.paymentMethodId || "", // فارغ للمستوردة
+        notes: e.notes || "",
+        invoiceUrl: e.invoiceUrl || null,
+        imported: true,
+        createdBy: "historical-import",
+        createdAt: serverTimestamp(),
+      });
+    });
+    
+    try {
+      await batch.commit();
+      result.expensesImported += slice.length;
+      done += slice.length;
+      onProgress({ done, total, phase: "expenses" });
+    } catch (err) {
+      result.errors.push({
+        type: "expenses",
+        batchStart: i,
+        message: err?.message || "Unknown error",
+      });
+    }
+  }
+
+  return result;
+}
+
+/**
+ * يحذف كل البيانات المستوردة لفرع معين (للتراجع).
+ * يستخدم في حالة الاستيراد بالخطأ.
+ */
+export async function deleteImportedData(branchId) {
+  const result = { salesDeleted: 0, expensesDeleted: 0 };
+  
+  // حذف المبيعات المستوردة
+  const salesSnap = await getDocs(query(
+    collection(db, "dailySales"),
+    where("branchId", "==", branchId),
+    where("imported", "==", true)
+  ));
+  const salesDocs = salesSnap.docs;
+  for (let i = 0; i < salesDocs.length; i += 400) {
+    const slice = salesDocs.slice(i, i + 400);
+    const batch = writeBatch(db);
+    slice.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    result.salesDeleted += slice.length;
+  }
+  
+  // حذف المصاريف المستوردة
+  const expSnap = await getDocs(query(
+    collection(db, "expenses"),
+    where("branchId", "==", branchId),
+    where("imported", "==", true)
+  ));
+  const expDocs = expSnap.docs;
+  for (let i = 0; i < expDocs.length; i += 400) {
+    const slice = expDocs.slice(i, i + 400);
+    const batch = writeBatch(db);
+    slice.forEach((d) => batch.delete(d.ref));
+    await batch.commit();
+    result.expensesDeleted += slice.length;
+  }
+  
+  return result;
 }

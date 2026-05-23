@@ -13,7 +13,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Loader2 } from 'lucide-react';
-import { getSales, getExpenses } from '../firebase';
+import { getSales, getExpenses, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import {
@@ -128,10 +128,10 @@ export default function ManagerKpis({ lang = 'ar' }) {
     const ranges = period === 'month'
       ? splitMonthToWeeks(selectedMonth)
       : splitYearToQuarters(selectedYear);
-    const totalAll = filteredSales.reduce((sum, s) => sum + (s.total || 0), 0) || 1;
+    const totalAll = filteredSales.reduce((sum, s) => sum + salesNet(s), 0) || 1;
     return ranges.map((r) => {
       const slice = filteredSales.filter((s) => s.date >= r.from && s.date <= r.to);
-      const amount = slice.reduce((sum, s) => sum + (s.total || 0), 0);
+      const amount = slice.reduce((sum, s) => sum + salesNet(s), 0);
       const pct = ((amount / totalAll) * 100).toFixed(1);
       return {
         label: lang === 'en' ? r.labelEn : r.labelAr,
@@ -143,11 +143,17 @@ export default function ManagerKpis({ lang = 'ar' }) {
 
   // النسب (Batch 13 + Batch 15)
   const kpiRows = useMemo(() => {
+    // Batch 29: نستخدم madaNet (بعد رسوم مدى) ليطابق netTotal — مبالغ الحساب البنكي الفعلية
     const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
-    const totalMada = filteredSales.reduce((s, x) => s + (Number(x.mada) || 0), 0);
+    const totalMadaNet = filteredSales.reduce((s, x) => {
+      // لو madaNet مخزّن في السجل نستخدمه، وإلا نحسبه
+      if (typeof x.madaNet === 'number') return s + x.madaNet;
+      const m = Number(x.mada) || 0;
+      return s + +(m * (1 - 0.0092)).toFixed(2);
+    }, 0);
     const totalTransfer = filteredSales.reduce((s, x) => s + (Number(x.transfer) || 0), 0);
-    const totalSales = totalCash + totalMada + totalTransfer || 1;
-    const storeOnly = totalCash + totalMada || 1; // كاش + مدى = المتجر
+    const totalSales = totalCash + totalMadaNet + totalTransfer || 1;
+    const storeOnly = totalCash + totalMadaNet || 1; // كاش + مدى صافي = المتجر
 
     // مصاريف الورد والتوصيل من filteredExpenses
     const sumByType = (type) =>

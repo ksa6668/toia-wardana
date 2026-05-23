@@ -12,7 +12,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, ChevronDown, MapPin, TrendingUp, Receipt, BarChart3, Wallet, Loader2 } from 'lucide-react';
-import { getSales, getExpenses } from '../firebase';
+import { getSales, getExpenses, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import { yearRange, getAvailableYears } from '../utils/periodHelpers';
@@ -80,7 +80,7 @@ export default function ManagerOverview({ lang = 'ar' }) {
   );
 
   const stats = useMemo(() => {
-    const totalSales = filteredSales.reduce((sum, s) => sum + (s.total || 0), 0);
+    const totalSales = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
     const totalExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     // عدد الأيام الفريدة التي فيها مبيعات (للمتوسطات)
     const daysWithSales = new Set(filteredSales.map((s) => s.date)).size || 1;

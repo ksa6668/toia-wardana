@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { Calendar, ChevronDown, Loader2, Star, CheckCircle2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import SheetPortal from './SheetPortal';
-import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales } from '../firebase';
+import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales, salesNet } from '../firebase';
 import {
   getAvailableMonths, getAvailableYears, formatMonthLabel,
   monthRange, yearRange,
@@ -199,7 +199,7 @@ export default function ManagerHome({ lang }) {
         for (const b of brs) {
           const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0 };
           const branchSales = allSales.filter((s) => s.branchId === b.id);
-          const totalSales = branchSales.reduce((sum, s) => sum + (s.total || 0), 0);
+          const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
           const budgetPct = goal.budget > 0
             ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
             : 0;

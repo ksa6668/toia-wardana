@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import {
   ChevronRight, Target, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
-  PieChart, GripVertical,
+  PieChart, GripVertical, Upload,
 } from 'lucide-react';
 import { useDragSort } from '../hooks/useDragSort';
 import ManagerGoals from './ManagerGoals';
@@ -17,6 +17,7 @@ import ManagerGeneralSettings from './ManagerGeneralSettings';
 import ManagerNotifications from './ManagerNotifications';
 import ManagerBackup from './ManagerBackup';
 import ManagerReceipts from './ManagerReceipts';
+import ManagerImport from './ManagerImport';
 
 const ITEMS = [
   {
@@ -52,6 +53,13 @@ const ITEMS = [
     icon: Cloud, color: 'blue',
     label: { ar: 'النسخ الاحتياطي', en: 'Backup' },
     desc: { ar: 'تصدير واستيراد البيانات بالفرع أو الكل', en: 'Export and import data by branch or all' },
+    enabled: true,
+  },
+  {
+    key: 'import',
+    icon: Upload, color: 'blue',
+    label: { ar: 'استيراد بيانات تاريخية', en: 'Import Historical Data' },
+    desc: { ar: 'استيراد المبيعات والمصاريف القديمة من Excel', en: 'Import old sales and expenses from Excel' },
     enabled: true,
   },
   {
@@ -133,6 +141,7 @@ export default function AdminSettingsV2({
   if (screen === 'general') return <ManagerGeneralSettings onBack={goBack} lang={lang} />;
   if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;
   if (screen === 'backup') return <ManagerBackup onBack={goBack} lang={lang} />;
+  if (screen === 'import') return <ManagerImport onBack={goBack} lang={lang} />;
   if (screen === 'receipts') {
     if (showCategoriesFromReceipts && ManageCategoriesComponent) {
       return <ManageCategoriesComponent onBack={() => setShowCategoriesFromReceipts(false)} />;
