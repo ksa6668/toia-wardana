@@ -43,10 +43,10 @@ function isLeapYear(y) {
 
 /**
  * يعطي قائمة الأشهر السابقة بصيغة YYYY-MM، الأحدث أولاً.
- * يبدأ من مايو 2026 (تاريخ إطلاق المشروع) إلى الشهر الحالي.
+ * Batch 34: يبدأ من يناير 2024 ليشمل بيانات ما قبل الإطلاق (Pre-Expenses).
  */
 export function getAvailableMonths() {
-  const START = { y: 2026, m: 5 }; // مايو 2026
+  const START = { y: 2024, m: 1 }; // يناير 2024
   const now = new Date();
   let y = now.getFullYear();
   let m = now.getMonth() + 1;
@@ -64,10 +64,11 @@ export function getAvailableMonths() {
 }
 
 /**
- * قائمة السنوات: من 2026 إلى السنة الحالية، الأحدث أولاً.
+ * قائمة السنوات: من 2024 إلى السنة الحالية، الأحدث أولاً.
+ * Batch 34: السنة الافتتاحية صارت 2024.
  */
 export function getAvailableYears() {
-  const START = 2026;
+  const START = 2024;
   const now = new Date().getFullYear();
   const end = Math.max(now, START);
   const list = [];
