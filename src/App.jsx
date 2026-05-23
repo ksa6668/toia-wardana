@@ -219,26 +219,27 @@ export default function App() {
 
   return (
     <ScreenCtxContext.Provider value={{ setScreenCtx }}>
-    <div className={`min-h-screen md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
+    <div className={`md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
          dir={pageDir}
          style={{
            fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
            background: '#0A1535', // الخلفية خارج phone-frame (ديسكتوب)
+           minHeight: '100dvh',
+           height: '100dvh',
+           overflow: 'hidden',
          }}>
       <div
         id="tw-app-frame"
         className="tw-app-frame w-full overflow-hidden flex flex-col relative
-                   h-screen
-                   md:h-[850px] md:max-w-md md:rounded-[2.5rem]
+                   md:max-w-md md:rounded-[2.5rem]
                    md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.25)]
-                   md:border-8 md:border-slate-900"
+                   md:border-8 md:border-slate-900
+                   md:!h-[850px]"
         style={{
-          /* تدرج موحّد من أعلى الجوال إلى الأسفل — يبيّن أن التطبيق قطعة واحدة */
-          background: `
-            radial-gradient(circle at 4% 6%, rgba(0,91,255,0.10), transparent 22%),
-            radial-gradient(circle at 96% 4%, rgba(40,223,255,0.10), transparent 22%),
-            linear-gradient(180deg, #EAF2FF 0%, #F2F8FF 35%, #F7FAFF 65%, #FFFFFF 100%)
-          `,
+          /* Batch 20: ارتفاع ديناميكي ثابت — يحل خلل صعود/نزول الهيدر والبوتوم على iOS */
+          height: '100dvh',
+          /* خلفية موحّدة بنفس لون الهيدر والبوتوم (لون tw-soft الفاتح) */
+          background: '#F2F6FC',
         }}
       >
 
@@ -276,7 +277,7 @@ export default function App() {
         )}
 
         <main
-          className="flex-1 overflow-y-auto pb-24"
+          className="flex-1 overflow-y-auto"
           style={{ background: 'transparent', minHeight: 0 }}
         >
           {authLoading && (
@@ -320,13 +321,11 @@ export default function App() {
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
           <nav
-            className="absolute bottom-0 left-0 right-0 flex items-center px-2 py-2 pb-5 md:pb-3 z-10"
+            className="flex items-center px-2 py-2 pb-5 md:pb-3 z-10 flex-shrink-0"
             style={{
-              background: 'rgba(255, 255, 255, 0.78)',
-              backdropFilter: 'blur(12px)',
-              WebkitBackdropFilter: 'blur(12px)',
-              borderTop: '1px solid rgba(230, 236, 246, 0.6)',
-              boxShadow: '0 -8px 24px rgba(6, 23, 66, 0.06)',
+              /* Batch 20: نفس لون الـ frame — اللون موحّد بدون blur */
+              background: '#F2F6FC',
+              borderTop: '1px solid rgba(230, 236, 246, 0.8)',
               fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
             }}
           >
