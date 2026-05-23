@@ -93,6 +93,8 @@ export async function login(username, pin) {
 }
 
 export async function logout() {
+  // Batch 40: مسح cache اسم المستخدم (إن وُجد)
+  try { clearUserNameCache(); } catch { /* ignore */ }
   await signOut(auth);
 }
 
@@ -172,7 +174,7 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
   const madaNetAmt = +(madaN - madaFeesAmt).toFixed(2);
   const netTotal = +(cashN + madaNetAmt + transferN).toFixed(2);
 
-  return addDoc(collection(db, "dailySales"), {
+  const ref = await addDoc(collection(db, "dailySales"), {
     date,
     branchId,
     cash: cashN,
@@ -185,6 +187,13 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
     createdBy: auth.currentUser.uid,
     createdAt: serverTimestamp(),
   });
+
+  // Batch 40: إشعار Telegram (fire-and-forget، لا يعطّل الحفظ)
+  notifyTelegramSaleAdded({
+    date, branchId, cash: cashN, mada: madaN, transfer: transferN, total,
+  });
+
+  return ref;
 }
 
 // تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
@@ -220,13 +229,16 @@ export async function addExpense({
   invoiceUrl = null,
   invoicePath = null,
 }) {
-  return addDoc(collection(db, "expenses"), {
+  const amountN = Number(amount) || 0;
+  const catName = categoryName || categoryId;
+
+  const ref = await addDoc(collection(db, "expenses"), {
     date,
     branchId,
     categoryId,
-    categoryName: categoryName || categoryId,
-    expenseType: expenseType || classifyExpense(categoryName || categoryId),
-    amount: Number(amount) || 0,
+    categoryName: catName,
+    expenseType: expenseType || classifyExpense(catName),
+    amount: amountN,
     paymentMethodId,
     notes,
     invoiceUrl,
@@ -234,6 +246,13 @@ export async function addExpense({
     createdBy: auth.currentUser.uid,
     createdAt: serverTimestamp(),
   });
+
+  // Batch 40: إشعار Telegram
+  notifyTelegramExpenseAdded({
+    date, branchId, categoryName: catName, amount: amountN, paymentMethodId, notes,
+  });
+
+  return ref;
 }
 
 // ========== Batch 12: تعديل/حذف المبيعات والمصاريف (للمدير فقط) ==========
@@ -249,7 +268,7 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
   const madaNetAmt = +(madaN - madaFeesAmt).toFixed(2);
   const netTotal = +(cashN + madaNetAmt + transferN).toFixed(2);
 
-  return updateDoc(doc(db, "dailySales", id), {
+  const result = await updateDoc(doc(db, "dailySales", id), {
     date,
     branchId,
     cash: cashN,
@@ -262,10 +281,33 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
     updatedBy: auth.currentUser.uid,
     updatedAt: serverTimestamp(),
   });
+
+  // Batch 40: إشعار Telegram
+  notifyTelegramSaleUpdated({
+    date, branchId, cash: cashN, mada: madaN, transfer: transferN, total,
+  });
+
+  return result;
 }
 
 export async function deleteDailySales(id) {
-  return deleteDoc(doc(db, "dailySales", id));
+  // Batch 40: نقرأ البيانات قبل الحذف لإرسالها في الإشعار
+  let snapshot = null;
+  try {
+    const snap = await getDoc(doc(db, "dailySales", id));
+    if (snap.exists()) snapshot = snap.data();
+  } catch { /* ignore */ }
+
+  const result = await deleteDoc(doc(db, "dailySales", id));
+
+  if (snapshot) {
+    notifyTelegramSaleDeleted({
+      date: snapshot.date,
+      branchId: snapshot.branchId,
+      total: snapshot.total || 0,
+    });
+  }
+  return result;
 }
 
 export async function updateExpense(id, {
@@ -280,13 +322,16 @@ export async function updateExpense(id, {
   invoiceUrl,
   invoicePath,
 }) {
+  const amountN = Number(amount) || 0;
+  const catName = categoryName || categoryId;
+
   const payload = {
     date,
     branchId,
     categoryId,
-    categoryName: categoryName || categoryId,
-    expenseType: expenseType || classifyExpense(categoryName || categoryId),
-    amount: Number(amount) || 0,
+    categoryName: catName,
+    expenseType: expenseType || classifyExpense(catName),
+    amount: amountN,
     paymentMethodId,
     notes,
     updatedBy: auth.currentUser.uid,
@@ -294,11 +339,36 @@ export async function updateExpense(id, {
   };
   if (invoiceUrl !== undefined) payload.invoiceUrl = invoiceUrl;
   if (invoicePath !== undefined) payload.invoicePath = invoicePath;
-  return updateDoc(doc(db, "expenses", id), payload);
+
+  const result = await updateDoc(doc(db, "expenses", id), payload);
+
+  // Batch 40: إشعار Telegram
+  notifyTelegramExpenseUpdated({
+    date, branchId, categoryName: catName, amount: amountN, paymentMethodId,
+  });
+
+  return result;
 }
 
 export async function deleteExpense(id) {
-  return deleteDoc(doc(db, "expenses", id));
+  // Batch 40: نقرأ البيانات قبل الحذف
+  let snapshot = null;
+  try {
+    const snap = await getDoc(doc(db, "expenses", id));
+    if (snap.exists()) snapshot = snap.data();
+  } catch { /* ignore */ }
+
+  const result = await deleteDoc(doc(db, "expenses", id));
+
+  if (snapshot) {
+    notifyTelegramExpenseDeleted({
+      date: snapshot.date,
+      branchId: snapshot.branchId,
+      categoryName: snapshot.categoryName,
+      amount: snapshot.amount || 0,
+    });
+  }
+  return result;
 }
 
 // ========== قراءة البيانات (للوحة المدير) ==========
@@ -1047,3 +1117,183 @@ export async function deleteImportedData(branchId) {
   
   return result;
 }
+
+// ====================================================================
+// Batch 40: إشعارات Telegram
+// ====================================================================
+//
+// يرسل إشعارات لقناة Telegram خاصة عند:
+//   - تسجيل/تعديل/حذف مبيعات
+//   - تسجيل/تعديل/حذف مصاريف
+//
+// التهيئة: تخزين Token + Chat ID في Vercel Environment Variables:
+//   VITE_TELEGRAM_BOT_TOKEN
+//   VITE_TELEGRAM_CHAT_ID
+//
+// لو القيم غير موجودة، الدالة تتجاهل بصمت (التطبيق يعمل عادياً).
+// الإشعار async ولا يعطّل الـ flow حتى لو فشل (نسجّل warning فقط).
+// ====================================================================
+
+const TELEGRAM_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;
+const TELEGRAM_CHAT_ID = import.meta.env.VITE_TELEGRAM_CHAT_ID;
+
+/**
+ * يرسل رسالة لقناة Telegram. fire-and-forget.
+ * في حالة الفشل: console.warn فقط، لا يكسر الـ flow.
+ */
+async function sendTelegram(message) {
+  if (!TELEGRAM_TOKEN || !TELEGRAM_CHAT_ID) {
+    // التهيئة غير مفعّلة — تجاهل بصمت
+    return;
+  }
+  try {
+    const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_CHAT_ID,
+        text: message,
+        parse_mode: 'HTML',
+        disable_web_page_preview: true,
+      }),
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      console.warn('Telegram send failed:', errText);
+    }
+  } catch (err) {
+    console.warn('Telegram error:', err?.message || err);
+  }
+}
+
+/**
+ * Batch 40: cache يحفظ اسم المستخدم + دوره.
+ * يقلل قراءات Firestore المتكررة عند كل إشعار.
+ */
+let _userCache = null; // { name, role }
+
+async function getCurrentUserInfo() {
+  if (_userCache) return _userCache;
+  const uid = auth.currentUser?.uid;
+  if (!uid) return { name: 'غير معروف', role: null };
+  try {
+    const snap = await getDoc(doc(db, 'users', uid));
+    if (snap.exists()) {
+      const data = snap.data();
+      _userCache = {
+        name: data.displayName || data.username || 'مستخدم',
+        role: data.role || null, // 'admin' | 'employee'
+      };
+      return _userCache;
+    }
+  } catch {
+    /* ignore */
+  }
+  return { name: 'مستخدم', role: null };
+}
+
+// Helper قديم للتوافق
+async function getCurrentUserName() {
+  const info = await getCurrentUserInfo();
+  return info.name;
+}
+
+// Batch 40: فحص هل المستخدم الحالي موظف (لفلترة الإشعارات)
+async function isCurrentUserEmployee() {
+  const info = await getCurrentUserInfo();
+  return info.role === 'employee';
+}
+
+// نمسح الـ cache عند تسجيل الخروج
+export function clearUserNameCache() {
+  _userCache = null;
+}
+
+/**
+ * يرجع اسم الفرع بالعربي مع emoji.
+ */
+function branchLabel(branchId) {
+  if (branchId === 'toia') return '🌸 تويا';
+  if (branchId === 'wardana') return '🌹 وردانة';
+  return `📍 ${branchId}`;
+}
+
+/**
+ * يرجع نص طريقة الدفع.
+ */
+function payMethodLabel(id) {
+  if (!id) return '—';
+  const map = {
+    'Cash': 'كاش 💵',
+    'cash': 'كاش 💵',
+    'Mada': 'مدى 💳',
+    'mada': 'مدى 💳',
+    'Transfer': 'تحويل 📱',
+    'transfer': 'تحويل 📱',
+    'Apple Pay': 'Apple Pay 🍎',
+    'STC Pay': 'STC Pay 📱',
+  };
+  return map[id] || id;
+}
+
+/**
+ * تنسيق رقم بفاصلة الآلاف.
+ */
+function fmt(num) {
+  return Number(num || 0).toLocaleString('en-US', { maximumFractionDigits: 2 });
+}
+
+/**
+ * إشعار: مبيعات جديدة — يُرسل فقط لو المُسجِّل موظف
+ */
+export async function notifyTelegramSaleAdded({ date, branchId, cash, mada, transfer, total }) {
+  // Batch 40: فلترة — للموظفين فقط (المدير لا يحتاج إشعار نفسه)
+  const isEmp = await isCurrentUserEmployee();
+  if (!isEmp) return;
+
+  const user = await getCurrentUserName();
+  const msg =
+    `💵 <b>مبيعات جديدة</b>\n` +
+    `${branchLabel(branchId)}\n` +
+    `━━━━━━━━━━━━━━━\n` +
+    `👤 المُسجِّل: ${user}\n` +
+    `📅 التاريخ: ${date}\n\n` +
+    `💵 كاش: <b>${fmt(cash)}</b> ﷼\n` +
+    `💳 مدى: <b>${fmt(mada)}</b> ﷼\n` +
+    `📱 تحويل: <b>${fmt(transfer)}</b> ﷼\n` +
+    `━━━━━━━━━━━━━━━\n` +
+    `💰 الإجمالي: <b>${fmt(total)} ﷼</b>`;
+  return sendTelegram(msg);
+}
+
+/**
+ * إشعار: مصروف جديد — يُرسل فقط لو المُسجِّل موظف
+ */
+export async function notifyTelegramExpenseAdded({ date, branchId, categoryName, amount, paymentMethodId, notes }) {
+  // Batch 40: فلترة — للموظفين فقط
+  const isEmp = await isCurrentUserEmployee();
+  if (!isEmp) return;
+
+  const user = await getCurrentUserName();
+  let msg =
+    `💸 <b>مصروف جديد</b>\n` +
+    `${branchLabel(branchId)}\n` +
+    `━━━━━━━━━━━━━━━\n` +
+    `👤 المُسجِّل: ${user}\n` +
+    `📅 التاريخ: ${date}\n\n` +
+    `📂 التصنيف: <b>${categoryName || '—'}</b>\n` +
+    `💸 المبلغ: <b>${fmt(amount)} ﷼</b>\n` +
+    `💳 الدفع: ${payMethodLabel(paymentMethodId)}`;
+  if (notes && notes.trim()) {
+    msg += `\n📝 ملاحظات: ${notes.trim()}`;
+  }
+  return sendTelegram(msg);
+}
+
+// Batch 40: دوال التعديل/الحذف لم تعد تُستخدم (الإشعارات للموظفين عند الإضافة فقط)
+// تركناها كـ no-op لتفادي كسر أي مكان يستدعيها.
+export async function notifyTelegramSaleUpdated() { /* disabled */ }
+export async function notifyTelegramSaleDeleted() { /* disabled */ }
+export async function notifyTelegramExpenseUpdated() { /* disabled */ }
+export async function notifyTelegramExpenseDeleted() { /* disabled */ }
