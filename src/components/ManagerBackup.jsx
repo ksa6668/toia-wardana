@@ -303,32 +303,6 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
                 : <Cloud size={16} />}
               {lang === 'en' ? 'Export Excel file' : 'تصدير ملف Excel'}
             </button>
-
-            {/* زر تصدير JSON - navy gradient */}
-            <button
-              onClick={handleExportJSON}
-              disabled={exporting}
-              className="w-full text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{
-                background: 'linear-gradient(135deg, #061742 0%, #082765 100%)',
-                boxShadow: '0 6px 16px rgba(8, 39, 101, 0.25)',
-              }}
-            >
-              {exportingType === 'json'
-                ? <Loader2 size={16} className="animate-spin" />
-                : <Cloud size={16} />}
-              {lang === 'en' ? 'Export full backup (JSON)' : 'تصدير نسخة كاملة (JSON)'}
-            </button>
-
-            {/* تنبيه عن Excel vs JSON */}
-            <div className="mt-3 p-3 bg-amber-50 border border-amber-100 rounded-xl flex items-start gap-2">
-              <AlertTriangle size={14} className="text-tw-orange flex-shrink-0 mt-0.5" />
-              <p className="text-[11px] text-tw-navy leading-relaxed">
-                {lang === 'en'
-                  ? 'Excel file does not save invoice photos. For full backup use JSON.'
-                  : 'ملف Excel لا يحفظ صور الفواتير. للنسخة الكاملة استخدم JSON.'}
-              </p>
-            </div>
           </div>
 
           {/* الرسائل */}
