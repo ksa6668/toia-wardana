@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import {
   ChevronRight, Target, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
-  PieChart,
+  PieChart, GripVertical,
 } from 'lucide-react';
 import ManagerGoals from './ManagerGoals';
 import ManagerBranches from './ManagerBranches';
@@ -101,6 +101,41 @@ export default function AdminSettingsV2({
   const [showCategoriesFromReceipts, setShowCategoriesFromReceipts] = useState(false);
   const goBack = () => setScreen('menu');
 
+  // Batch 19: ترتيب مخصّص بالسحب (يُحفظ في localStorage)
+  const STORAGE_KEY = 'tw-settings-order-v1';
+  const [items, setItems] = useState(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const savedKeys = JSON.parse(saved);
+        // أعد ترتيب ITEMS حسب savedKeys + ألحق أي عنصر جديد لم يكن مخزّن
+        const map = new Map(ITEMS.map((it) => [it.key, it]));
+        const ordered = [];
+        for (const k of savedKeys) if (map.has(k)) { ordered.push(map.get(k)); map.delete(k); }
+        for (const it of map.values()) ordered.push(it); // عناصر جديدة في نهاية القائمة
+        return ordered;
+      }
+    } catch { /* ignore */ }
+    return ITEMS;
+  });
+  const [dragIdx, setDragIdx] = useState(null);
+  const handleDragStart = (idx) => setDragIdx(idx);
+  const handleDragOver = (e, idx) => {
+    e.preventDefault();
+    if (dragIdx === null || dragIdx === idx) return;
+    const arr = [...items];
+    const [moved] = arr.splice(dragIdx, 1);
+    arr.splice(idx, 0, moved);
+    setItems(arr);
+    setDragIdx(idx);
+  };
+  const handleDragEnd = () => {
+    setDragIdx(null);
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(items.map((it) => it.key)));
+    } catch { /* ignore */ }
+  };
+
   if (screen === 'users' && ManageUsersComponent) return <ManageUsersComponent onBack={goBack} />;
   if (screen === 'fixed' && ManageFixedExpensesComponent) return <ManageFixedExpensesComponent onBack={goBack} />;
   if (screen === 'categories' && ManageCategoriesComponent) return <ManageCategoriesComponent onBack={goBack} />;
@@ -137,21 +172,24 @@ export default function AdminSettingsV2({
       </h2>
 
       <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
-        {ITEMS.map((item) => {
+        {items.map((item, idx) => {
           const Icon = item.icon;
           const isActive = item.enabled;
           return (
-            <button
+            <div
               key={item.key}
-              disabled={!isActive}
-              onClick={() => isActive && setScreen(item.key)}
-              className={`w-full p-4 border-b border-tw-line/60 last:border-0 flex items-center gap-3 transition-colors ${
+              draggable={isActive}
+              onDragStart={() => handleDragStart(idx)}
+              onDragOver={(e) => handleDragOver(e, idx)}
+              onDragEnd={handleDragEnd}
+              onClick={() => isActive && dragIdx === null && setScreen(item.key)}
+              className={`w-full p-4 border-b border-tw-line/60 last:border-0 flex items-center gap-3 transition-all ${
                 isActive
                   ? 'hover:bg-tw-soft cursor-pointer'
                   : 'opacity-50 cursor-not-allowed'
-              }`}
+              } ${dragIdx === idx ? 'opacity-50 scale-[0.98] bg-tw-soft' : ''}`}
             >
-              {/* الأيقونة قبل الاسم — في RTL تظهر يمين بجانب الاسم */}
+              {/* الأيقونة قبل الاسم — في RTL تظهر يمين */}
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorMap[item.color]}`}>
                 <Icon size={18} strokeWidth={2} />
               </div>
@@ -161,13 +199,21 @@ export default function AdminSettingsV2({
                 </p>
                 <p className="text-[11px] text-tw-muted truncate mt-0.5">{item.desc[lang]}</p>
               </div>
-              {/* سهم صغير على أقصى اليسار في RTL — يشير للاسم (يميناً) */}
+              {/* مقبض السحب — Batch 19 */}
+              <div
+                className="p-1 text-tw-muted/40 flex-shrink-0 cursor-grab active:cursor-grabbing"
+                onClick={(e) => e.stopPropagation()}
+                title="اسحب لإعادة الترتيب"
+              >
+                <GripVertical size={14} />
+              </div>
+              {/* سهم صغير على أقصى اليسار في RTL */}
               <ChevronRight
                 size={14}
                 className={`text-tw-muted flex-shrink-0 ${lang === 'en' ? 'rotate-180' : ''}`}
                 strokeWidth={2.2}
               />
-            </button>
+            </div>
           );
         })}
       </div>

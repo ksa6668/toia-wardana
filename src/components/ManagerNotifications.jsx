@@ -8,6 +8,7 @@
 import { useState, useEffect } from 'react';
 import { ChevronRight, Bell, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
 import { getAppSettings, setAppSettings } from '../firebase';
+import { useScreenHeader } from '../App';
 
 // مكون toggle مخصص بتصميم prototype
 function ToggleSwitch({ value, onChange, disabled }) {
@@ -44,6 +45,7 @@ function SettingRow({ title, desc, value, onChange, disabled }) {
 }
 
 export default function ManagerNotifications({ onBack, lang = 'ar' }) {
+  useScreenHeader(lang === 'en' ? 'Notifications' : 'التنبيهات والإشعارات', onBack);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [notifInApp, setNotifInApp] = useState(true);
@@ -134,19 +136,6 @@ export default function ManagerNotifications({ onBack, lang = 'ar' }) {
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
-
-      {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button
-          onClick={onBack}
-          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
-        >
-          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {lang === 'en' ? 'Notifications' : 'التنبيهات والإشعارات'}
-        </h2>
-      </div>
 
       {/* وصف القسم */}
       <div className="relative z-10 px-4 pt-4 pb-2">

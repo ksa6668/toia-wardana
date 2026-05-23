@@ -1884,6 +1884,7 @@ function AdminSettings() {
 
 // شاشة إدارة المستخدمين
 function ManageUsers({ onBack }) {
+  useScreenHeader('المستخدمون والصلاحيات', onBack);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -2071,14 +2072,6 @@ function ManageUsers({ onBack }) {
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
-
-      {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">المستخدمون</h2>
-      </div>
 
       <div className="relative z-10 p-4 space-y-3">
         {/* form إضافة مستخدم */}
@@ -2321,6 +2314,7 @@ function ManageUsers({ onBack }) {
 
 // شاشة المصاريف الثابتة الشهرية
 function ManageFixedExpenses({ onBack }) {
+  useScreenHeader('المصاريف الثابتة', onBack);
   const month = monthStr();
   // كل فرع له 3 بنود: إيجار + رواتب + تأمينات GOSI
   const [toia, setToia] = useState({ rent: '', salaries: '', gosi: '' });
@@ -2434,13 +2428,6 @@ function ManageFixedExpenses({ onBack }) {
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">المصاريف الثابتة</h2>
-      </div>
-
       <div className="relative z-10 p-4 space-y-4">
         <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-3 text-center">
           <p className="text-tw-navy font-bold text-sm">شهر {month}</p>
@@ -2509,6 +2496,7 @@ function ManageFixedExpenses({ onBack }) {
 // شاشة إدارة التصنيفات
 // ==========================================
 function ManageCategories({ onBack }) {
+  useScreenHeader('التصنيفات', onBack);
   const [cats, setCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -2631,14 +2619,6 @@ function ManageCategories({ onBack }) {
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
-
-      {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">التصنيفات</h2>
-      </div>
 
       <div className="relative z-10 p-4 space-y-3">
         {/* زر إضافة تصنيف — gradient navy */}
@@ -2796,6 +2776,7 @@ function ManageCategories({ onBack }) {
 // شاشة تغيير رمز المدير لنفسه
 // ==========================================
 function ChangeMyPin({ onBack }) {
+  useScreenHeader('تغيير الرمز السري', onBack);
   const [currentPin, setCurrentPin] = useState('');
   const [newPin, setNewPin] = useState('');
   const [confirmPin, setConfirmPin] = useState('');
@@ -2830,13 +2811,6 @@ function ChangeMyPin({ onBack }) {
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">تغيير رمزي السري</h2>
-      </div>
-
       <div className="p-6 space-y-4 flex-1">
         <div className="bg-tw-soft border border-tw-line rounded-xl p-3 text-center">
           <Key size={20} className="text-tw-blue mx-auto mb-2" />
@@ -2889,7 +2863,8 @@ function ChangeMyPin({ onBack }) {
 // - الفرع يُغيَّر من داخل النماذج عبر pill قابل للنقر → bottom sheet
 // - كل سطر في القائمة فيه ✎ تعديل + 🗑 حذف (للمدير فقط)
 function AdminDataEntry({ onBack }) {
-  const [step, setStep] = useState('home'); // home | salesForm | expenseForm | editSalesForm | editExpenseForm
+  useScreenHeader('المبيعات والمصاريف', onBack);
+  const [step, setStep] = useState('home');
   const [chosenBranch, setChosenBranch] = useState('toia');
   const [branches, setBranches] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -2957,21 +2932,6 @@ function AdminDataEntry({ onBack }) {
             className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
             style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
           />
-
-          <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm flex-shrink-0">
-            <button
-              onClick={onBack}
-              className="tw-circle-btn"
-              type="button"
-              aria-label="Back"
-            >
-              <ChevronRight size={20} className="rotate-180" />
-            </button>
-            <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-              المبيعات والمصروفات
-            </h2>
-            <div style={{ width: 36 }} />
-          </div>
 
           <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-24">
             <div
@@ -3070,6 +3030,7 @@ function AdminDataEntry({ onBack }) {
 
 // نسخة من SalesForm للمدير (الفرق: زر "رجوع" يرجع لشاشة الإدخال بدل الموظف)
 function AdminSalesForm({ onBack, branchId, branchName }) {
+  useScreenHeader(`مبيعات — ${branchName}`, onBack);
   const [date, setDate] = useState(todayStr());
   const [cash, setCash] = useState('');
   const [mada, setMada] = useState('');
@@ -3105,12 +3066,6 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">مبيعات — {branchName}</h2>
-      </div>
       <div className="p-6 space-y-5 flex-1">
         <div className="grid grid-cols-2 gap-3">
           <div>
@@ -3177,6 +3132,7 @@ function AdminSalesForm({ onBack, branchId, branchName }) {
 
 // نسخة من ExpenseForm للمدير
 function AdminExpenseForm({ onBack, branchId }) {
+  useScreenHeader('مصروف', onBack);
   const [date, setDate] = useState(todayStr());
   const [categories, setCategories] = useState([]);
   const [methods, setMethods] = useState([]);
@@ -3256,12 +3212,6 @@ function AdminExpenseForm({ onBack, branchId }) {
 
   return (
     <div className="flex flex-col h-full bg-white pb-20">
-      <div className="flex items-center p-4 border-b border-tw-line">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy pr-8">مصروف — {branchName}</h2>
-      </div>
       <div className="p-6 space-y-4 flex-1">
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">التاريخ</label>

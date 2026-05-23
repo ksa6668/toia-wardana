@@ -11,11 +11,13 @@ import {
   getBranches, addBranch, updateBranch, deleteBranch,
 } from '../firebase';
 import EditSheet from './EditSheet';
+import { useScreenHeader } from '../App';
 
 // الفروع الأساسية لا يمكن حذفها
 const PRIMARY_BRANCH_IDS = ['toia', 'wardana'];
 
 export default function ManagerBranches({ onBack, lang = 'ar' }) {
+  useScreenHeader(lang === 'en' ? 'Manage Branches' : 'إدارة الفروع', onBack);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -155,19 +157,6 @@ export default function ManagerBranches({ onBack, lang = 'ar' }) {
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
-
-      {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button
-          onClick={onBack}
-          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
-        >
-          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {lang === 'en' ? 'Manage Branches' : 'إدارة الفروع'}
-        </h2>
-      </div>
 
       <div className="relative z-10 p-4 space-y-4">
         {loading && (

@@ -3,6 +3,7 @@ import { ChevronRight, Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, F
 import { getExpenses } from '../firebase';
 import SarSymbol from './SarSymbol';
 import SheetPortal from './SheetPortal';
+import { useScreenHeader } from '../App';
 
 // شاشة الإيصالات والفواتير — تعرض المصاريف اللي عليها صورة فاتورة
 // الفلاتر: الفترة (آخر 7 أيام / آخر 30 يوم / الكل) + الفرع (تويا / وردانة / الكل)
@@ -35,6 +36,7 @@ function formatDate(iso) {
 }
 
 export default function ManagerReceipts({ onBack, onOpenCategories }) {
+  useScreenHeader('الإيصالات والفواتير', onBack);
   const [period, setPeriod] = useState('7days');
   const [branch, setBranch] = useState('toia');
   const [expenses, setExpenses] = useState([]);
@@ -93,17 +95,6 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
-
-      {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button onClick={onBack} className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors">
-          <ChevronRight size={20} className="rotate-180" />
-        </button>
-        <div className="flex-1 text-center px-8">
-          <h2 className="text-lg font-bold text-tw-navy">الإيصالات والفواتير</h2>
-          <p className="text-xs text-tw-muted/70 mt-0.5">Toia &amp; Wardana</p>
-        </div>
-      </div>
 
       <div className="relative z-10 p-4 space-y-4">
         {/* شريط الفلاتر */}

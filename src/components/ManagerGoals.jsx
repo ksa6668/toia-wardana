@@ -19,8 +19,10 @@ import BottomSheet from './BottomSheet';
 import BranchIcon from './BranchIcon';
 import SarSymbol from './SarSymbol';
 import { getNext3Months, formatMonthLabel } from '../utils/periodHelpers';
+import { useScreenHeader } from '../App';
 
 export default function ManagerGoals({ onBack, lang = 'ar' }) {
+  useScreenHeader(lang === 'en' ? 'Monthly Goals' : 'الأهداف الشهرية', onBack);
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
@@ -110,19 +112,6 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
-
-      {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button
-          onClick={onBack}
-          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
-        >
-          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {lang === 'en' ? 'Monthly Goals' : 'الأهداف الشهرية'}
-        </h2>
-      </div>
 
       <div className="relative z-10 p-4 space-y-4 pb-8">
         {/* منتقي الشهر */}

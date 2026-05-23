@@ -18,11 +18,13 @@ import { getAppSettings, setAppSettings, resetAllData } from '../firebase';
 import BottomSheet from './BottomSheet';
 import DeleteConfirmSheet from './DeleteConfirmSheet';
 import SarSymbol from './SarSymbol';
+import { useScreenHeader } from '../App';
 
 const APP_VERSION = '1.0.0';
 const APP_BUILD = '2026.05';
 
 export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
+  useScreenHeader(lang === 'en' ? 'General Settings' : 'الإعدادات العامة', onBack);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -147,16 +149,8 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
       />
 
       {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button
-          onClick={onBack}
-          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
-        >
-          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {lang === 'en' ? 'General Settings' : 'الإعدادات العامة'}
-        </h2>
+      <div className="hidden">
+        <h2>{lang === 'en' ? 'General Settings' : 'الإعدادات العامة'}</h2>
       </div>
 
       {/* وصف القسم */}

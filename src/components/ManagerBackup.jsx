@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { getBranches, getAllDataForBackup, getDataStats } from '../firebase';
 import BottomSheet from './BottomSheet';
+import { useScreenHeader } from '../App';
 
 // بطاقة إحصائية واحدة
 function StatCard({ value, label }) {
@@ -33,6 +34,7 @@ function StatCard({ value, label }) {
 }
 
 export default function ManagerBackup({ onBack, lang = 'ar' }) {
+  useScreenHeader(lang === 'en' ? 'Backup' : 'النسخ الاحتياطي', onBack);
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [exportingType, setExportingType] = useState(null); // 'excel' | 'json' | null
@@ -233,19 +235,6 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
         className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
-
-      {/* شريط العنوان */}
-      <div className="relative z-10 flex items-center p-4 border-b border-tw-line bg-white/60 backdrop-blur-sm">
-        <button
-          onClick={onBack}
-          className="p-2 text-tw-muted bg-tw-soft rounded-full hover:bg-slate-200 transition-colors"
-        >
-          <ChevronRight size={20} className={lang === 'en' ? '' : 'rotate-180'} />
-        </button>
-        <h2 className="flex-1 text-center text-lg font-bold text-tw-navy px-8">
-          {lang === 'en' ? 'Backup' : 'النسخ الاحتياطي'}
-        </h2>
-      </div>
 
       {/* وصف */}
       <div className="relative z-10 px-4 pt-4 pb-2">
