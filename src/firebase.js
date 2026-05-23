@@ -304,22 +304,31 @@ export async function deleteExpense(id) {
 // ========== قراءة البيانات (للوحة المدير) ==========
 
 // المبيعات بين تاريخين (date محفوظ كنص YYYY-MM-DD)
-export async function getSales(fromDate, toDate) {
-  const q = query(
-    collection(db, "dailySales"),
+export async function getSales(fromDate, toDate, branchId = null) {
+  // Batch 39: اختيارياً يفلتر بفرع معين — مهم للموظف لأن Firestore Rules
+  // تمنع قراءة سجلات فرع آخر، وبدون where(branchId) يرفض الاستعلام كاملاً.
+  const constraints = [
     where("date", ">=", fromDate),
-    where("date", "<=", toDate)
-  );
+    where("date", "<=", toDate),
+  ];
+  if (branchId) {
+    constraints.push(where("branchId", "==", branchId));
+  }
+  const q = query(collection(db, "dailySales"), ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
-export async function getExpenses(fromDate, toDate) {
-  const q = query(
-    collection(db, "expenses"),
+export async function getExpenses(fromDate, toDate, branchId = null) {
+  // Batch 39: نفس المنطق
+  const constraints = [
     where("date", ">=", fromDate),
-    where("date", "<=", toDate)
-  );
+    where("date", "<=", toDate),
+  ];
+  if (branchId) {
+    constraints.push(where("branchId", "==", branchId));
+  }
+  const q = query(collection(db, "expenses"), ...constraints);
   const snap = await getDocs(q);
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }

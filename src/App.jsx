@@ -1389,11 +1389,13 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
   const align = lang === 'en' ? 'text-left' : 'text-right';
   const toggleLang = () => setLang(lang === 'ar' ? 'en' : 'ar');
 
-  // اسم الشهر الحالي بالميلادي (Gregorian) فقط — Batch 16
-  const monthLabel = new Date().toLocaleDateString(
-    lang === 'en' ? 'en-US' : 'ar-EG', // ar-EG يستخدم الميلادي
-    { month: 'long', year: 'numeric' }
-  );
+  // اسم الشهر الحالي — Batch 39: نستخدم نفس formatMonthLabel الذي يستخدمه المدير
+  // لضمان تطابق التنسيق (مايو 2026 بأرقام إنجليزية في كل الشاشات)
+  const monthLabel = (() => {
+    const d = new Date();
+    const monthStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+    return formatMonthLabel(monthStr, lang);
+  })();
 
   // ====== KPIs الحقيقية من Firestore ======
   const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, loaded: false });
@@ -1407,11 +1409,11 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         const from = `${monthStr}-01`;
         const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
         const to = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
-        const [goal, allSales] = await Promise.all([
+        // Batch 39: نمرر branchId لـ getSales ليُفلتر في Firestore (يتوافق مع Rules الموظف)
+        const [goal, branchSales] = await Promise.all([
           getMonthlyGoal(branchId, monthStr),
-          getSales(from, to),
+          getSales(from, to, branchId),
         ]);
-        const branchSales = allSales.filter((s) => s.branchId === branchId);
         const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
         const budgetPct = goal.budget > 0
           ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
@@ -1425,7 +1427,9 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         if (!cancelled) {
           setKpis({ budgetPct, reviewsPct, loaded: true, hasGoal: goal.exists });
         }
-      } catch {
+      } catch (err) {
+        // Batch 39: نسجّل الخطأ بدل ابتلاعه — مفيد للتشخيص في Console
+        console.error('EmployeeHome KPIs error:', err);
         if (!cancelled) setKpis({ budgetPct: 0, reviewsPct: 0, loaded: true, error: true });
       }
     })();
