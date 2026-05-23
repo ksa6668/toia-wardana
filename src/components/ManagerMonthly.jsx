@@ -12,7 +12,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Filter } from 'lucide-react';
-import { getSales, getExpenses, salesNet } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import {
@@ -39,6 +39,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   const [error, setError] = useState('');
   const [sales, setSales] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [fixedExpenses, setFixedExpenses] = useState([]); // Batch 43
   // قائمة منبثقة
   const [sheet, setSheet] = useState(null);
 
@@ -57,10 +58,17 @@ export default function ManagerMonthly({ lang = 'ar' }) {
         } else {
           ({ from, to } = monthRange(selectedMonth));
         }
-        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
+        // Batch 43: نجلب أيضاً المصاريف الثابتة
+        const { fromMonth, toMonth } = dateRangeToMonthRange(from, to);
+        const [s, e, fx] = await Promise.all([
+          getSales(from, to),
+          getExpenses(from, to),
+          getFixedExpensesRange(fromMonth, toMonth),
+        ]);
         if (!cancelled) {
           setSales(s);
           setExpenses(e);
+          setFixedExpenses(fx);
         }
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
@@ -99,16 +107,23 @@ export default function ManagerMonthly({ lang = 'ar' }) {
     return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [expenses, branchFilter]);
 
-  // Batch 36: الإجماليات بـ salesNet (بعد رسوم مدى) لتطابق الحساب البنكي
+  // Batch 43: المصاريف الثابتة المفلترة بالفرع
+  const filteredFixed = useMemo(() => {
+    return branchFilter === 'all' ? fixedExpenses : fixedExpenses.filter((f) => f.branchId === branchFilter);
+  }, [fixedExpenses, branchFilter]);
+
+  // Batch 36+43: الإجماليات بـ salesNet (بعد رسوم مدى) + إدخال المصاريف الثابتة
   const totals = useMemo(() => {
     const totalSales = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
-    const totalExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalVarExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalFixedExp = filteredFixed.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const totalExp = totalVarExp + totalFixedExp;
     return {
       sales: totalSales,
       expenses: totalExp,
       profit: totalSales - totalExp,
     };
-  }, [filteredSales, filteredExpenses]);
+  }, [filteredSales, filteredExpenses, filteredFixed]);
 
   // تجميع المبيعات حسب اليوم — يستخدم salesNet للـ total
   const salesByDay = useMemo(() => {

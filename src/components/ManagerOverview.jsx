@@ -12,7 +12,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
 import { Calendar, ChevronDown, MapPin, TrendingUp, Receipt, BarChart3, Wallet, Loader2 } from 'lucide-react';
-import { getSales, getExpenses, salesNet } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import { yearRange, getAvailableYears } from '../utils/periodHelpers';
@@ -49,6 +49,7 @@ export default function ManagerOverview({ lang = 'ar' }) {
   const [error, setError] = useState('');
   const [sales, setSales] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [fixedExpenses, setFixedExpenses] = useState([]); // Batch 43
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => {
@@ -65,8 +66,14 @@ export default function ManagerOverview({ lang = 'ar' }) {
         } else {
           ({ from, to } = yearRange(selectedYear));
         }
-        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
-        if (!cancelled) { setSales(s); setExpenses(e); }
+        // Batch 43: نجلب أيضاً المصاريف الثابتة للشهور الواقعة في النطاق
+        const { fromMonth, toMonth } = dateRangeToMonthRange(from, to);
+        const [s, e, fx] = await Promise.all([
+          getSales(from, to),
+          getExpenses(from, to),
+          getFixedExpensesRange(fromMonth, toMonth),
+        ]);
+        if (!cancelled) { setSales(s); setExpenses(e); setFixedExpenses(fx); }
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
       } finally {
@@ -85,10 +92,18 @@ export default function ManagerOverview({ lang = 'ar' }) {
     () => branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter),
     [expenses, branchFilter]
   );
+  // Batch 43: المصاريف الثابتة المفلترة بالفرع
+  const filteredFixed = useMemo(
+    () => branchFilter === 'all' ? fixedExpenses : fixedExpenses.filter((f) => f.branchId === branchFilter),
+    [fixedExpenses, branchFilter]
+  );
 
   const stats = useMemo(() => {
     const totalSales = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
-    const totalExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    const totalVarExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
+    // Batch 43: إضافة المصاريف الثابتة لإجمالي المصاريف
+    const totalFixedExp = filteredFixed.reduce((sum, f) => sum + (f.amount || 0), 0);
+    const totalExp = totalVarExp + totalFixedExp;
     // عدد الأيام الفريدة التي فيها مبيعات (للمتوسطات)
     const daysWithSales = new Set(filteredSales.map((s) => s.date)).size || 1;
     const daysWithExp = new Set(filteredExpenses.map((e) => e.date)).size || 1;
@@ -100,7 +115,7 @@ export default function ManagerOverview({ lang = 'ar' }) {
       avgExp: Math.round(totalExp / daysWithExp),
       profitPct: totalSales > 0 ? Math.round((Math.max(0, totalSales - totalExp) / totalSales) * 100) : 0,
     };
-  }, [filteredSales, filteredExpenses]);
+  }, [filteredSales, filteredExpenses, filteredFixed]);
 
   const openYearPicker = () => setSheet({
     title: lang === 'en' ? 'Pick year' : 'اختر السنة',

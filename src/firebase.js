@@ -410,6 +410,29 @@ export async function getFixedExpenses(month) {
   return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
 }
 
+// Batch 43: المصاريف الثابتة لنطاق من الشهور (تستخدمه التقارير)
+// fromMonth/toMonth بصيغة "YYYY-MM" (شامل الطرفين)
+// branchId اختياري للفلترة
+export async function getFixedExpensesRange(fromMonth, toMonth, branchId = null) {
+  const constraints = [
+    where("month", ">=", fromMonth),
+    where("month", "<=", toMonth),
+  ];
+  if (branchId) constraints.push(where("branchId", "==", branchId));
+  const q = query(collection(db, "fixedExpenses"), ...constraints);
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+// Batch 43: استخراج شهور فريدة من نطاق تواريخ (YYYY-MM-DD → YYYY-MM)
+// مفيد لتحديد الـ from/to لـ getFixedExpensesRange بناءً على getSales/getExpenses range
+export function dateRangeToMonthRange(fromDate, toDate) {
+  return {
+    fromMonth: fromDate.slice(0, 7),
+    toMonth: toDate.slice(0, 7),
+  };
+}
+
 // حفظ المصروف الثابت الشهري لفرع (معرّف المستند = month_branchId)
 // Batch 15: دعم الفصل إلى إيجار + رواتب + تأمينات GOSI
 // يحافظ على حقل amount (إجمالي) للتوافق مع الكود القديم

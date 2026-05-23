@@ -13,7 +13,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Loader2 } from 'lucide-react';
-import { getSales, getExpenses, salesNet } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import {
@@ -93,6 +93,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const [error, setError] = useState('');
   const [sales, setSales] = useState([]);
   const [expenses, setExpenses] = useState([]);
+  const [fixedExpenses, setFixedExpenses] = useState([]); // Batch 43
   const [sheet, setSheet] = useState(null);
 
   useEffect(() => {
@@ -101,7 +102,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
       setLoading(true);
       setError('');
       try {
-        // Batch 36: دعم "كل الأشهر" (في وضع الشهر) أو "كل السنوات" (لاحقاً لو احتجناها هنا)
+        // Batch 36: دعم "كل الأشهر" (في وضع الشهر) أو "كل السنوات"
         let from, to;
         if (period === 'month') {
           if (selectedMonth === 'all') {
@@ -113,8 +114,14 @@ export default function ManagerKpis({ lang = 'ar' }) {
         } else {
           ({ from, to } = yearRange(selectedYear));
         }
-        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
-        if (!cancelled) { setSales(s); setExpenses(e); }
+        // Batch 43: نجلب أيضاً المصاريف الثابتة
+        const { fromMonth, toMonth } = dateRangeToMonthRange(from, to);
+        const [s, e, fx] = await Promise.all([
+          getSales(from, to),
+          getExpenses(from, to),
+          getFixedExpensesRange(fromMonth, toMonth),
+        ]);
+        if (!cancelled) { setSales(s); setExpenses(e); setFixedExpenses(fx); }
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
       } finally {
@@ -132,6 +139,13 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const filteredExpenses = useMemo(
     () => branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter),
     [expenses, branchFilter]
+  );
+  // Batch 43: المصاريف الثابتة محمَّلة (للاتساق) لكن KPIs الحالية نسب من المبيعات فقط
+  // (إذا أضفنا KPI ربح لاحقاً، الـ filteredFixed جاهز)
+  // eslint-disable-next-line no-unused-vars
+  const filteredFixed = useMemo(
+    () => branchFilter === 'all' ? fixedExpenses : fixedExpenses.filter((f) => f.branchId === branchFilter),
+    [fixedExpenses, branchFilter]
   );
 
   // أداء الأسابيع/الأرباع
