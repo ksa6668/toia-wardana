@@ -334,7 +334,7 @@ export default function App() {
             <SalesFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
           )}
           {!authLoading && currentView === 'expenseForm' && (
-            <ExpenseFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+            <ExpenseFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} isAdmin={isAdmin} />
           )}
           {!authLoading && currentView === 'employeeHistory' && (
             <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
@@ -1200,8 +1200,10 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
 
   return (
     <div
-      className="relative min-h-full flex flex-col px-6 pt-10 pb-8 overflow-hidden"
+      className="relative min-h-full flex flex-col px-6 pt-8 pb-10 overflow-hidden"
       style={{
+        // Batch 37: التدرج يبدأ من أعلى الشاشة ويمتد ليصل لقعر شاشة الجوال
+        // عملياً status-bar (إن كان شفافاً) سيظهر فوق نفس التدرج الناعم
         background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
@@ -1217,7 +1219,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
       />
 
       {/* زر اللغة في الزاوية */}
-      <div className={`relative z-10 flex ${lang === 'en' ? 'justify-end' : 'justify-start'} mb-4`}>
+      <div className={`relative z-10 flex ${lang === 'en' ? 'justify-end' : 'justify-start'} mb-3`}>
         <button
           onClick={toggleLang}
           className="bg-white/80 backdrop-blur-sm border border-tw-line text-tw-navy px-3.5 py-1.5 rounded-xl shadow-sm hover:bg-white hover:shadow-md transition-all"
@@ -1227,10 +1229,10 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
         </button>
       </div>
 
-      {/* الشعار + اسم التطبيق */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center text-center -mt-4">
+      {/* Batch 37: الشعار — مساحة محدودة لا تأخذ كل الفراغ، ليرتفع النموذج للأعلى */}
+      <div className="relative z-10 flex flex-col items-center justify-center text-center mt-4 mb-6">
         <div
-          className="w-44 h-44 mx-auto mb-6 flex items-center justify-center rounded-[2.5rem] shadow-xl relative overflow-hidden"
+          className="w-40 h-40 mx-auto mb-5 flex items-center justify-center rounded-[2.5rem] shadow-xl relative overflow-hidden"
           style={{
             background: 'linear-gradient(135deg, #082765 0%, #061742 60%, #1E3A8A 100%)',
             boxShadow: '0 20px 50px -10px rgba(8, 39, 101, 0.4), 0 0 0 1px rgba(255,255,255,0.1) inset',
@@ -1242,7 +1244,7 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
             style={{ background: 'radial-gradient(circle at 30% 20%, rgba(40,223,255,0.4), transparent 50%)' }}
           />
           {/* رمز الزهرة (شعار) */}
-          <svg width="92" height="92" viewBox="0 0 100 100" className="relative z-10" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}>
+          <svg width="82" height="82" viewBox="0 0 100 100" className="relative z-10" style={{ filter: 'drop-shadow(0 4px 8px rgba(0,0,0,0.3))' }}>
             {/* 4 بتلات */}
             <ellipse cx="50" cy="28" rx="14" ry="22" fill="white" opacity="0.92" />
             <ellipse cx="50" cy="72" rx="14" ry="22" fill="white" opacity="0.92" />
@@ -1267,8 +1269,8 @@ function LoginView({ onLoginSuccess, lang, setLang }) {
         </p>
       </div>
 
-      {/* النموذج */}
-      <div className="relative z-10 space-y-4 mt-2">
+      {/* Batch 37: النموذج - يأخذ المساحة المتبقية بـ flex-1 */}
+      <div className="relative z-10 space-y-4 flex-1 flex flex-col justify-start">
         <div>
           <label
             className="block mb-2 text-xs"
@@ -3067,6 +3069,7 @@ function AdminDataEntry({ onBack }) {
         allowBranchSwitch={true}
         onBranchChange={handleBranchChange}
         existingRecord={step === 'editExpenseForm' ? editingRecord : null}
+        isAdmin={true}
       />
     );
   }

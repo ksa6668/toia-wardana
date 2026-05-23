@@ -11,8 +11,8 @@
 // تستهلك Firestore عبر firebase.js الموجود فعلاً (getSales, getExpenses)
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, ChevronDown, MapPin, Loader2 } from 'lucide-react';
-import { getSales, getExpenses } from '../firebase';
+import { Calendar, ChevronDown, MapPin, Loader2, Filter } from 'lucide-react';
+import { getSales, getExpenses, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import {
@@ -32,6 +32,8 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   const [branchFilter, setBranchFilter] = useState('all');
   // التبويب: 'sales' | 'expenses' | 'profit'
   const [activeTab, setActiveTab] = useState('sales');
+  // Batch 36: فلتر التصنيف للمصاريف ('all' أو categoryId)
+  const [categoryFilter, setCategoryFilter] = useState('all');
   // البيانات
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -47,7 +49,14 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       setLoading(true);
       setError('');
       try {
-        const { from, to } = monthRange(selectedMonth);
+        // Batch 36: دعم "كل الأشهر" — من 2024-01-01 لنهاية السنة الحالية
+        let from, to;
+        if (selectedMonth === 'all') {
+          from = '2024-01-01';
+          to = `${new Date().getFullYear()}-12-31`;
+        } else {
+          ({ from, to } = monthRange(selectedMonth));
+        }
         const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
         if (!cancelled) {
           setSales(s);
@@ -69,12 +78,30 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   }, [sales, branchFilter]);
 
   const filteredExpenses = useMemo(() => {
-    return branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter);
+    let result = branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter);
+    // Batch 36: تطبيق فلتر التصنيف
+    if (categoryFilter !== 'all') {
+      result = result.filter((e) => e.categoryId === categoryFilter);
+    }
+    return result;
+  }, [expenses, branchFilter, categoryFilter]);
+
+  // Batch 36: قائمة التصنيفات المتاحة من بيانات المصاريف
+  const availableCategories = useMemo(() => {
+    const map = new Map();
+    // نستخدم expenses (قبل فلتر التصنيف) لكن بعد فلتر الفرع
+    const branchFiltered = branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter);
+    branchFiltered.forEach((e) => {
+      if (e.categoryId && !map.has(e.categoryId)) {
+        map.set(e.categoryId, e.categoryName || e.categoryId);
+      }
+    });
+    return Array.from(map.entries()).map(([id, name]) => ({ id, name }));
   }, [expenses, branchFilter]);
 
-  // الإجماليات للكروت العلوية
+  // Batch 36: الإجماليات بـ salesNet (بعد رسوم مدى) لتطابق الحساب البنكي
   const totals = useMemo(() => {
-    const totalSales = filteredSales.reduce((sum, s) => sum + (s.total || 0), 0);
+    const totalSales = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
     const totalExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     return {
       sales: totalSales,
@@ -83,17 +110,17 @@ export default function ManagerMonthly({ lang = 'ar' }) {
     };
   }, [filteredSales, filteredExpenses]);
 
-  // تجميع المبيعات حسب اليوم
+  // تجميع المبيعات حسب اليوم — يستخدم salesNet للـ total
   const salesByDay = useMemo(() => {
     const map = {};
     filteredSales.forEach((s) => {
-      const day = s.date || s.timestamp?.toDate?.()?.toISOString().slice(0, 10);
+      const day = s.date;
       if (!day) return;
       if (!map[day]) map[day] = { cash: 0, mada: 0, transfer: 0, total: 0 };
       map[day].cash += s.cash || 0;
       map[day].mada += s.mada || 0;
       map[day].transfer += s.transfer || 0;
-      map[day].total += s.total || 0;
+      map[day].total += salesNet(s); // صافي بعد رسوم مدى
     });
     return Object.entries(map)
       .sort((a, b) => b[0].localeCompare(a[0]))
@@ -110,14 +137,14 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       });
   }, [filteredExpenses]);
 
-  // الربح اليومي = مبيعات - مصاريف
+  // الربح اليومي
   const profitByDay = useMemo(() => {
     const days = {};
     filteredSales.forEach((s) => {
       const d = s.date;
       if (!d) return;
       if (!days[d]) days[d] = { sales: 0, expenses: 0 };
-      days[d].sales += s.total || 0;
+      days[d].sales += salesNet(s);
     });
     filteredExpenses.forEach((e) => {
       const d = e.date;
@@ -134,7 +161,10 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   const openMonthPicker = () => {
     setSheet({
       title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-      options: getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+      options: [
+        { value: 'all', label: lang === 'en' ? 'All months' : 'كل الأشهر' },
+        ...getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+      ],
       current: selectedMonth,
       onPick: (v) => { setSelectedMonth(v); setSheet(null); },
     });
@@ -173,7 +203,11 @@ export default function ManagerMonthly({ lang = 'ar' }) {
           className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
           <Calendar size={14} className="text-tw-blue" />
-          <span className="font-bold text-xs text-tw-navy">{formatMonthLabel(selectedMonth, lang)}</span>
+          <span className="font-bold text-xs text-tw-navy">
+            {selectedMonth === 'all'
+              ? (lang === 'en' ? 'All months' : 'كل الأشهر')
+              : formatMonthLabel(selectedMonth, lang)}
+          </span>
           <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
         <button
@@ -273,26 +307,53 @@ export default function ManagerMonthly({ lang = 'ar' }) {
 
           {/* تبويب المصاريف */}
           {activeTab === 'expenses' && (
-            <table className="w-full text-xs">
-              <thead className="bg-tw-soft/40">
-                <tr>
-                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
-                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
-                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {expensesByDay.length === 0 ? (
-                  <tr><td colSpan={3} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                ) : expensesByDay.map((row, i) => (
-                  <tr key={row.id || i} className="border-t border-tw-line/60">
-                    <td className="p-2 text-tw-navy">{formatDayShort(row.date, lang)}</td>
-                    <td className="p-2 text-tw-navy">{row.category || row.expenseType || '—'}</td>
-                    <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.amount).toLocaleString()}</td>
+            <>
+              {/* Batch 36: زر فلتر التصنيف فوق الجدول */}
+              {availableCategories.length > 0 && (
+                <div className="px-2 pt-2 pb-1 flex justify-end">
+                  <button
+                    onClick={() => setSheet({
+                      title: lang === 'en' ? 'Pick category' : 'اختر التصنيف',
+                      options: [
+                        { value: 'all', label: lang === 'en' ? 'All categories' : 'كل التصنيفات' },
+                        ...availableCategories.map((c) => ({ value: c.id, label: c.name })),
+                      ],
+                      current: categoryFilter,
+                      onPick: (v) => { setCategoryFilter(v); setSheet(null); },
+                    })}
+                    className="inline-flex items-center gap-1.5 bg-white border border-tw-line rounded-lg px-3 py-1.5 text-xs font-bold text-tw-navy hover:bg-tw-soft/40"
+                  >
+                    <Filter size={12} className="text-tw-blue" />
+                    <span>
+                      {categoryFilter === 'all'
+                        ? (lang === 'en' ? 'All categories' : 'كل التصنيفات')
+                        : (availableCategories.find((c) => c.id === categoryFilter)?.name || (lang === 'en' ? 'Category' : 'تصنيف'))}
+                    </span>
+                    <ChevronDown size={10} className="text-tw-muted/70" />
+                  </button>
+                </div>
+              )}
+              <table className="w-full text-xs">
+                <thead className="bg-tw-soft/40">
+                  <tr>
+                    <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                    <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
+                    <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {expensesByDay.length === 0 ? (
+                    <tr><td colSpan={3} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
+                  ) : expensesByDay.map((row, i) => (
+                    <tr key={row.id || i} className="border-t border-tw-line/60">
+                      <td className="p-2 text-tw-navy">{formatDayShort(row.date, lang)}</td>
+                      <td className="p-2 text-tw-navy">{row.categoryName || row.category || row.expenseType || '—'}</td>
+                      <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.amount).toLocaleString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </>
           )}
 
           {/* تبويب الربح */}

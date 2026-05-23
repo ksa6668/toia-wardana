@@ -101,7 +101,18 @@ export default function ManagerKpis({ lang = 'ar' }) {
       setLoading(true);
       setError('');
       try {
-        const { from, to } = period === 'month' ? monthRange(selectedMonth) : yearRange(selectedYear);
+        // Batch 36: دعم "كل الأشهر" (في وضع الشهر) أو "كل السنوات" (لاحقاً لو احتجناها هنا)
+        let from, to;
+        if (period === 'month') {
+          if (selectedMonth === 'all') {
+            from = '2024-01-01';
+            to = `${new Date().getFullYear()}-12-31`;
+          } else {
+            ({ from, to } = monthRange(selectedMonth));
+          }
+        } else {
+          ({ from, to } = yearRange(selectedYear));
+        }
         const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
         if (!cancelled) { setSales(s); setExpenses(e); }
       } catch (err) {
@@ -125,6 +136,15 @@ export default function ManagerKpis({ lang = 'ar' }) {
 
   // أداء الأسابيع/الأرباع
   const periodCards = useMemo(() => {
+    // Batch 36: لو "كل الأشهر" نعرضها كقسم واحد (لا يوجد أسابيع منطقية)
+    if (period === 'month' && selectedMonth === 'all') {
+      const totalAll = filteredSales.reduce((sum, s) => sum + salesNet(s), 0) || 1;
+      return [{
+        label: lang === 'en' ? 'All months' : 'كل الأشهر',
+        amount: totalAll,
+        pct: '100.0',
+      }];
+    }
     const ranges = period === 'month'
       ? splitMonthToWeeks(selectedMonth)
       : splitYearToQuarters(selectedYear);
@@ -201,7 +221,10 @@ export default function ManagerKpis({ lang = 'ar' }) {
     if (period === 'month') {
       setSheet({
         title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-        options: getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+        options: [
+          { value: 'all', label: lang === 'en' ? 'All months' : 'كل الأشهر' },
+          ...getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+        ],
         current: selectedMonth,
         onPick: (v) => { setSelectedMonth(v); setSheet(null); },
       });
@@ -233,7 +256,9 @@ export default function ManagerKpis({ lang = 'ar' }) {
   }[branchFilter];
 
   const periodLabel = period === 'month'
-    ? formatMonthLabel(selectedMonth, lang)
+    ? (selectedMonth === 'all'
+        ? (lang === 'en' ? 'All months' : 'كل الأشهر')
+        : formatMonthLabel(selectedMonth, lang))
     : String(selectedYear);
 
   return (

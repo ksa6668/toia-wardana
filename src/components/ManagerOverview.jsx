@@ -57,7 +57,14 @@ export default function ManagerOverview({ lang = 'ar' }) {
       setLoading(true);
       setError('');
       try {
-        const { from, to } = yearRange(selectedYear);
+        // Batch 36: دعم "كل السنوات" — يجلب من 2024-01-01 إلى نهاية السنة الحالية
+        let from, to;
+        if (selectedYear === 'all') {
+          from = '2024-01-01';
+          to = `${new Date().getFullYear()}-12-31`;
+        } else {
+          ({ from, to } = yearRange(selectedYear));
+        }
         const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
         if (!cancelled) { setSales(s); setExpenses(e); }
       } catch (err) {
@@ -97,7 +104,10 @@ export default function ManagerOverview({ lang = 'ar' }) {
 
   const openYearPicker = () => setSheet({
     title: lang === 'en' ? 'Pick year' : 'اختر السنة',
-    options: getAvailableYears().map((y) => ({ value: y, label: String(y) })),
+    options: [
+      { value: 'all', label: lang === 'en' ? 'All years' : 'كل السنوات' },
+      ...getAvailableYears().map((y) => ({ value: y, label: String(y) })),
+    ],
     current: selectedYear,
     onPick: (v) => { setSelectedYear(v); setSheet(null); },
   });
@@ -133,7 +143,9 @@ export default function ManagerOverview({ lang = 'ar' }) {
           className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
           <Calendar size={14} className="text-tw-blue" />
-          <span className="font-bold text-xs text-tw-navy">{selectedYear}</span>
+          <span className="font-bold text-xs text-tw-navy">
+            {selectedYear === 'all' ? (lang === 'en' ? 'All years' : 'كل السنوات') : selectedYear}
+          </span>
           <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
         <button

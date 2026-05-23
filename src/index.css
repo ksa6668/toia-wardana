@@ -1081,7 +1081,8 @@ body {
 
 /* ---- Photo upload (expense form) ---- */
 .tw-photo-up {
-  border: 2px dashed #C4D2EE;
+  /* Batch 37: تظليل أزرق خفيف بديلاً عن الأبيض الفاتح */
+  border: 2px dashed #B6CDF5;
   border-radius: 12px;
   min-height: 90px;
   display: flex;
@@ -1092,14 +1093,14 @@ body {
   color: var(--tw-blue);
   font-size: 13px;
   font-weight: 700;
-  background: #FAFCFF;
+  background: #EAF3FF; /* أزرق خفيف */
   cursor: pointer;
   margin-bottom: 10px;
   padding: 14px 12px;
   text-align: center;
   transition: background .15s, border-color .15s;
 }
-.tw-photo-up:active { background: #F0F6FF; }
+.tw-photo-up:active { background: #D9E8FF; } /* Batch 37: أعمق قليلاً عند الضغط */
 .tw-photo-up svg {
   width: 24px;
   height: 24px;
@@ -1121,12 +1122,14 @@ body {
   background: #F0FDF8;
 }
 .tw-photo-note {
+  /* Batch 37: تظليل أزرق خفيف بدل الرمادي العادي */
   font-size: 11px;
-  color: var(--tw-muted);
+  color: #1E3A8A; /* أزرق داكن خفيف */
   margin: 8px 0 0;
   line-height: 1.5;
   padding: 8px 10px;
-  background: var(--tw-soft);
+  background: #EAF3FF; /* أزرق خفيف */
+  border: 1px solid #C7DBF8;
   border-radius: 8px;
 }
 .tw-photo-note.required {

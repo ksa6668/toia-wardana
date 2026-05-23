@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronRight, ChevronDown, X, Image as ImageIcon,
+  FolderOpen,
 } from 'lucide-react';
 import {
   addExpense, updateExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,
@@ -18,6 +19,7 @@ import { t, translateCategory, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
+import BottomSheet from './BottomSheet';
 
 function todayStr() {
   const d = new Date();
@@ -50,6 +52,7 @@ export default function ExpenseFormV2({
   allowBranchSwitch = false,
   onBranchChange,
   existingRecord = null,
+  isAdmin = false, // Batch 36: المدير يحصل على خيارات صور إضافية
 }) {
   const isEdit = !!existingRecord;
 
@@ -74,6 +77,9 @@ export default function ExpenseFormV2({
   const [error, setError] = useState('');
   const cameraInputRef = useRef(null);
   const fileInputRef = useRef(null);
+  const galleryInputRef = useRef(null); // Batch 36: استديو (بدون capture)
+  // Batch 36: bottom sheet خيارات الصور للمدير
+  const [photoOptionsOpen, setPhotoOptionsOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -127,9 +133,20 @@ export default function ExpenseFormV2({
   const visibleImage = imagePreview || existingImageUrl;
 
   const triggerPhotoCapture = () => {
+    // Batch 36: المدير يحصل على bottom sheet بـ 3 خيارات
+    // الموظف: كاميرا فقط لو requiresImage، أو ملف عادي خلاف ذلك
+    if (isAdmin) {
+      setPhotoOptionsOpen(true);
+      return;
+    }
     if (requiresImage) cameraInputRef.current?.click();
     else fileInputRef.current?.click();
   };
+
+  // Batch 36: handlers لخيارات الصور (للمدير)
+  const pickFromCamera = () => { setPhotoOptionsOpen(false); cameraInputRef.current?.click(); };
+  const pickFromGallery = () => { setPhotoOptionsOpen(false); galleryInputRef.current?.click(); };
+  const pickFromFiles = () => { setPhotoOptionsOpen(false); fileInputRef.current?.click(); };
 
   const onPhotoSelected = (e) => {
     const f = e.target.files?.[0];
@@ -367,8 +384,14 @@ export default function ExpenseFormV2({
             style={{ display: 'none' }}
           />
           <input
-            ref={fileInputRef}
+            ref={galleryInputRef}
             type="file" accept="image/*"
+            onChange={onPhotoSelected}
+            style={{ display: 'none' }}
+          />
+          <input
+            ref={fileInputRef}
+            type="file" accept="image/*,application/pdf"
             onChange={onPhotoSelected}
             style={{ display: 'none' }}
           />
@@ -405,11 +428,22 @@ export default function ExpenseFormV2({
                     : (lang === 'en' ? 'Tap to attach invoice photo' : 'اضغط لإرفاق صورة الفاتورة')}
                 </span>
               </div>
-              {requiresImage && (
+              {requiresImage ? (
                 <p className="tw-photo-note required">
                   📷 {lang === 'en'
                     ? 'Photo must be captured live with the camera for this category.'
                     : 'يجب التقاط الصورة بالكاميرا مباشرة لهذا التصنيف.'}
+                </p>
+              ) : (
+                /* Batch 37: ملاحظة عامة بنفس التظليل الأزرق للصور غير الإجبارية */
+                <p className="tw-photo-note">
+                  {isAdmin
+                    ? (lang === 'en'
+                        ? '💡 You can capture, choose from library, or pick a file (image or PDF).'
+                        : '💡 يمكنك التقاط صورة، الاختيار من المكتبة، أو اختيار ملف (صورة أو PDF).')
+                    : (lang === 'en'
+                        ? '💡 Attach an invoice photo for better recordkeeping.'
+                        : '💡 يُفضّل إرفاق صورة الفاتورة للأرشفة.')}
                 </p>
               )}
             </>
@@ -463,6 +497,23 @@ export default function ExpenseFormV2({
           lang={lang}
         />
       )}
+
+      {/* Batch 36: bottom sheet خيارات الصور — يُعرض للمدير فقط */}
+      <BottomSheet
+        open={photoOptionsOpen}
+        title={lang === 'en' ? 'Choose photo source' : 'اختر مصدر الصورة'}
+        options={[
+          { value: 'camera', label: lang === 'en' ? '📷 Camera (live capture)' : '📷 الكاميرا (التقاط مباشر)' },
+          { value: 'gallery', label: lang === 'en' ? '🖼️ Photo library' : '🖼️ مكتبة الصور' },
+          { value: 'files', label: lang === 'en' ? '📁 Files (image or PDF)' : '📁 الملفات (صورة أو PDF)' },
+        ]}
+        onPick={(v) => {
+          if (v === 'camera') pickFromCamera();
+          else if (v === 'gallery') pickFromGallery();
+          else if (v === 'files') pickFromFiles();
+        }}
+        onClose={() => setPhotoOptionsOpen(false)}
+      />
     </div>
   );
 }
