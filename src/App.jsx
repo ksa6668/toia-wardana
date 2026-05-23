@@ -223,7 +223,7 @@ export default function App() {
          dir={pageDir}
          style={{
            fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
-           background: '#0A1535', // الخلفية خارج phone-frame (ديسكتوب)
+           background: '#F2F6FC', // Batch 21: نفس لون التطبيق — يغطي notch/status bar
            minHeight: '100dvh',
            height: '100dvh',
            overflow: 'hidden',
@@ -238,43 +238,65 @@ export default function App() {
         style={{
           /* Batch 20: ارتفاع ديناميكي ثابت — يحل خلل صعود/نزول الهيدر والبوتوم على iOS */
           height: '100dvh',
-          /* خلفية موحّدة بنفس لون الهيدر والبوتوم (لون tw-soft الفاتح) */
+          /* Batch 21: خلفية موحّدة — نفس لون status bar فوق + bottom safe area تحت */
           background: '#F2F6FC',
         }}
       >
 
-        {currentView !== 'login' && !authLoading && (
-          <AppHeader
-            mode={screenCtx ? 'screen' : 'home'}
-            screenTitle={screenCtx?.title}
-            onBack={screenCtx?.onBack}
-            greeting={
-              isAdmin
-                ? `مرحباً، ${user?.displayName || user?.username || 'المدير'}`
-                : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`
-            }
-            notifCount={isAdmin ? 2 : 0}
-            onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
-            onNotifClick={() => isAdmin && setShowNotifications(true)}
-            langButton={
-              (!isAdmin && !screenCtx) ? (
-                <button
-                  onClick={() => changeLang(lang === 'ar' ? 'en' : 'ar')}
-                  className="tw-circle-btn"
-                  aria-label={lang === 'en' ? 'Change language' : 'تغيير اللغة'}
-                  type="button"
-                  title={lang === 'en' ? 'العربية' : 'English'}
-                >
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
-                    <circle cx="12" cy="12" r="10" />
-                    <line x1="2" y1="12" x2="22" y2="12" />
-                    <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
-                  </svg>
-                </button>
-              ) : null
-            }
-          />
-        )}
+        {currentView !== 'login' && !authLoading && (() => {
+          // Batch 21: تحديد عنوان الهيدر بناءً على adminTab أو screenCtx
+          // أولوية: screenCtx (شاشة فرعية) > adminTab title > home mode
+          const adminTabTitles = {
+            monthly: 'الكشف الشهري',
+            overview: 'نظرة عامة',
+            kpis: 'المؤشرات',
+            settings: 'الإعدادات',
+            // home: لا يوجد title → home mode
+          };
+          const tabTitle = isAdmin && currentView === 'adminHome' && adminTab !== 'home'
+            ? adminTabTitles[adminTab]
+            : null;
+
+          // الـ effective mode + title
+          const effectiveMode = screenCtx
+            ? 'screen'
+            : (tabTitle ? 'screen' : 'home');
+          const effectiveTitle = screenCtx?.title || tabTitle;
+          const effectiveBack = screenCtx?.onBack; // العودة فقط في الشاشات الفرعية
+
+          return (
+            <AppHeader
+              mode={effectiveMode}
+              screenTitle={effectiveTitle}
+              onBack={effectiveBack}
+              greeting={
+                isAdmin
+                  ? `مرحباً، ${user?.displayName || user?.username || 'المدير'}`
+                  : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`
+              }
+              notifCount={isAdmin ? 2 : 0}
+              onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
+              onNotifClick={() => isAdmin && setShowNotifications(true)}
+              langButton={
+                (!isAdmin && !screenCtx) ? (
+                  <button
+                    onClick={() => changeLang(lang === 'ar' ? 'en' : 'ar')}
+                    className="tw-circle-btn"
+                    aria-label={lang === 'en' ? 'Change language' : 'تغيير اللغة'}
+                    type="button"
+                    title={lang === 'en' ? 'العربية' : 'English'}
+                  >
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="2" y1="12" x2="22" y2="12" />
+                      <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z" />
+                    </svg>
+                  </button>
+                ) : null
+              }
+            />
+          );
+        })()}
 
         <main
           className="flex-1 overflow-y-auto"

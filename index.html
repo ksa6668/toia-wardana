@@ -12,15 +12,26 @@
     <link rel="apple-touch-icon" sizes="192x192" href="/icon-192.png" />
     <link rel="apple-touch-icon" sizes="512x512" href="/icon-512.png" />
 
-    <!-- PWA manifest — يحدد ايقونة التطبيق عند إضافته للشاشة الرئيسية -->
+    <!-- PWA manifest -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#082765" />
+
+    <!-- Batch 21: theme-color = لون التطبيق الموحّد، يطبّق على status bar في iPhone -->
+    <meta name="theme-color" content="#F2F6FC" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="Toia & Wardana" />
     <meta name="mobile-web-app-capable" content="yes" />
 
     <title>Toia &amp; Wardana</title>
+
+    <!-- خلفية html/body بنفس لون التطبيق — يضمن منطقة safe-area فوق الهيدر بنفس اللون -->
+    <style>
+      html, body {
+        background: #F2F6FC !important;
+        margin: 0;
+        padding: 0;
+      }
+    </style>
 
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>

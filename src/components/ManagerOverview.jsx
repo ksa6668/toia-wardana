@@ -173,9 +173,10 @@ export default function ManagerOverview({ lang = 'ar' }) {
               <p className="text-sm font-bold opacity-95 text-right mb-3">
                 {lang === 'en' ? 'Net Profit' : 'صافي الربح'}
               </p>
-              <div className="flex items-center justify-start gap-2 my-4">
-                <SarSymbol className="text-2xl" />
-                <span className="text-5xl font-extrabold leading-none tracking-tight">
+              {/* Batch 21: المبلغ على اليسار (justify-end في RTL = visual left) + خط مصغّر */}
+              <div className="flex items-center justify-end gap-2 my-4">
+                <SarSymbol className="text-xl" />
+                <span className="text-4xl font-extrabold leading-none tracking-tight">
                   {Math.round(stats.profit).toLocaleString()}
                 </span>
               </div>
