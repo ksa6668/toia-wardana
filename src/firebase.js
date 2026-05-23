@@ -915,6 +915,12 @@ export async function importHistoricalData({
   const total = sales.length + expenses.length;
   let done = 0;
   const result = { salesImported: 0, expensesImported: 0, errors: [] };
+  
+  // Batch 32: استخدم UID المستخدم الحالي ليتوافق مع Firestore Rules
+  const uid = auth.currentUser?.uid;
+  if (!uid) {
+    throw new Error('يجب تسجيل الدخول قبل الاستيراد');
+  }
 
   // ===== 1) استيراد المبيعات =====
   for (let i = 0; i < sales.length; i += BATCH_SIZE) {
@@ -933,8 +939,8 @@ export async function importHistoricalData({
         transfer: Number(s.transfer) || 0,
         total: Number(s.total) || 0,
         netTotal: Number(s.netTotal) || 0,
-        imported: true, // علم مهم: يميّز السجلات المستوردة
-        createdBy: "historical-import",
+        imported: true, // علم يميّز السجلات المستوردة
+        createdBy: uid, // ✅ UID المستخدم الفعلي (يتوافق مع Security Rules)
         createdAt: serverTimestamp(),
       });
     });
@@ -971,7 +977,7 @@ export async function importHistoricalData({
         notes: e.notes || "",
         invoiceUrl: e.invoiceUrl || null,
         imported: true,
-        createdBy: "historical-import",
+        createdBy: uid, // ✅ UID المستخدم
         createdAt: serverTimestamp(),
       });
     });
