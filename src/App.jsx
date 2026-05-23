@@ -43,7 +43,7 @@ import ProfileMenuSheet from './components/ProfileMenuSheet';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
 // Batch 5: Notifications + Receipts + Logout confirm
-import NotificationsCenter, { addNotification } from './components/NotificationsCenter';
+import NotificationsCenter, { addNotification, getUnreadCount } from './components/NotificationsCenter';
 import ManagerReceipts from './components/ManagerReceipts';
 import LogoutConfirmSheet from './components/LogoutConfirmSheet';
 // Batch 6: Generic edit sheet for full forms
@@ -168,6 +168,19 @@ export default function App() {
   const [showChangePinModal, setShowChangePinModal] = useState(false);
   // Batch 18: عنوان الشاشة الفرعية + handler العودة (للهيدر)
   const [screenCtx, setScreenCtx] = useState(null); // { title, onBack } | null
+  
+  // Batch 35: عداد الإشعارات غير المقروءة — يقرأ من localStorage ويستمع لـ events
+  const [unreadCount, setUnreadCount] = useState(() => getUnreadCount());
+  useEffect(() => {
+    const handler = () => setUnreadCount(getUnreadCount());
+    window.addEventListener('tw-notifs-changed', handler);
+    // أيضاً نُحدّث عند تغيّر تبويب المتصفح
+    window.addEventListener('focus', handler);
+    return () => {
+      window.removeEventListener('tw-notifs-changed', handler);
+      window.removeEventListener('focus', handler);
+    };
+  }, []);
 
   const userRole = user?.role || null;
   const branchId = user?.branchId || 'toia';
@@ -277,7 +290,7 @@ export default function App() {
                   ? `مرحباً، ${user?.displayName || user?.username || 'المدير'}`
                   : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`
               }
-              notifCount={isAdmin ? 2 : 0}
+              notifCount={isAdmin ? unreadCount : 0}
               onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
               onNotifClick={() => isAdmin && setShowNotifications(true)}
               langButton={

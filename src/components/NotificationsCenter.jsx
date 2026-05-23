@@ -5,6 +5,7 @@ import { ChevronRight, Bell, Loader2, X, CheckCircle2, Calendar } from 'lucide-r
 // التصميم مطابق للـ prototype: قائمة بطاقات مع X للحذف + "تعليم الكل" + "مسح الكل"
 
 const NOTIFS_KEY = 'tw_notifications_v1';
+const WELCOME_SESSION_KEY = 'tw_welcome_shown_session'; // Batch 35: علم الجلسة الحالية
 
 // قراءة الإشعارات المحفوظة محلياً
 function readStoredNotifs() {
@@ -24,6 +25,12 @@ function saveStoredNotifs(arr) {
   } catch {
     /* ignore */
   }
+}
+
+// Batch 35: تُحسب عدد الإشعارات غير المقروءة — يستخدمه الـ bell badge
+export function getUnreadCount() {
+  const list = readStoredNotifs();
+  return list.filter((n) => !n.read).length;
 }
 
 // Helper: إضافة إشعار جديد (يُستدعى من خارج المكون)
@@ -89,18 +96,26 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // إضافة إشعار ترحيب تلقائي إذا لم يوجد إشعارات سابقة
+    // Batch 35: إشعار الترحيب يظهر مرة واحدة فقط لكل جلسة (sessionStorage يُمسح عند إغلاق التبويب)
+    // هذا يمنع تكرار الترحيب كلما تمسح الإشعارات وتعود.
     let initial = readStoredNotifs();
-    if (initial.length === 0) {
+    const welcomeShown = sessionStorage.getItem(WELCOME_SESSION_KEY) === '1';
+    if (initial.length === 0 && !welcomeShown) {
       addNotification({
         title: 'مرحباً بعودتك',
         body: `أهلاً ${userName}، نتمنى لك يوماً موفقاً`,
         emoji: '👋',
         type: 'welcome',
       });
+      sessionStorage.setItem(WELCOME_SESSION_KEY, '1');
       initial = readStoredNotifs();
     }
-    setNotifs(initial);
+    // Batch 35: عند فتح الشاشة، نُعلّم الكل كمقروء تلقائياً (لتختفي علامة العدد)
+    const allRead = initial.map((n) => ({ ...n, read: true }));
+    saveStoredNotifs(allRead);
+    setNotifs(allRead);
+    // إخطار المكوّن الأب أن العدد تغيّر
+    window.dispatchEvent(new Event('tw-notifs-changed'));
     setLoading(false);
   }, [userName]);
 
@@ -108,18 +123,21 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
     const updated = notifs.filter((n) => n.id !== id);
     setNotifs(updated);
     saveStoredNotifs(updated);
+    window.dispatchEvent(new Event('tw-notifs-changed'));
   };
 
   const markAllRead = () => {
     const updated = notifs.map((n) => ({ ...n, read: true }));
     setNotifs(updated);
     saveStoredNotifs(updated);
+    window.dispatchEvent(new Event('tw-notifs-changed'));
   };
 
   const clearAll = () => {
     if (!confirm('مسح جميع الإشعارات؟')) return;
     setNotifs([]);
     saveStoredNotifs([]);
+    window.dispatchEvent(new Event('tw-notifs-changed'));
   };
 
   const groups = groupByDay(notifs);

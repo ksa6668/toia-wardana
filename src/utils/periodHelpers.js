@@ -10,16 +10,21 @@
 /**
  * يعطي نطاق التاريخ (from, to) من شهر YYYY-MM.
  * مثال: monthRange('2026-05') → { from: '2026-05-01', to: '2026-05-31', days: 31 }
+ * Batch 35: نبني السلسلة مباشرة (بدون Date + toISOString) لتجنّب UTC conversion
+ * الذي كان يُسبب ظهور 30 إبريل في كشف مايو بسبب فرق التوقيت السعودي.
  */
 export function monthRange(monthStr) {
   const [y, m] = monthStr.split('-').map(Number);
-  const first = new Date(y, m - 1, 1);
-  const last = new Date(y, m, 0); // اليوم الأخير: يوم 0 من الشهر التالي
-  const iso = (d) => d.toISOString().slice(0, 10);
+  // اليوم الأخير من الشهر: نُنشئ Date لليوم 0 من الشهر التالي ونأخذ getDate()
+  // (هذي العملية لا تتأثر بالـ timezone لأننا نقرأ getDate وليس ISO)
+  const days = new Date(y, m, 0).getDate();
+  // بناء النص مباشرة:
+  const mm = String(m).padStart(2, '0');
+  const dd = String(days).padStart(2, '0');
   return {
-    from: iso(first),
-    to: iso(last),
-    days: last.getDate(),
+    from: `${y}-${mm}-01`,
+    to:   `${y}-${mm}-${dd}`,
+    days,
     year: y,
     month: m,
   };
