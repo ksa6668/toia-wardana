@@ -16,7 +16,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
-  ChevronRight, Cloud, MapPin, FileText, AlertCircle, AlertTriangle,
+  Cloud, MapPin, FileText, AlertTriangle,
   Loader2, CheckCircle2, Lightbulb,
 } from 'lucide-react';
 import { getBranches, getAllDataForBackup, getDataStats, salesNet as salesNetFn } from '../firebase';

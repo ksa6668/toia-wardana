@@ -8,8 +8,7 @@
 //   - وضع التعديل + الصورة القديمة
 import { useState, useEffect, useRef } from 'react';
 import {
-  Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronRight, ChevronDown, X, Image as ImageIcon,
-  FolderOpen,
+  Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronDown, X, Image as ImageIcon,
 } from 'lucide-react';
 import {
   addExpense, updateExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,

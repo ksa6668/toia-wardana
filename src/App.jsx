@@ -1,11 +1,10 @@
 import React, { useState, useMemo, useEffect, createContext, useContext } from 'react';
 import {
   Receipt, TrendingUp, TrendingDown,
-  Settings, Camera, ChevronRight, ChevronUp, ChevronDown, Building2,
-  BarChart3, Wallet, UploadCloud,
+  Settings, Camera, ChevronRight, ChevronDown, Building2, Wallet, UploadCloud,
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
-  Key, UserX, UserCheck, Trash2, Edit3,
+  Key, Trash2,
   Home, List, GripVertical
 } from 'lucide-react';
 import {
@@ -18,8 +17,7 @@ import {
   getBranches, getPaymentMethods,
   madaFees, madaNet, MADA_FEE_RATE, salesNet,
   saveUserLanguage,
-  getMonthlyGoal, setMonthlyGoal, getAllGoalsForMonth,
-  addBranch, deleteBranch, updateBranch,
+  getMonthlyGoal,
   // Batch 12: admin edit/delete for sales & expenses
   deleteDailySales, deleteExpense,
 } from './firebase';
@@ -43,7 +41,7 @@ import ProfileMenuSheet from './components/ProfileMenuSheet';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
 // Batch 5: Notifications + Receipts + Logout confirm
-import NotificationsCenter, { addNotification, getUnreadCount } from './components/NotificationsCenter';
+import NotificationsCenter, { getUnreadCount } from './components/NotificationsCenter';
 import ManagerReceipts from './components/ManagerReceipts';
 import LogoutConfirmSheet from './components/LogoutConfirmSheet';
 // Batch 6: Generic edit sheet for full forms

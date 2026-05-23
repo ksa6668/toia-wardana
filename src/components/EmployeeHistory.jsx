@@ -11,7 +11,7 @@ import {
   ChevronRight, TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar,
 } from 'lucide-react';
 import { getSales, getExpenses } from '../firebase';
-import { t, translateCategory } from '../i18n';
+import { translateCategory } from '../i18n';
 import SarSymbol from './SarSymbol';
 import { formatDayShort } from '../utils/periodHelpers';
 
@@ -34,11 +34,13 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
         const iso = (d) => d.toISOString().slice(0, 10);
         const from = iso(sevenDaysAgo);
         const to = iso(today);
-        const [s, e] = await Promise.all([getSales(from, to), getExpenses(from, to)]);
+        // Batch 41: تمرير branchId لـ getSales/getExpenses لتجنّب مشكلة Firestore Rules
+        // (نفس إصلاح Batch 39 لكن لشاشة "السجل")
+        const [s, e] = await Promise.all([getSales(from, to, branchId), getExpenses(from, to, branchId)]);
         if (!cancelled) {
-          // فلتر فرع الموظف فقط
-          setSales(s.filter((x) => x.branchId === branchId));
-          setExpenses(e.filter((x) => x.branchId === branchId));
+          // البيانات مفلترة في Firestore، لكن نتأكد مرة أخرى للأمان
+          setSales(s);
+          setExpenses(e);
         }
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');

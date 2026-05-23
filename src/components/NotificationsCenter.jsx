@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { ChevronRight, Bell, Loader2, X, CheckCircle2, Calendar } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { ChevronRight, Bell, Loader2, X } from 'lucide-react';
 
 // مركز الإشعارات — يعرض الإشعارات الحديثة من localStorage + إشعارات النظام التلقائية
 // التصميم مطابق للـ prototype: قائمة بطاقات مع X للحذف + "تعليم الكل" + "مسح الكل"

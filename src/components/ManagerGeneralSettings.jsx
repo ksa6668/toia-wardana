@@ -11,7 +11,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
-  ChevronRight, Globe, Settings as Gear, Calendar, CheckCircle2, Loader2,
+  Settings as Gear, Calendar, CheckCircle2, Loader2,
   AlertTriangle, Trash2,
 } from 'lucide-react';
 import { getAppSettings, setAppSettings, resetAllData } from '../firebase';

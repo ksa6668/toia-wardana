@@ -11,7 +11,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
-  Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronRight, ChevronDown,
+  Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronDown,
 } from 'lucide-react';
 import {
   addDailySales, updateDailySales, getPaymentMethods, getBranches,

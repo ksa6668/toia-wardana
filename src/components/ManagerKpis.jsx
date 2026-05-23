@@ -12,7 +12,7 @@
 //   - حذف: نسبة التسويق، نسبة المصاريف من المبيعات
 // ----------------------------------------------------------
 import { useState, useEffect, useMemo } from 'react';
-import { Calendar, ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Loader2 } from 'lucide-react';
+import { ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Loader2 } from 'lucide-react';
 import { getSales, getExpenses, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';

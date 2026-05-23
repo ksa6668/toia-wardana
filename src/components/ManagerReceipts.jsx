@@ -1,5 +1,5 @@
-import React, { useState, useEffect, useMemo } from 'react';
-import { ChevronRight, Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, FileText, X, Settings } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, X, Settings } from 'lucide-react';
 import { getExpenses } from '../firebase';
 import SarSymbol from './SarSymbol';
 import SheetPortal from './SheetPortal';

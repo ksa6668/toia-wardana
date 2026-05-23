@@ -10,7 +10,7 @@
 // التقييمات: placeholder حالياً (يحتاج Google Places API)
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronDown, Loader2, Star, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Loader2, Star, CheckCircle2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import SheetPortal from './SheetPortal';
 import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales, salesNet } from '../firebase';

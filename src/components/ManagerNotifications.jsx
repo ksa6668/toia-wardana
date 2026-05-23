@@ -6,7 +6,7 @@
 //   - زر إرسال إشعار تجريبي
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { ChevronRight, Bell, CheckCircle2, Loader2, AlertCircle } from 'lucide-react';
+import { Bell, Loader2, AlertCircle } from 'lucide-react';
 import { getAppSettings, setAppSettings } from '../firebase';
 import { useScreenHeader } from '../App';
 

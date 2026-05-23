@@ -11,7 +11,7 @@
 // المسار: goals/{branchId}_{YYYY-MM}
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronDown, ChevronRight, CheckCircle2, Loader2, Target, Star } from 'lucide-react';
+import { Calendar, ChevronDown, CheckCircle2, Loader2, Target, Star } from 'lucide-react';
 import {
   getBranches, getMonthlyGoal, setMonthlyGoal,
 } from '../firebase';

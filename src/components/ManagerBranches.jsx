@@ -5,7 +5,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
-  ChevronRight, Plus, Store, Loader2, CheckCircle2, AlertCircle,
+  Plus, Store, Loader2, CheckCircle2, AlertCircle,
 } from 'lucide-react';
 import {
   getBranches, addBranch, updateBranch, deleteBranch,
