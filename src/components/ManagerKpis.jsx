@@ -182,7 +182,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
       {
         icon: CreditCard,
         label: lang === 'en' ? 'Mada ratio of sales' : 'نسبة مدى من المبيعات',
-        pct: (totalMada / totalSales) * 100,
+        pct: (totalMadaNet / totalSales) * 100,
       },
       {
         icon: Send,
