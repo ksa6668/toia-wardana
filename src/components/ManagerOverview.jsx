@@ -30,8 +30,11 @@ function MetricCard({ icon: Icon, label, value, alt }) {
           <Icon size={18} />
         </div>
       </div>
-      {/* الرقم تحت بخط أكبر */}
-      <p className="text-xl font-extrabold text-tw-navy flex items-center gap-1.5 justify-start">
+      {/* Batch 25: الرقم تحت — علامة الريال يسار المبلغ (LTR direction للأرقام) */}
+      <p
+        className="text-xl font-extrabold text-tw-navy flex items-center gap-1.5"
+        style={{ direction: 'ltr', justifyContent: 'flex-end' }}
+      >
         <SarSymbol className="text-base text-tw-muted" />
         <span>{value.toLocaleString()}</span>
       </p>
