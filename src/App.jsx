@@ -25,7 +25,9 @@ import {
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 import { useDragSort } from './hooks/useDragSort';
+import { getAvailableMonths, formatMonthLabel } from './utils/periodHelpers';
 import SarSymbol from './components/SarSymbol';
+import BottomSheet from './components/BottomSheet';
 import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
 import ManagerOverview from './components/ManagerOverview';
@@ -2339,7 +2341,9 @@ function ManageUsers({ onBack }) {
 // شاشة المصاريف الثابتة الشهرية
 function ManageFixedExpenses({ onBack }) {
   useScreenHeader('المصاريف الثابتة', onBack);
-  const month = monthStr();
+  // Batch 31: السماح باختيار الشهر (للسجلات التاريخية + الشهر الحالي)
+  const [month, setMonth] = useState(monthStr());
+  const [showMonthPicker, setShowMonthPicker] = useState(false);
   // كل فرع له 3 بنود: إيجار + رواتب + تأمينات GOSI
   const [toia, setToia] = useState({ rent: '', salaries: '', gosi: '' });
   const [wardana, setWardana] = useState({ rent: '', salaries: '', gosi: '' });
@@ -2350,6 +2354,10 @@ function ManageFixedExpenses({ onBack }) {
 
   useEffect(() => {
     async function load() {
+      setLoading(true);
+      // Batch 31: نُفرغ القيم أولاً عند تغيّر الشهر
+      setToia({ rent: '', salaries: '', gosi: '' });
+      setWardana({ rent: '', salaries: '', gosi: '' });
       try {
         const fixed = await getFixedExpenses(month);
         const t = fixed.find((f) => f.branchId === 'toia');
@@ -2453,10 +2461,17 @@ function ManageFixedExpenses({ onBack }) {
       }}
     >
       <div className="relative z-10 p-4 space-y-4">
-        <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-3 text-center">
-          <p className="text-tw-navy font-bold text-sm">شهر {month}</p>
-          <p className="text-tw-muted/70 text-[11px] mt-1">إيجار + رواتب + تأمينات GOSI لكل فرع</p>
-        </div>
+        {/* Batch 31: منتقي الشهر — قابل للضغط */}
+        <button
+          onClick={() => setShowMonthPicker(true)}
+          className="w-full bg-white rounded-2xl border border-tw-line shadow-sm p-3 flex items-center justify-between"
+        >
+          <div className="text-right flex-1">
+            <p className="text-tw-navy font-bold text-sm">{formatMonthLabel(month, 'ar')}</p>
+            <p className="text-tw-muted/70 text-[11px] mt-1">إيجار + رواتب + تأمينات GOSI لكل فرع</p>
+          </div>
+          <ChevronDown size={16} className="text-tw-muted" />
+        </button>
 
         {loading ? (
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-tw-muted/50" /></div>
@@ -2512,6 +2527,16 @@ function ManageFixedExpenses({ onBack }) {
           </>
         )}
       </div>
+
+      {/* Batch 31: BottomSheet لاختيار الشهر — من ماي 2024 للحالي */}
+      <BottomSheet
+        open={showMonthPicker}
+        title="اختر الشهر"
+        options={getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, 'ar') }))}
+        current={month}
+        onPick={(v) => { setMonth(v); setShowMonthPicker(false); }}
+        onClose={() => setShowMonthPicker(false)}
+      />
     </div>
   );
 }
