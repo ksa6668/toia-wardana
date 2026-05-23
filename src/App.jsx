@@ -5,7 +5,7 @@ import {
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
   Key, Trash2,
-  Home, List, GripVertical
+  Home, List, GripVertical, MapPin
 } from 'lucide-react';
 import {
   login, logout, watchAuth,
@@ -137,11 +137,23 @@ export const ScreenCtxContext = createContext({ setScreenCtx: () => {} });
  * Hook لاستخدامه في أي شاشة فرعية:
  *   useScreenHeader('عنوان الشاشة', () => onBackHandler);
  * عند unmount: يُمسح تلقائياً.
+ *
+ * Batch 41: نعتمد على title فقط في deps (onBack دالة جديدة كل render)
+ * لكن نُسجّل أحدث onBack دائماً عبر ref لتجنّب stale closures.
  */
 export function useScreenHeader(title, onBack) {
   const { setScreenCtx } = useContext(ScreenCtxContext);
+  // نحتفظ بـ ref للـ onBack حتى نقدر نمرّر أحدث نسخة دائماً
+  const onBackRef = React.useRef(onBack);
+  useEffect(() => { onBackRef.current = onBack; }, [onBack]);
+  
   useEffect(() => {
-    if (title) setScreenCtx({ title, onBack });
+    if (title) {
+      setScreenCtx({
+        title,
+        onBack: () => onBackRef.current && onBackRef.current(),
+      });
+    }
     return () => setScreenCtx(null);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [title]);
@@ -2913,9 +2925,15 @@ function ChangeMyPin({ onBack }) {
 // - الفرع يُغيَّر من داخل النماذج عبر pill قابل للنقر → bottom sheet
 // - كل سطر في القائمة فيه ✎ تعديل + 🗑 حذف (للمدير فقط)
 function AdminDataEntry({ onBack }) {
-  useScreenHeader('المبيعات والمصاريف', onBack);
   const [step, setStep] = useState('home');
-  const [chosenBranch, setChosenBranch] = useState('toia');
+  // Batch 41: نُجبر إعادة تسجيل الـ header عند تغيّر step
+  // (عند العودة لـ home بعد فتح salesForm، الـ ctx يكون null)
+  const headerTitle = step === 'home' ? 'المبيعات والمصاريف' : null;
+  useScreenHeader(headerTitle, onBack);
+  
+  const [chosenBranch, setChosenBranch] = useState('all');
+  // Batch 41: branchSheetOpen لـ شاشة home (اختيار فرع للسجل)
+  const [homeBranchSheetOpen, setHomeBranchSheetOpen] = useState(false);
   const [branches, setBranches] = useState([]);
   const [refreshKey, setRefreshKey] = useState(0);
   const [editingRecord, setEditingRecord] = useState(null);
@@ -2933,8 +2951,12 @@ function AdminDataEntry({ onBack }) {
     || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا');
 
   const setView = (v) => {
-    if (v === 'salesForm') setStep('salesForm');
-    else if (v === 'expenseForm') setStep('expenseForm');
+    if (v === 'salesForm' || v === 'expenseForm') {
+      // Batch 41: لو 'all' (افتراضي للمدير)، نختار توياً عند فتح النموذج
+      // المستخدم يقدر يغيّره من البـ pill داخل النموذج
+      if (chosenBranch === 'all') setChosenBranch('toia');
+      setStep(v);
+    }
     else if (v === 'employeeHome' || v === 'home') {
       setStep('home');
       setEditingRecord(null);
@@ -2948,6 +2970,11 @@ function AdminDataEntry({ onBack }) {
 
   const handleEdit = (entry) => {
     setEditingRecord(entry);
+    // Batch 41: لو السجل من فرع مختلف عن المختار حالياً، نُحدّث chosenBranch
+    // ليتطابق مع السجل الذي يُعدَّل (مهم عند "كل الفروع")
+    if (entry.branchId && entry.branchId !== chosenBranch) {
+      setChosenBranch(entry.branchId);
+    }
     if (entry.kind === 'sale') setStep('editSalesForm');
     else setStep('editExpenseForm');
   };
@@ -2984,6 +3011,22 @@ function AdminDataEntry({ onBack }) {
           />
 
           <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-24">
+            {/* Batch 41: pill اختيار الفرع لتصفية سجل آخر 7 أيام */}
+            <button
+              type="button"
+              onClick={() => setHomeBranchSheetOpen(true)}
+              className="tw-pill"
+              style={{ marginBottom: 12, width: '100%', justifyContent: 'space-between' }}
+            >
+              <span className="flex items-center gap-2">
+                <MapPin size={14} className="text-tw-blue" />
+                <span style={{ fontWeight: 800, fontSize: 13 }}>
+                  {chosenBranch === 'all' ? 'كل الفروع' : `فرع ${branchName}`}
+                </span>
+              </span>
+              <ChevronDown size={14} className="text-tw-muted/70" />
+            </button>
+
             <div
               className="tw-card tw-action"
               onClick={() => setView('salesForm')}
@@ -3042,6 +3085,22 @@ function AdminDataEntry({ onBack }) {
           onConfirm={handleDeleteConfirm}
           onClose={() => setDeletingRecord(null)}
           lang="ar"
+        />
+
+        {/* Batch 41: bottom sheet اختيار الفرع لتصفية سجل آخر 7 أيام */}
+        <BottomSheet
+          open={homeBranchSheetOpen}
+          title="اختر الفرع"
+          options={[
+            { value: 'all', label: 'كل الفروع' },
+            ...branches.map((b) => ({ value: b.id, label: b.name })),
+          ]}
+          current={chosenBranch}
+          onPick={(v) => {
+            setChosenBranch(v);
+            setHomeBranchSheetOpen(false);
+          }}
+          onClose={() => setHomeBranchSheetOpen(false)}
         />
       </>
     );

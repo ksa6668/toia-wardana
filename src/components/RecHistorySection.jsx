@@ -48,13 +48,17 @@ export default function RecHistorySection({
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
         const iso = (d) => d.toISOString().slice(0, 10);
+        // Batch 41: لو branchId === 'all' (المدير)، نجلب كل الفروع
+        // لو فرع معيّن، نُمرر branchId لـ getSales/getExpenses ليفلتر في Firestore
+        const fetchBranchId = branchId === 'all' ? null : branchId;
         const [s, e] = await Promise.all([
-          getSales(iso(sevenDaysAgo), iso(today)),
-          getExpenses(iso(sevenDaysAgo), iso(today)),
+          getSales(iso(sevenDaysAgo), iso(today), fetchBranchId),
+          getExpenses(iso(sevenDaysAgo), iso(today), fetchBranchId),
         ]);
         if (!cancelled) {
-          setSales(s.filter((x) => x.branchId === branchId));
-          setExpenses(e.filter((x) => x.branchId === branchId));
+          // البيانات مفلترة في Firestore بالفعل (أو 'all' للمدير)
+          setSales(s);
+          setExpenses(e);
         }
       } catch (err) {
         if (!cancelled) setError(err?.message || (lang === 'en' ? 'Failed to load data' : 'تعذّر تحميل البيانات'));
