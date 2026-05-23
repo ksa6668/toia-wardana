@@ -344,12 +344,14 @@ export default function App() {
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
           <nav
-            className="flex items-center px-2 py-1.5 pb-2 md:pb-2 z-10 flex-shrink-0"
+            className="flex items-center px-2 z-10 flex-shrink-0"
             style={{
-              /* Batch 20: نفس لون الـ frame — اللون موحّد بدون blur */
+              /* Batch 23: ارتفاع مناسب لإظهار الأيقونة + النص + safe-area للـ iPhone */
               background: '#F2F6FC',
               borderTop: '1px solid rgba(230, 236, 246, 0.8)',
               fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
+              paddingTop: '8px',
+              paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
             }}
           >
             {/*
@@ -370,12 +372,13 @@ export default function App() {
                 <button
                   key={tab.key}
                   onClick={() => setAdminTab(tab.key)}
-                  className={`flex flex-col items-center justify-center flex-1 py-1.5 gap-1 transition-colors ${
+                  className={`flex flex-col items-center justify-center flex-1 py-1 gap-1.5 transition-colors ${
                     active ? 'text-tw-blue' : 'text-[#8A96AA] hover:text-tw-navy2'
                   }`}
+                  style={{ minHeight: 48 }}
                 >
                   <Icon size={22} strokeWidth={active ? 2.4 : 2} />
-                  <span className="text-[11px] font-bold leading-none">
+                  <span className="text-[11px] font-bold leading-none whitespace-nowrap">
                     {tab.label}
                   </span>
                 </button>
