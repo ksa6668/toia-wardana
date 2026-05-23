@@ -169,12 +169,15 @@ export default function ManagerOverview({ lang = 'ar' }) {
               className="absolute inset-0 opacity-30 pointer-events-none"
               style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
             />
-            <div className="relative flex flex-col justify-between" style={{ minHeight: 140 }}>
-              <p className="text-sm font-bold opacity-95 text-right mb-3">
+            <div className="relative flex flex-col" style={{ minHeight: 140 }}>
+              <p className="text-sm font-bold opacity-95 text-right">
                 {lang === 'en' ? 'Net Profit' : 'صافي الربح'}
               </p>
-              {/* Batch 21: المبلغ على اليسار (justify-end في RTL = visual left) + خط مصغّر */}
-              <div className="flex items-center justify-end gap-2 my-4">
+              {/* Batch 24: المبلغ في منتصف الكرت — علامة الريال يسار الرقم */}
+              <div
+                className="flex-1 flex items-center justify-center gap-2"
+                style={{ direction: 'ltr' }}
+              >
                 <SarSymbol className="text-xl" />
                 <span className="text-4xl font-extrabold leading-none tracking-tight">
                   {Math.round(stats.profit).toLocaleString()}
