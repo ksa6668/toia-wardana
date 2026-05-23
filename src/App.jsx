@@ -38,6 +38,8 @@ import RecHistorySection from './components/RecHistorySection';
 import DeleteConfirmSheet from './components/DeleteConfirmSheet';
 // Batch 13
 import ProfileMenuSheet from './components/ProfileMenuSheet';
+// Batch 26
+import PageTransition from './components/PageTransition';
 // Admin settings + Goals + Branches (Batch 3)
 import AdminSettingsV2 from './components/AdminSettingsV2';
 // Batch 5: Notifications + Receipts + Logout confirm
@@ -303,43 +305,50 @@ export default function App() {
           className="flex-1 overflow-y-auto"
           style={{ background: 'transparent', minHeight: 0 }}
         >
-          {authLoading && (
-            <div className="h-full flex flex-col items-center justify-center text-tw-muted/70 gap-3 pt-20">
-              <Loader2 size={32} className="animate-spin" />
-              <p className="text-sm font-bold">{lang === 'en' ? 'Loading...' : 'جارٍ التحميل...'}</p>
-            </div>
-          )}
-          {!authLoading && currentView === 'login' && (
-            <LoginView onLoginSuccess={handleLoginSuccess} lang={lang} setLang={changeLang} />
-          )}
-          {!authLoading && currentView === 'employeeHome' && (
-            <EmployeeHome setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} setLang={changeLang} />
-          )}
-          {!authLoading && currentView === 'salesForm' && (
-            <SalesFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
-          )}
-          {!authLoading && currentView === 'expenseForm' && (
-            <ExpenseFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
-          )}
-          {!authLoading && currentView === 'employeeHistory' && (
-            <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
-          )}
-          {/* ====== شاشات المدير — مطابقة لتجربة الـ prototype ====== */}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" />}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && <ManagerMonthly lang="ar" />}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'overview' && <ManagerOverview lang="ar" />}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
-            <AdminSettingsV2
-              lang="ar"
-              ManageUsersComponent={ManageUsers}
-              ManageFixedExpensesComponent={ManageFixedExpenses}
-              ManageCategoriesComponent={ManageCategories}
-              AdminDataEntryComponent={AdminDataEntry}
-            />
-          )}
-          {/* Dashboard القديم: متاح للرجوع إن أردت — adminTab === 'dashboard' */}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'dashboard' && <SuperAdminDashboard />}
+          <PageTransition pageKey={
+            authLoading
+              ? 'loading'
+              : currentView === 'adminHome'
+                ? `admin-${adminTab}`
+                : currentView
+          }>
+            {authLoading && (
+              <div className="h-full flex flex-col items-center justify-center text-tw-muted/70 gap-3 pt-20">
+                <Loader2 size={32} className="animate-spin" />
+                <p className="text-sm font-bold">{lang === 'en' ? 'Loading...' : 'جارٍ التحميل...'}</p>
+              </div>
+            )}
+            {!authLoading && currentView === 'login' && (
+              <LoginView onLoginSuccess={handleLoginSuccess} lang={lang} setLang={changeLang} />
+            )}
+            {!authLoading && currentView === 'employeeHome' && (
+              <EmployeeHome setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} setLang={changeLang} />
+            )}
+            {!authLoading && currentView === 'salesForm' && (
+              <SalesFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+            )}
+            {!authLoading && currentView === 'expenseForm' && (
+              <ExpenseFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+            )}
+            {!authLoading && currentView === 'employeeHistory' && (
+              <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
+            )}
+            {/* ====== شاشات المدير ====== */}
+            {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" />}
+            {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && <ManagerMonthly lang="ar" />}
+            {!authLoading && currentView === 'adminHome' && adminTab === 'overview' && <ManagerOverview lang="ar" />}
+            {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
+            {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
+              <AdminSettingsV2
+                lang="ar"
+                ManageUsersComponent={ManageUsers}
+                ManageFixedExpensesComponent={ManageFixedExpenses}
+                ManageCategoriesComponent={ManageCategories}
+                AdminDataEntryComponent={AdminDataEntry}
+              />
+            )}
+            {!authLoading && currentView === 'adminHome' && adminTab === 'dashboard' && <SuperAdminDashboard />}
+          </PageTransition>
         </main>
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
