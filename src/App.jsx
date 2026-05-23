@@ -24,6 +24,7 @@ import {
   deleteDailySales, deleteExpense,
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
+import { useDragSort } from './hooks/useDragSort';
 import SarSymbol from './components/SarSymbol';
 import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
@@ -343,7 +344,7 @@ export default function App() {
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
           <nav
-            className="flex items-center px-2 py-2 pb-5 md:pb-3 z-10 flex-shrink-0"
+            className="flex items-center px-2 py-1.5 pb-2 md:pb-2 z-10 flex-shrink-0"
             style={{
               /* Batch 20: نفس لون الـ frame — اللون موحّد بدون blur */
               background: '#F2F6FC',
@@ -2604,28 +2605,15 @@ function ManageCategories({ onBack }) {
     }
   };
 
-  // Batch 18: ترتيب بالسحب — الضغط المطوّل ثم السحب
-  const [dragIdx, setDragIdx] = useState(null);
-  const handleDragStart = (idx) => setDragIdx(idx);
-  const handleDragOver = (e, idx) => {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === idx) return;
-    const newCats = [...cats];
-    const [moved] = newCats.splice(dragIdx, 1);
-    newCats.splice(idx, 0, moved);
-    setCats(newCats);
-    setDragIdx(idx);
-  };
-  const handleDragEnd = async () => {
-    if (dragIdx === null) return;
-    setDragIdx(null);
+  // Batch 22: ترتيب بالسحب — يدعم desktop (mouse) و mobile (touch long-press)
+  const catDrag = useDragSort(cats, setCats, async (finalCats) => {
     try {
-      await reorderCategories(cats.map((c) => c.id));
+      await reorderCategories(finalCats.map((c) => c.id));
     } catch (err) {
       setError(err?.message || 'تعذّر تحديث الترتيب');
       await load();
     }
-  };
+  });
 
   return (
     <div
@@ -2733,14 +2721,10 @@ function ManageCategories({ onBack }) {
             {cats.map((cat, idx) => (
               <div
                 key={cat.id}
-                draggable
-                onDragStart={() => handleDragStart(idx)}
-                onDragOver={(e) => handleDragOver(e, idx)}
-                onDragEnd={handleDragEnd}
+                {...catDrag.itemProps(idx)}
                 className={`bg-white border border-tw-line rounded-2xl p-4 flex items-center gap-3 shadow-sm transition-all ${
-                  dragIdx === idx ? 'opacity-50 scale-[0.98]' : ''
+                  catDrag.isDragging(idx) ? 'opacity-50 scale-[0.98]' : ''
                 }`}
-                style={{ cursor: 'grab' }}
               >
                 {/* Toggle موحّد بنفس تصميم التنبيهات والإشعارات */}
                 <button
@@ -2766,8 +2750,9 @@ function ManageCategories({ onBack }) {
                   </p>
                 </div>
 
-                {/* Batch 18: مقبض السحب — يحل محل الأسهم */}
+                {/* Batch 22: مقبض السحب — يدعم touch (long-press) + mouse drag */}
                 <div
+                  {...catDrag.handleProps(idx)}
                   className="p-2 text-tw-muted/60 cursor-grab active:cursor-grabbing flex-shrink-0"
                   title="اسحب لإعادة الترتيب"
                   aria-label="drag handle"

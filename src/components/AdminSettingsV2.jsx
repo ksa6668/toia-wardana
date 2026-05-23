@@ -10,6 +10,7 @@ import {
   ChevronRight, Target, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
   PieChart, GripVertical,
 } from 'lucide-react';
+import { useDragSort } from '../hooks/useDragSort';
 import ManagerGoals from './ManagerGoals';
 import ManagerBranches from './ManagerBranches';
 import ManagerGeneralSettings from './ManagerGeneralSettings';
@@ -101,40 +102,27 @@ export default function AdminSettingsV2({
   const [showCategoriesFromReceipts, setShowCategoriesFromReceipts] = useState(false);
   const goBack = () => setScreen('menu');
 
-  // Batch 19: ترتيب مخصّص بالسحب (يُحفظ في localStorage)
+  // Batch 19+22: ترتيب مخصّص بالسحب (يدعم touch على الموبايل)
   const STORAGE_KEY = 'tw-settings-order-v1';
   const [items, setItems] = useState(() => {
     try {
       const saved = localStorage.getItem(STORAGE_KEY);
       if (saved) {
         const savedKeys = JSON.parse(saved);
-        // أعد ترتيب ITEMS حسب savedKeys + ألحق أي عنصر جديد لم يكن مخزّن
         const map = new Map(ITEMS.map((it) => [it.key, it]));
         const ordered = [];
         for (const k of savedKeys) if (map.has(k)) { ordered.push(map.get(k)); map.delete(k); }
-        for (const it of map.values()) ordered.push(it); // عناصر جديدة في نهاية القائمة
+        for (const it of map.values()) ordered.push(it);
         return ordered;
       }
     } catch { /* ignore */ }
     return ITEMS;
   });
-  const [dragIdx, setDragIdx] = useState(null);
-  const handleDragStart = (idx) => setDragIdx(idx);
-  const handleDragOver = (e, idx) => {
-    e.preventDefault();
-    if (dragIdx === null || dragIdx === idx) return;
-    const arr = [...items];
-    const [moved] = arr.splice(dragIdx, 1);
-    arr.splice(idx, 0, moved);
-    setItems(arr);
-    setDragIdx(idx);
-  };
-  const handleDragEnd = () => {
-    setDragIdx(null);
+  const drag = useDragSort(items, setItems, async (finalItems) => {
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(items.map((it) => it.key)));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(finalItems.map((it) => it.key)));
     } catch { /* ignore */ }
-  };
+  });
 
   if (screen === 'users' && ManageUsersComponent) return <ManageUsersComponent onBack={goBack} />;
   if (screen === 'fixed' && ManageFixedExpensesComponent) return <ManageFixedExpensesComponent onBack={goBack} />;
@@ -166,28 +154,21 @@ export default function AdminSettingsV2({
       className="min-h-full px-4 pt-4 pb-8 page-bg-soft"
       style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
-      {/* العنوان — Batch 18: مصغّر بنفس مقاس "تسجيل المبيعات/المصاريف" */}
-      <h2 className="text-base font-extrabold text-tw-navy mb-3 px-1">
-        {lang === 'en' ? 'System Settings' : 'الإعدادات'}
-      </h2>
-
       <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
         {items.map((item, idx) => {
           const Icon = item.icon;
           const isActive = item.enabled;
+          const isDraggingThis = drag.isDragging(idx);
           return (
             <div
               key={item.key}
-              draggable={isActive}
-              onDragStart={() => handleDragStart(idx)}
-              onDragOver={(e) => handleDragOver(e, idx)}
-              onDragEnd={handleDragEnd}
-              onClick={() => isActive && dragIdx === null && setScreen(item.key)}
+              {...drag.itemProps(idx)}
+              onClick={() => isActive && drag.dragIdx === null && setScreen(item.key)}
               className={`w-full p-4 border-b border-tw-line/60 last:border-0 flex items-center gap-3 transition-all ${
                 isActive
                   ? 'hover:bg-tw-soft cursor-pointer'
                   : 'opacity-50 cursor-not-allowed'
-              } ${dragIdx === idx ? 'opacity-50 scale-[0.98] bg-tw-soft' : ''}`}
+              } ${isDraggingThis ? 'opacity-50 scale-[0.98] bg-tw-soft' : ''}`}
             >
               {/* الأيقونة قبل الاسم — في RTL تظهر يمين */}
               <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${colorMap[item.color]}`}>
@@ -199,13 +180,14 @@ export default function AdminSettingsV2({
                 </p>
                 <p className="text-[11px] text-tw-muted truncate mt-0.5">{item.desc[lang]}</p>
               </div>
-              {/* مقبض السحب — Batch 19 */}
+              {/* مقبض السحب — يدعم touch (long-press) + mouse drag */}
               <div
-                className="p-1 text-tw-muted/40 flex-shrink-0 cursor-grab active:cursor-grabbing"
+                {...drag.handleProps(idx)}
+                className="p-2 text-tw-muted/40 flex-shrink-0 cursor-grab active:cursor-grabbing"
                 onClick={(e) => e.stopPropagation()}
                 title="اسحب لإعادة الترتيب"
               >
-                <GripVertical size={14} />
+                <GripVertical size={16} />
               </div>
               {/* سهم صغير على أقصى اليسار في RTL */}
               <ChevronRight
