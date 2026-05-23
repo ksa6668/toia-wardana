@@ -2447,8 +2447,10 @@ function ManageFixedExpenses({ onBack }) {
     (Number(b.rent) || 0) + (Number(b.salaries) || 0) + (Number(b.gosi) || 0);
   const totalFixed = sumBranch(toia) + sumBranch(wardana);
 
-  // مكوّن داخلي لكل بطاقة فرع — 3 inputs (إيجار/رواتب/تأمينات)
-  const BranchCard = ({ title, data, setData }) => (
+  // Batch 42: BranchCard كـ helper function (مش inner component) لتجنّب re-mount
+  // كل keystroke كان يُعيد إنشاء المكون → الـ input يفقد focus → الكيبورد يختفي.
+  // الحل: تحويلها لـ function تعيد JSX (داخل نفس scope الحالي).
+  const renderBranchCard = (title, data, setData) => (
     <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 space-y-3">
       <div className="flex items-center justify-between border-b border-tw-line/60 pb-2">
         <h4 className="text-sm font-bold text-tw-navy">{title}</h4>
@@ -2506,8 +2508,8 @@ function ManageFixedExpenses({ onBack }) {
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-tw-muted/50" /></div>
         ) : (
           <>
-            <BranchCard title="فرع تويا" data={toia} setData={setToia} />
-            <BranchCard title="فرع وردانة" data={wardana} setData={setWardana} />
+            {renderBranchCard('فرع تويا', toia, setToia)}
+            {renderBranchCard('فرع وردانة', wardana, setWardana)}
 
             {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
             {done && (
