@@ -324,8 +324,6 @@ export default function ExpenseFormV2({
         )}
 
         <div className="tw-form-card">
-          <h4>{lang === 'en' ? 'Expense details' : 'تفاصيل المصروف'}</h4>
-
           <label>{t(lang, 'expense.amount')}</label>
           <div className="tw-field">
             <input type="number" inputMode="decimal" placeholder="0"

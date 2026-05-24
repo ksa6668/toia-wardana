@@ -5,7 +5,7 @@ import {
   Calendar, Globe, Store, PieChart, Activity, CreditCard,
   ShoppingCart, Car, Megaphone, Layers, Loader2, Users, Plus, CheckCircle2,
   Key, Trash2,
-  Home, List, GripVertical, MapPin
+  Home, List, GripVertical, MapPin, MessageCircle
 } from 'lucide-react';
 import {
   login, logout, watchAuth,
@@ -20,6 +20,8 @@ import {
   getMonthlyGoal,
   // Batch 12: admin edit/delete for sales & expenses
   deleteDailySales, deleteExpense,
+  // Batch 46: WhatsApp
+  getWhatsappEntries,
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 import { useDragSort } from './hooks/useDragSort';
@@ -30,10 +32,12 @@ import SarSymbol from './components/SarSymbol';
 import BottomSheet from './components/BottomSheet';
 import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
-import ManagerOverview from './components/ManagerOverview';
+import ManagerWhatsapp from './components/ManagerWhatsapp';
 import ManagerKpis from './components/ManagerKpis';
 import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
+import WhatsappFormV2 from './components/WhatsappFormV2';
+import ManageWhatsappBaseline from './components/ManageWhatsappBaseline';
 import EmployeeHistory from './components/EmployeeHistory';
 // Batch 12
 import RecHistorySection from './components/RecHistorySection';
@@ -279,7 +283,7 @@ export default function App() {
           // أولوية: screenCtx (شاشة فرعية) > adminTab title > home mode
           const adminTabTitles = {
             monthly: 'الكشف الشامل',
-            overview: 'نظرة عامة',
+            whatsapp: 'عملاء واتساب',
             kpis: 'المؤشرات',
             settings: 'الإعدادات',
             // home: لا يوجد title → home mode
@@ -351,13 +355,16 @@ export default function App() {
           {!authLoading && currentView === 'expenseForm' && (
             <ExpenseFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} isAdmin={isAdmin} />
           )}
+          {!authLoading && currentView === 'whatsappForm' && (
+            <WhatsappFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+          )}
           {!authLoading && currentView === 'employeeHistory' && (
             <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
           )}
           {/* ====== شاشات المدير ====== */}
           {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && <ManagerMonthly lang="ar" />}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'overview' && <ManagerOverview lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'whatsapp' && <ManagerWhatsapp lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
             <AdminSettingsV2
@@ -386,14 +393,14 @@ export default function App() {
             {/*
               في RTL، أول عنصر بالـ array يظهر يمين.
               ترتيب جديد (يمين → يسار):
-                كشف / نظرة عامة / الرئيسية / المؤشرات / الإعدادات
+                كشف / واتساب / الرئيسية / المؤشرات / الإعدادات
             */}
             {[
-              { key: 'monthly',  icon: List,       label: 'كشف' },
-              { key: 'overview', icon: PieChart,   label: 'نظرة عامة' },
-              { key: 'home',     icon: Home,       label: 'الرئيسية' },
-              { key: 'kpis',     icon: Activity,   label: 'المؤشرات' },
-              { key: 'settings', icon: Settings,   label: 'الإعدادات' },
+              { key: 'monthly',  icon: List,           label: 'كشف' },
+              { key: 'whatsapp', icon: MessageCircle,  label: 'واتساب' },
+              { key: 'home',     icon: Home,           label: 'الرئيسية' },
+              { key: 'kpis',     icon: Activity,       label: 'المؤشرات' },
+              { key: 'settings', icon: Settings,       label: 'الإعدادات' },
             ].map((tab) => {
               const Icon = tab.icon;
               const active = adminTab === tab.key;
@@ -1413,7 +1420,7 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
   })();
 
   // ====== KPIs الحقيقية من Firestore ======
-  const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, loaded: false });
+  const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, whatsappPct: 0, whatsappSubtext: '', loaded: false });
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
@@ -1425,9 +1432,11 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         const lastDay = new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
         const to = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
         // Batch 39: نمرر branchId لـ getSales ليُفلتر في Firestore (يتوافق مع Rules الموظف)
-        const [goal, branchSales] = await Promise.all([
+        // Batch 46: + WhatsApp data
+        const [goal, branchSales, branchWa] = await Promise.all([
           getMonthlyGoal(branchId, monthStr),
           getSales(from, to, branchId),
+          getWhatsappEntries(from, to, branchId),
         ]);
         const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
         const budgetPct = goal.budget > 0
@@ -1439,8 +1448,14 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         const reviewsPct = reviewsTarget > 0
           ? Math.min(100, Math.round((reviewsAchieved / reviewsTarget) * 100))
           : 0;
+        // Batch 46: نسبة تحقيق واتساب (20% من المشترين = 100% تحقيق)
+        const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
+        const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
+        const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
+        const whatsappPct = Math.min(100, Math.round((actualPct / 20) * 100));
+        const whatsappSubtext = totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '';
         if (!cancelled) {
-          setKpis({ budgetPct, reviewsPct, loaded: true, hasGoal: goal.exists });
+          setKpis({ budgetPct, reviewsPct, whatsappPct, whatsappSubtext, loaded: true, hasGoal: goal.exists });
         }
       } catch (err) {
         // Batch 39: نسجّل الخطأ بدل ابتلاعه — مفيد للتشخيص في Console
@@ -1473,83 +1488,124 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         <span className="font-bold text-sm text-tw-navy">{monthLabel}</span>
       </div>
 
-      {/* الكروت الأربعة — موزّعة بشكل متوازن (flex-1 لكل واحد) */}
-      <div className="relative z-10 flex-1 flex flex-col gap-3">
-        {/* كارت تحقيق الميزانية */}
-        <div
-          className="flex-1 text-white p-4 rounded-2xl overflow-hidden relative flex flex-col justify-center"
-          style={{
-            background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
-            boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
-            minHeight: 90,
-          }}
-        >
+      {/* الكروت الكثيرة — توزيع متوازن بمقاس صفحة واحدة (Batch 46) */}
+      <div className="relative z-10 flex-1 flex flex-col gap-2.5">
+        {/* صف الميزانية + التقييمات (جنباً إلى جنب) */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* كارت تحقيق الميزانية */}
           <div
-            className="absolute inset-0 opacity-30 pointer-events-none"
-            style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
-          />
-          <div className="relative">
-            <p className="text-center text-xs font-semibold opacity-95 mb-1.5">
-              {t(lang, 'home.kpiBudget') || 'نسبة تحقيق الميزانية'}
-            </p>
-            <p className="text-center text-3xl font-extrabold leading-none mb-2 tracking-tight">
-              {kpis.budgetPct}%
-            </p>
-            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${kpis.budgetPct}%`,
-                  background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
-                  boxShadow: '0 0 8px rgba(40,223,255,0.5)',
-                }}
-              />
+            className="text-white p-3 rounded-2xl overflow-hidden relative"
+            style={{
+              background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+              boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+              minHeight: 105,
+            }}
+          >
+            <div
+              className="absolute inset-0 opacity-30 pointer-events-none"
+              style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+            />
+            <div className="relative flex flex-col items-center text-center gap-1.5 h-full justify-center">
+              <p className="text-[10px] font-semibold opacity-95 leading-tight">
+                {t(lang, 'home.kpiBudget') || 'تحقيق الميزانية'}
+              </p>
+              <p className="text-2xl font-extrabold leading-none">
+                {kpis.budgetPct}%
+              </p>
+              <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${kpis.budgetPct}%`,
+                    background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                    boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* كارت تقييمات قوقل ماب */}
+          <div
+            className="text-white p-3 rounded-2xl overflow-hidden relative"
+            style={{
+              background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+              boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+              minHeight: 105,
+            }}
+          >
+            <div
+              className="absolute inset-0 opacity-30 pointer-events-none"
+              style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+            />
+            <div className="relative flex flex-col items-center text-center gap-1 h-full justify-center">
+              <p className="text-[10px] font-semibold opacity-95 leading-tight">
+                {t(lang, 'home.kpiReviews') || 'تقييمات قوقل ماب'}
+              </p>
+              <p className="text-2xl font-extrabold leading-none">
+                {kpis.reviewsPct}%
+              </p>
+              <p className="text-[10px] tracking-[0.1em] opacity-90">⭐⭐⭐⭐⭐</p>
+              <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${kpis.reviewsPct}%`,
+                    background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                    boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                  }}
+                />
+              </div>
             </div>
           </div>
         </div>
 
-        {/* كارت تقييمات قوقل ماب */}
+        {/* Batch 46: كرت تحقيق واتساب رفيع */}
         <div
-          className="flex-1 text-white p-4 rounded-2xl overflow-hidden relative flex flex-col justify-center"
+          className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative"
           style={{
             background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
             boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
-            minHeight: 90,
           }}
         >
           <div
             className="absolute inset-0 opacity-30 pointer-events-none"
             style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
           />
-          <div className="relative">
-            <p className="text-center text-xs font-semibold opacity-95 mb-1.5">
-              {t(lang, 'home.kpiReviews') || 'نسبة تحقيق تقييمات قوقل ماب'}
-            </p>
-            <p className="text-center text-3xl font-extrabold leading-none mb-1.5 tracking-tight">
-              {kpis.reviewsPct}%
-            </p>
-            <p className="text-center text-xs tracking-[0.15em] mb-1.5 opacity-90">⭐⭐⭐⭐⭐</p>
-            <div className="h-1.5 bg-white/20 rounded-full overflow-hidden">
-              <div
-                className="h-full rounded-full transition-all duration-500"
-                style={{
-                  width: `${kpis.reviewsPct}%`,
-                  background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
-                  boxShadow: '0 0 8px rgba(40,223,255,0.5)',
-                }}
-              />
+          <div className="relative flex items-center justify-between gap-3">
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <MessageCircle size={16} />
+              <p className="text-[11px] font-bold opacity-95 leading-tight">
+                {lang === 'en' ? 'WhatsApp Sales' : 'تحقيق مبيعات واتساب'}
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-1 max-w-[55%]">
+              <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${kpis.whatsappPct}%`,
+                    background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                    boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                  }}
+                />
+              </div>
+              <p className="text-base font-extrabold leading-none whitespace-nowrap">{kpis.whatsappPct}%</p>
             </div>
           </div>
+          {kpis.whatsappSubtext && (
+            <p className="text-[10px] opacity-70 font-bold mt-1 text-center">{kpis.whatsappSubtext}</p>
+          )}
         </div>
 
         {/* كارت تسجيل المبيعات — موحّد بنفس تصميم تسجيل المصروفات (أبيض ناعم) */}
         <button
           onClick={() => setView('salesForm')}
-          className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-tw-line flex items-center gap-3 active:scale-95 transition-transform"
-          style={{ minHeight: 80 }}
+          className="bg-white p-3 rounded-2xl shadow-sm border border-tw-line flex items-center gap-3 active:scale-95 transition-transform"
+          style={{ minHeight: 68 }}
         >
-          <div className="bg-tw-soft text-tw-blue p-3 rounded-xl flex-shrink-0">
-            <TrendingUp size={24} />
+          <div className="bg-tw-soft text-tw-blue p-2.5 rounded-xl flex-shrink-0">
+            <TrendingUp size={22} />
           </div>
           <div className={`flex-1 ${align}`}>
             <h3 className="font-bold text-tw-navy text-base mb-0.5">{t(lang, 'home.recordSales')}</h3>
@@ -1560,15 +1616,34 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         {/* كارت تسجيل المصروفات — أبيض ناعم */}
         <button
           onClick={() => setView('expenseForm')}
-          className="flex-1 bg-white p-4 rounded-2xl shadow-sm border border-tw-line flex items-center gap-3 active:scale-95 transition-transform"
-          style={{ minHeight: 80 }}
+          className="bg-white p-3 rounded-2xl shadow-sm border border-tw-line flex items-center gap-3 active:scale-95 transition-transform"
+          style={{ minHeight: 68 }}
         >
-          <div className="bg-tw-soft text-tw-blue p-3 rounded-xl flex-shrink-0">
-            <Receipt size={24} />
+          <div className="bg-tw-soft text-tw-blue p-2.5 rounded-xl flex-shrink-0">
+            <Receipt size={22} />
           </div>
           <div className={`flex-1 ${align}`}>
             <h3 className="font-bold text-tw-navy text-base mb-0.5">{t(lang, 'home.recordExpense')}</h3>
             <p className="text-tw-muted text-xs">{t(lang, 'home.recordExpenseD')}</p>
+          </div>
+        </button>
+
+        {/* Batch 46: كارت تسجيل عملاء واتساب */}
+        <button
+          onClick={() => setView('whatsappForm')}
+          className="bg-white p-3 rounded-2xl shadow-sm border border-tw-line flex items-center gap-3 active:scale-95 transition-transform"
+          style={{ minHeight: 68 }}
+        >
+          <div className="bg-tw-soft text-tw-blue p-2.5 rounded-xl flex-shrink-0">
+            <MessageCircle size={22} />
+          </div>
+          <div className={`flex-1 ${align}`}>
+            <h3 className="font-bold text-tw-navy text-base mb-0.5">
+              {lang === 'en' ? 'WhatsApp customers' : 'تسجيل عملاء واتساب'}
+            </h3>
+            <p className="text-tw-muted text-xs">
+              {lang === 'en' ? 'Today\'s customers and buyers' : 'عدد العملاء والمشترين لليوم'}
+            </p>
           </div>
         </button>
       </div>

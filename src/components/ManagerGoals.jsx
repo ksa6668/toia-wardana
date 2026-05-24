@@ -113,19 +113,19 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
         style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
       />
 
-      <div className="relative z-10 p-4 space-y-4 pb-8">
+      <div className="relative z-10 p-3 space-y-3 pb-4">
         {/* منتقي الشهر */}
         <button
           onClick={openMonthPicker}
-          className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-3 px-4 shadow-sm hover:shadow-md transition-shadow"
+          className="w-full flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-4 shadow-sm hover:shadow-md transition-shadow"
         >
-          <Calendar size={16} className="text-tw-blue" />
+          <Calendar size={14} className="text-tw-blue" />
           <span className="font-bold text-sm text-tw-navy">{formatMonthLabel(selectedMonth, lang)}</span>
-          <ChevronDown size={14} className="text-tw-muted/70" />
+          <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
 
         {loading && (
-          <div className="flex items-center justify-center py-10 text-tw-muted/70">
+          <div className="flex items-center justify-center py-8 text-tw-muted/70">
             <Loader2 className="animate-spin" size={24} />
           </div>
         )}
@@ -136,72 +136,69 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
         )}
 
         {!loading && !error && branches.map((b) => (
-          <div key={b.id} className="space-y-3">
+          <div key={b.id} className="space-y-2">
             {/* عنوان الفرع */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-tw-soft border border-tw-line rounded-full">
-                <BranchIcon size={14} className="text-tw-blue" />
-                <span className="text-sm font-bold text-tw-navy">
+              <div className="flex items-center gap-2 px-2.5 py-1 bg-tw-soft border border-tw-line rounded-full">
+                <BranchIcon size={12} className="text-tw-blue" />
+                <span className="text-xs font-bold text-tw-navy">
                   {lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`)}
                 </span>
               </div>
               <div className="flex-1 h-px bg-gradient-to-r from-transparent via-gray-300 to-transparent" />
             </div>
 
-            {/* كارت الميزانية */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-tw-soft text-tw-blue flex items-center justify-center">
-                  <Target size={18} />
+            {/* كروت الميزانية + التقييمات جنباً إلى جنب */}
+            <div className="grid grid-cols-2 gap-2">
+              {/* كارت الميزانية */}
+              <div className="bg-white rounded-2xl p-3 shadow-sm border border-tw-line">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-7 h-7 rounded-lg bg-tw-soft text-tw-blue flex items-center justify-center">
+                    <Target size={14} />
+                  </div>
+                  <h4 className="text-[11px] font-bold text-tw-navy leading-tight">
+                    {lang === 'en' ? 'Sales target' : 'هدف المبيعات'}
+                  </h4>
                 </div>
-                <h4 className="text-sm font-bold text-tw-navy">
-                  {lang === 'en' ? 'Sales target (budget)' : 'هدف المبيعات الشهرية'}
-                </h4>
+                <div className="flex items-center gap-1.5 bg-tw-soft/40 border border-tw-line rounded-xl p-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={goals[b.id]?.budget || ''}
+                    onChange={(e) => updateGoal(b.id, 'budget', e.target.value)}
+                    className="flex-1 text-sm font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50 min-w-0"
+                    dir="ltr"
+                  />
+                  <SarSymbol className="text-tw-muted/70 text-xs flex-shrink-0" />
+                </div>
               </div>
-              <label className="text-xs text-tw-muted font-bold mb-1.5 block">
-                {lang === 'en' ? 'Target amount' : 'المبلغ المستهدف'}
-              </label>
-              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={goals[b.id]?.budget || ''}
-                  onChange={(e) => updateGoal(b.id, 'budget', e.target.value)}
-                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
-                  dir="ltr"
-                />
-                <SarSymbol className="text-tw-muted/70 text-base" />
-              </div>
-            </div>
 
-            {/* كارت التقييمات */}
-            <div className="bg-white rounded-2xl p-4 shadow-sm border border-tw-line">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-50 text-tw-orange flex items-center justify-center">
-                  <Star size={18} />
+              {/* كارت التقييمات */}
+              <div className="bg-white rounded-2xl p-3 shadow-sm border border-tw-line">
+                <div className="flex items-center gap-1.5 mb-2">
+                  <div className="w-7 h-7 rounded-lg bg-amber-50 text-tw-orange flex items-center justify-center">
+                    <Star size={14} />
+                  </div>
+                  <h4 className="text-[11px] font-bold text-tw-navy leading-tight">
+                    {lang === 'en' ? 'Reviews target' : 'هدف التقييمات'}
+                  </h4>
                 </div>
-                <h4 className="text-sm font-bold text-tw-navy">
-                  {lang === 'en' ? 'Google Maps reviews target' : 'هدف تقييمات قوقل ماب'}
-                </h4>
-              </div>
-              <label className="text-xs text-tw-muted font-bold mb-1.5 block">
-                {lang === 'en' ? 'Target review count' : 'عدد التقييمات المستهدف'}
-              </label>
-              <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
-                <input
-                  type="number"
-                  inputMode="decimal"
-                  placeholder="0"
-                  value={goals[b.id]?.reviewsTarget || ''}
-                  onChange={(e) => updateGoal(b.id, 'reviewsTarget', e.target.value)}
-                  className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
-                  dir="ltr"
-                />
-                <span className="text-tw-muted/70 text-xs font-bold">
-                  {lang === 'en' ? 'reviews' : 'تقييم'}
-                </span>
+                <div className="flex items-center gap-1.5 bg-tw-soft/40 border border-tw-line rounded-xl p-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="0"
+                    value={goals[b.id]?.reviewsTarget || ''}
+                    onChange={(e) => updateGoal(b.id, 'reviewsTarget', e.target.value)}
+                    className="flex-1 text-sm font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50 min-w-0"
+                    dir="ltr"
+                  />
+                  <span className="text-tw-muted/70 text-xs font-bold">
+                    {lang === 'en' ? 'reviews' : 'تقييم'}
+                  </span>
+                </div>
               </div>
             </div>
           </div>

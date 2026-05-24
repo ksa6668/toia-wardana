@@ -13,7 +13,7 @@ import { useState, useEffect } from 'react';
 import { ChevronDown, Loader2, Star, CheckCircle2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import SheetPortal from './SheetPortal';
-import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales, salesNet } from '../firebase';
+import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales, salesNet, getWhatsappEntries } from '../firebase';
 import { usePersistedState } from '../hooks/usePersistedState';
 import {
   getAvailableMonths, getAvailableYears, formatMonthLabel,
@@ -81,11 +81,48 @@ function WindmillIcon() {
   );
 }
 
-// قسم لكل فرع (عنوان + شبكة 2×1)
-function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsDoubleClick, lang }) {
+// كارت KPI رفيع لتحقيق واتساب (متوازن مع الكروت الأخرى لكن أقصر)
+function WhatsappKpiCard({ label, percent, subtext }) {
+  const pct = Math.min(100, Math.max(0, percent));
   return (
-    <div className="mb-5">
-      {/* فاصل اسم الفرع — مطابق .branch-divider في الـ prototype */}
+    <div
+      className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative"
+      style={NAVY_GRADIENT}
+    >
+      <div className="absolute inset-0 opacity-30 pointer-events-none" style={SHINE_OVERLAY} />
+      <div className="relative flex items-center justify-between gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
+          </svg>
+          <p className="text-[11px] font-bold opacity-95 leading-tight">{label}</p>
+        </div>
+        <div className="flex items-center gap-2 flex-1 max-w-[60%]">
+          <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+            <div
+              className="h-full rounded-full transition-all"
+              style={{
+                width: `${pct}%`,
+                background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+              }}
+            />
+          </div>
+          <p className="text-base font-extrabold leading-none whitespace-nowrap">{pct}%</p>
+        </div>
+      </div>
+      {subtext && (
+        <p className="text-[10px] opacity-70 font-bold mt-1 text-center">{subtext}</p>
+      )}
+    </div>
+  );
+}
+
+// قسم لكل فرع (عنوان + شبكة 2×1 + كرت واتساب)
+function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsDoubleClick, whatsappPct, whatsappSubtext, lang }) {
+  return (
+    <div className="mb-4">
+      {/* فاصل اسم الفرع */}
       <div className="tw-branch-divider">
         <span className="line" />
         <span className="branch-name">
@@ -94,7 +131,7 @@ function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsD
         </span>
         <span className="line" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-2 mb-2">
         <KpiCard
           label={lang === 'en' ? 'Budget' : 'تحقيق الميزانية'}
           percent={budgetPct}
@@ -107,6 +144,12 @@ function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsD
           onDoubleClick={onReviewsDoubleClick}
         />
       </div>
+      {/* Batch 46: كرت تحقيق واتساب رفيع */}
+      <WhatsappKpiCard
+        label={lang === 'en' ? 'WhatsApp Sales' : 'تحقيق مبيعات واتساب'}
+        percent={whatsappPct}
+        subtext={whatsappSubtext}
+      />
     </div>
   );
 }
@@ -153,6 +196,10 @@ export default function ManagerHome({ lang }) {
 
         // 3) المبيعات لكل الفروع
         const allSales = await getSales(from, to);
+        if (cancelled) return;
+
+        // Batch 46: 3b) عملاء واتساب لكل الفروع
+        const allWhatsapp = await getWhatsappEntries(from, to);
         if (cancelled) return;
 
         // 4) الأهداف لكل فرع
@@ -207,8 +254,20 @@ export default function ManagerHome({ lang }) {
           const reviewsPct = goal.reviewsTarget > 0
             ? Math.min(100, Math.round((goal.reviewsAchieved / goal.reviewsTarget) * 100))
             : 0;
+          // Batch 46: نسبة تحقيق مبيعات واتساب
+          // الحساب: (مشترين / إجمالي عملاء) ÷ 20% × 100، بسقف 100%
+          // مثال: 20% فعلي = 100% تحقيق، 10% = 50%، 30% = 100% (يتجاوز السقف)
+          const branchWa = allWhatsapp.filter((w) => w.branchId === b.id);
+          const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
+          const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
+          const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
+          const whatsappPct = Math.min(100, Math.round((actualPct / 20) * 100));
+          const whatsappSubtext = totalCustomers > 0
+            ? `${totalBuyers} / ${totalCustomers}`
+            : '';
           kpisMap[b.id] = {
             budgetPct, reviewsPct,
+            whatsappPct, whatsappSubtext,
             hasGoal: goal.exists,
             reviewsTarget: goal.reviewsTarget || 0,
             reviewsAchieved: goal.reviewsAchieved || 0,
@@ -337,6 +396,8 @@ export default function ManagerHome({ lang }) {
             reviewsPct={k.reviewsPct}
             reviewsSubtext={subtext}
             onReviewsDoubleClick={handleDoubleClick}
+            whatsappPct={k.whatsappPct || 0}
+            whatsappSubtext={k.whatsappSubtext}
             lang={lang}
           />
         );

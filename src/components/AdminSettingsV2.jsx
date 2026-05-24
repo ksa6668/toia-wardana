@@ -8,7 +8,7 @@
 import { useState } from 'react';
 import {
   ChevronRight, Target, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
-  PieChart, GripVertical, Upload,
+  PieChart, GripVertical, Upload, MessageCircle,
 } from 'lucide-react';
 import { useDragSort } from '../hooks/useDragSort';
 import ManagerGoals from './ManagerGoals';
@@ -18,6 +18,7 @@ import ManagerNotifications from './ManagerNotifications';
 import ManagerBackup from './ManagerBackup';
 import ManagerReceipts from './ManagerReceipts';
 import ManagerImport from './ManagerImport';
+import ManageWhatsappBaseline from './ManageWhatsappBaseline';
 
 const ITEMS = [
   {
@@ -42,6 +43,13 @@ const ITEMS = [
     enabled: true,
   },
   {
+    key: 'whatsappBaseline',
+    icon: MessageCircle, color: 'blue',
+    label: { ar: 'عملاء واتساب', en: 'WhatsApp Customers' },
+    desc: { ar: 'إجمالي عملاء واتساب التاريخي لكل فرع', en: 'Total historical WhatsApp customers per branch' },
+    enabled: true,
+  },
+  {
     key: 'receipts',
     icon: Receipt, color: 'blue',
     label: { ar: 'الإيصالات والفواتير', en: 'Receipts & Invoices' },
@@ -52,7 +60,7 @@ const ITEMS = [
     key: 'backup',
     icon: Cloud, color: 'blue',
     label: { ar: 'النسخ الاحتياطي', en: 'Backup' },
-    desc: { ar: 'تصدير واستيراد البيانات بالفرع أو الكل', en: 'Export and import data by branch or all' },
+    desc: { ar: 'نسخ البيانات احتياطياً وحفظها', en: 'Backup and save data' },
     enabled: true,
   },
   {
@@ -134,6 +142,7 @@ export default function AdminSettingsV2({
 
   if (screen === 'users' && ManageUsersComponent) return <ManageUsersComponent onBack={goBack} />;
   if (screen === 'fixed' && ManageFixedExpensesComponent) return <ManageFixedExpensesComponent onBack={goBack} />;
+  if (screen === 'whatsappBaseline') return <ManageWhatsappBaseline onBack={goBack} lang={lang} />;
   if (screen === 'categories' && ManageCategoriesComponent) return <ManageCategoriesComponent onBack={goBack} />;
   if (screen === 'adminEntry' && AdminDataEntryComponent) return <AdminDataEntryComponent onBack={goBack} />;
   if (screen === 'goals') return <ManagerGoals onBack={goBack} lang={lang} />;
