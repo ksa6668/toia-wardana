@@ -185,32 +185,22 @@ export default function WhatsappFormV2({
           </p>
         )}
 
-        <div className="tw-btn-row mt-4">
+        <div className="tw-btn-row" style={{ marginTop: 14 }}>
           <button
             type="button"
-            className="tw-btn-cancel"
-            onClick={() => {
-              if (setView) setView('employeeHome');
-              else if (onBack) onBack();
-            }}
-            disabled={saving}
-          >
-            {lang === 'en' ? 'Cancel' : 'إلغاء'}
-          </button>
-          <button
-            type="button"
-            className="tw-btn-save"
+            className="tw-btn"
             onClick={handleSave}
             disabled={saving || done}
+            style={{ flex: 1 }}
           >
-            {saving ? <Loader2 size={16} className="animate-spin" /> : done ? <CheckCircle2 size={16} /> : null}
-            <span>
-              {done
-                ? (lang === 'en' ? 'Saved!' : 'تم الحفظ!')
-                : saving
-                  ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...')
-                  : (isEdit ? (lang === 'en' ? 'Update' : 'تعديل') : (lang === 'en' ? 'Save' : 'حفظ'))}
-            </span>
+            {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
+            {done
+              ? (lang === 'en' ? 'Saved!' : 'تم الحفظ!')
+              : saving
+                ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...')
+                : (isEdit
+                    ? (lang === 'en' ? 'Update' : 'تحديث التسجيل')
+                    : (lang === 'en' ? 'Save daily entry' : 'حفظ التسجيل اليومي'))}
           </button>
         </div>
       </div>
