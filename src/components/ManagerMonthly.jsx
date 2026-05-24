@@ -17,17 +17,21 @@ import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import {
   monthRange,
+  yearRange,
   getAvailableMonths,
+  getAvailableYears,
   formatMonthLabel,
   formatDayShort,
 } from '../utils/periodHelpers';
 
 export default function ManagerMonthly({ lang = 'ar' }) {
-  // الفترة
+  // Batch 44: دعم شهري وسنوي + خياري "كل الأشهر" و"كل السنوات"
+  const [period, setPeriod] = useState('month'); // 'month' | 'year'
   const [selectedMonth, setSelectedMonth] = useState(() => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
+  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
   // فلتر الفرع: 'all' | 'toia' | 'wardana'
   const [branchFilter, setBranchFilter] = useState('all');
   // التبويب: 'sales' | 'expenses' | 'profit'
@@ -43,20 +47,30 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   // قائمة منبثقة
   const [sheet, setSheet] = useState(null);
 
-  // تحميل البيانات عند تغيير الشهر
+  // تحميل البيانات عند تغيير الفترة
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError('');
       try {
-        // Batch 36: دعم "كل الأشهر" — من 2024-01-01 لنهاية السنة الحالية
+        // Batch 44: تحديد النطاق بناءً على period
         let from, to;
-        if (selectedMonth === 'all') {
-          from = '2024-01-01';
-          to = `${new Date().getFullYear()}-12-31`;
+        if (period === 'month') {
+          if (selectedMonth === 'all') {
+            from = '2024-01-01';
+            to = `${new Date().getFullYear()}-12-31`;
+          } else {
+            ({ from, to } = monthRange(selectedMonth));
+          }
         } else {
-          ({ from, to } = monthRange(selectedMonth));
+          // period === 'year'
+          if (selectedYear === 'all') {
+            from = '2024-01-01';
+            to = `${new Date().getFullYear()}-12-31`;
+          } else {
+            ({ from, to } = yearRange(selectedYear));
+          }
         }
         // Batch 43: نجلب أيضاً المصاريف الثابتة
         const { fromMonth, toMonth } = dateRangeToMonthRange(from, to);
@@ -78,7 +92,7 @@ export default function ManagerMonthly({ lang = 'ar' }) {
     }
     load();
     return () => { cancelled = true; };
-  }, [selectedMonth]);
+  }, [period, selectedMonth, selectedYear]);
 
   // فلترة البيانات حسب الفرع
   const filteredSales = useMemo(() => {
@@ -112,16 +126,27 @@ export default function ManagerMonthly({ lang = 'ar' }) {
     return branchFilter === 'all' ? fixedExpenses : fixedExpenses.filter((f) => f.branchId === branchFilter);
   }, [fixedExpenses, branchFilter]);
 
-  // Batch 36+43: الإجماليات بـ salesNet (بعد رسوم مدى) + إدخال المصاريف الثابتة
+  // Batch 36+43+44: الإجماليات + المتوسطات
   const totals = useMemo(() => {
     const totalSales = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
     const totalVarExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
     const totalFixedExp = filteredFixed.reduce((sum, f) => sum + (f.amount || 0), 0);
     const totalExp = totalVarExp + totalFixedExp;
+    const profit = totalSales - totalExp;
+    // عدد الأيام الفريدة للحساب المتوسطات
+    const daysWithSales = new Set(filteredSales.map((s) => s.date)).size || 1;
+    const daysWithExp = new Set(filteredExpenses.map((e) => e.date)).size || 1;
+    const daysWithAny = new Set([
+      ...filteredSales.map((s) => s.date),
+      ...filteredExpenses.map((e) => e.date),
+    ]).size || 1;
     return {
       sales: totalSales,
       expenses: totalExp,
-      profit: totalSales - totalExp,
+      profit,
+      avgSales: Math.round(totalSales / daysWithSales),
+      avgExp: Math.round(totalExp / daysWithExp),
+      avgProfit: Math.round(profit / daysWithAny),
     };
   }, [filteredSales, filteredExpenses, filteredFixed]);
 
@@ -172,17 +197,29 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       .map(([day, v]) => ({ day, sales: v.sales, expenses: v.expenses, profit: v.sales - v.expenses }));
   }, [filteredSales, filteredExpenses]);
 
-  // فتح منتقي
-  const openMonthPicker = () => {
-    setSheet({
-      title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-      options: [
-        { value: 'all', label: lang === 'en' ? 'All months' : 'كل الأشهر' },
-        ...getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
-      ],
-      current: selectedMonth,
-      onPick: (v) => { setSelectedMonth(v); setSheet(null); },
-    });
+  // فتح منتقي الفترة (شهر أو سنة بناءً على period الحالي)
+  const openPeriodPicker = () => {
+    if (period === 'month') {
+      setSheet({
+        title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
+        options: [
+          { value: 'all', label: lang === 'en' ? 'All months' : 'كل الأشهر' },
+          ...getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+        ],
+        current: selectedMonth,
+        onPick: (v) => { setSelectedMonth(v); setSheet(null); },
+      });
+    } else {
+      setSheet({
+        title: lang === 'en' ? 'Pick year' : 'اختر السنة',
+        options: [
+          { value: 'all', label: lang === 'en' ? 'All years' : 'كل السنوات' },
+          ...getAvailableYears().map((y) => ({ value: y, label: String(y) })),
+        ],
+        current: selectedYear,
+        onPick: (v) => { setSelectedYear(v); setSheet(null); },
+      });
+    }
   };
   const openBranchPicker = () => {
     setSheet({
@@ -211,17 +248,37 @@ export default function ManagerMonthly({ lang = 'ar' }) {
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* أزرار التحكم: الشهر + الفرع */}
+      {/* Batch 44: تبويبات شهري/سنوي — مطابقة لتصميم ManagerHome */}
+      <div className="tw-tabs relative z-10">
+        <span
+          onClick={() => setPeriod('month')}
+          className={period === 'month' ? 'active' : ''}
+        >
+          {lang === 'en' ? 'Monthly' : 'شهري'}
+        </span>
+        <span
+          onClick={() => setPeriod('year')}
+          className={period === 'year' ? 'active' : ''}
+        >
+          {lang === 'en' ? 'Yearly' : 'سنوي'}
+        </span>
+      </div>
+
+      {/* أزرار التحكم: الفترة (شهر/سنة) + الفرع */}
       <div className="flex gap-2 mb-3">
         <button
-          onClick={openMonthPicker}
+          onClick={openPeriodPicker}
           className="flex-1 flex items-center justify-center gap-2 bg-white border border-tw-line rounded-xl py-2.5 px-3 shadow-sm"
         >
           <Calendar size={14} className="text-tw-blue" />
           <span className="font-bold text-xs text-tw-navy">
-            {selectedMonth === 'all'
-              ? (lang === 'en' ? 'All months' : 'كل الأشهر')
-              : formatMonthLabel(selectedMonth, lang)}
+            {period === 'month'
+              ? (selectedMonth === 'all'
+                  ? (lang === 'en' ? 'All months' : 'كل الأشهر')
+                  : formatMonthLabel(selectedMonth, lang))
+              : (selectedYear === 'all'
+                  ? (lang === 'en' ? 'All years' : 'كل السنوات')
+                  : String(selectedYear))}
           </span>
           <ChevronDown size={12} className="text-tw-muted/70" />
         </button>
@@ -237,8 +294,8 @@ export default function ManagerMonthly({ lang = 'ar' }) {
         </button>
       </div>
 
-      {/* ملخص 3 كروت */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      {/* Batch 44: 6 كروت (3 إجماليات + 3 متوسطات) */}
+      <div className="grid grid-cols-3 gap-2 mb-2">
         <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Sales' : 'إجمالي المبيعات'}</p>
           <p className="text-sm font-bold text-tw-blue flex items-center justify-center gap-1">
@@ -255,6 +312,26 @@ export default function ManagerMonthly({ lang = 'ar' }) {
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Net Profit' : 'صافي الربح'}</p>
           <p className="text-sm font-bold text-tw-green flex items-center justify-center gap-1">
             {Math.round(totals.profit).toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+        </div>
+      </div>
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg sales' : 'متوسط المبيعات'}</p>
+          <p className="text-sm font-bold text-tw-blue/80 flex items-center justify-center gap-1">
+            {totals.avgSales.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+        </div>
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg expenses' : 'متوسط المصاريف'}</p>
+          <p className="text-sm font-bold text-tw-red/80 flex items-center justify-center gap-1">
+            {totals.avgExp.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+        </div>
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg net profit' : 'متوسط صافي الربح'}</p>
+          <p className="text-sm font-bold text-tw-green/80 flex items-center justify-center gap-1">
+            {totals.avgProfit.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         </div>
       </div>

@@ -273,7 +273,7 @@ export default function App() {
           // Batch 21: تحديد عنوان الهيدر بناءً على adminTab أو screenCtx
           // أولوية: screenCtx (شاشة فرعية) > adminTab title > home mode
           const adminTabTitles = {
-            monthly: 'الكشف الشهري',
+            monthly: 'الكشف الشامل',
             overview: 'نظرة عامة',
             kpis: 'المؤشرات',
             settings: 'الإعدادات',
