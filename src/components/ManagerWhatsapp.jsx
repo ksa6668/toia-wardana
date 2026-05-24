@@ -239,27 +239,32 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
         </div>
       </div>
 
-      {/* جدول يومي */}
+      {/* جدول يومي - Batch 46.7: إضافة عمود النسبة */}
       <div className="bg-white rounded-2xl border border-tw-line overflow-hidden">
-        <div className="grid grid-cols-4 px-3 py-2.5 border-b border-tw-line bg-tw-soft/40 text-[11px] font-bold text-tw-muted">
+        <div className="grid grid-cols-5 px-3 py-2.5 border-b border-tw-line bg-tw-soft/40 text-[11px] font-bold text-tw-muted">
           <div className="text-right">{lang === 'en' ? 'Day' : 'اليوم'}</div>
           <div className="text-center">{lang === 'en' ? 'Customers' : 'عملاء'}</div>
           <div className="text-center">{lang === 'en' ? 'New' : 'جدد'}</div>
           <div className="text-center">{lang === 'en' ? 'Buyers' : 'مشترين'}</div>
+          <div className="text-center">{lang === 'en' ? 'Ratio' : 'النسبة'}</div>
         </div>
         {byDay.length === 0 ? (
           <p className="text-center text-tw-muted text-xs py-6">
             {lang === 'en' ? 'No data for this period' : 'لا توجد بيانات لهذه الفترة'}
           </p>
         ) : (
-          byDay.map((d) => (
-            <div key={d.date} className="grid grid-cols-4 px-3 py-2.5 border-b border-tw-line/50 last:border-b-0 text-xs">
-              <div className="text-right font-bold text-tw-navy">{formatDayShort(d.date, lang)}</div>
-              <div className="text-center text-tw-navy">{d.customers}</div>
-              <div className="text-center text-tw-green font-bold">{d.newCustomers}</div>
-              <div className="text-center text-tw-blue font-bold">{d.buyers}</div>
-            </div>
-          ))
+          byDay.map((d) => {
+            const ratio = d.customers > 0 ? Math.round((d.buyers / d.customers) * 100) : 0;
+            return (
+              <div key={d.date} className="grid grid-cols-5 px-3 py-2.5 border-b border-tw-line/50 last:border-b-0 text-xs">
+                <div className="text-right font-bold text-tw-navy">{formatDayShort(d.date, lang)}</div>
+                <div className="text-center text-tw-navy">{d.customers}</div>
+                <div className="text-center text-tw-green font-bold">{d.newCustomers}</div>
+                <div className="text-center text-tw-blue font-bold">{d.buyers}</div>
+                <div className="text-center text-tw-green font-bold">{ratio}%</div>
+              </div>
+            );
+          })
         )}
       </div>
 
