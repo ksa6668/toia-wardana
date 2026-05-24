@@ -23,6 +23,8 @@ import {
 } from './firebase';
 import { t, translateCategory, translateBranch, translatePM, dirFor, readSavedLang, saveLangLocal } from './i18n';
 import { useDragSort } from './hooks/useDragSort';
+import { clearAllPersistedState } from './hooks/usePersistedState';
+import { clearAllCache } from './hooks/useCachedQuery';
 import { getAvailableMonths, formatMonthLabel } from './utils/periodHelpers';
 import SarSymbol from './components/SarSymbol';
 import BottomSheet from './components/BottomSheet';
@@ -225,6 +227,9 @@ export default function App() {
 
   const handleLogout = async () => {
     await logout();
+    // Batch 45: مسح كل state وcache المحفوظ في sessionStorage
+    clearAllPersistedState();
+    clearAllCache();
     setUser(null);
     setCurrentView('login');
     setAdminTab('home');

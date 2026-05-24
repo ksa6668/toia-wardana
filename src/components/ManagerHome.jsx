@@ -14,6 +14,7 @@ import { ChevronDown, Loader2, Star, CheckCircle2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import SheetPortal from './SheetPortal';
 import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales, salesNet } from '../firebase';
+import { usePersistedState } from '../hooks/usePersistedState';
 import {
   getAvailableMonths, getAvailableYears, formatMonthLabel,
   monthRange, yearRange,
@@ -111,14 +112,13 @@ function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsD
 }
 
 export default function ManagerHome({ lang }) {
-  // الفترة: شهري أو سنوي
-  const [period, setPeriod] = useState('month'); // 'month' | 'year'
-  // الاختيار الحالي حسب نوع الفترة
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  // Batch 45: حفظ الاختيارات
+  const [period, setPeriod] = usePersistedState('home.period', 'month');
+  const [selectedMonth, setSelectedMonth] = usePersistedState('home.month', () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
+  const [selectedYear, setSelectedYear] = usePersistedState('home.year', new Date().getFullYear());
   // للقائمة المنبثقة
   const [sheet, setSheet] = useState(null);
 

@@ -10,11 +10,13 @@
 //
 // تستهلك Firestore عبر firebase.js الموجود فعلاً (getSales, getExpenses)
 // ----------------------------------------------------------
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Filter } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
+import { usePersistedState } from '../hooks/usePersistedState';
+import { useCachedQuery } from '../hooks/useCachedQuery';
 import {
   monthRange,
   yearRange,
@@ -25,74 +27,65 @@ import {
 } from '../utils/periodHelpers';
 
 export default function ManagerMonthly({ lang = 'ar' }) {
-  // Batch 44: دعم شهري وسنوي + خياري "كل الأشهر" و"كل السنوات"
-  const [period, setPeriod] = useState('month'); // 'month' | 'year'
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  // Batch 45: حفظ اختيارات المستخدم عبر التنقل (sessionStorage)
+  const [period, setPeriod] = usePersistedState('monthly.period', 'month');
+  const [selectedMonth, setSelectedMonth] = usePersistedState('monthly.month', () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
-  // فلتر الفرع: 'all' | 'toia' | 'wardana'
-  const [branchFilter, setBranchFilter] = useState('all');
-  // التبويب: 'sales' | 'expenses' | 'profit'
-  const [activeTab, setActiveTab] = useState('sales');
-  // Batch 36: فلتر التصنيف للمصاريف ('all' أو categoryId)
-  const [categoryFilter, setCategoryFilter] = useState('all');
-  // البيانات
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [fixedExpenses, setFixedExpenses] = useState([]); // Batch 43
-  // قائمة منبثقة
+  const [selectedYear, setSelectedYear] = usePersistedState('monthly.year', new Date().getFullYear());
+  const [branchFilter, setBranchFilter] = usePersistedState('monthly.branch', 'all');
+  const [activeTab, setActiveTab] = usePersistedState('monthly.tab', 'sales');
+  const [categoryFilter, setCategoryFilter] = usePersistedState('monthly.category', 'all');
+  // قائمة منبثقة (لا تُحفظ - حالة UI مؤقتة)
   const [sheet, setSheet] = useState(null);
 
-  // تحميل البيانات عند تغيير الفترة
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        // Batch 44: تحديد النطاق بناءً على period
-        let from, to;
-        if (period === 'month') {
-          if (selectedMonth === 'all') {
-            from = '2024-01-01';
-            to = `${new Date().getFullYear()}-12-31`;
-          } else {
-            ({ from, to } = monthRange(selectedMonth));
-          }
-        } else {
-          // period === 'year'
-          if (selectedYear === 'all') {
-            from = '2024-01-01';
-            to = `${new Date().getFullYear()}-12-31`;
-          } else {
-            ({ from, to } = yearRange(selectedYear));
-          }
-        }
-        // Batch 43: نجلب أيضاً المصاريف الثابتة
-        const { fromMonth, toMonth } = dateRangeToMonthRange(from, to);
-        const [s, e, fx] = await Promise.all([
-          getSales(from, to),
-          getExpenses(from, to),
-          getFixedExpensesRange(fromMonth, toMonth),
-        ]);
-        if (!cancelled) {
-          setSales(s);
-          setExpenses(e);
-          setFixedExpenses(fx);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
-      } finally {
-        if (!cancelled) setLoading(false);
+  // Batch 45: حساب النطاق
+  const { from, to } = useMemo(() => {
+    if (period === 'month') {
+      if (selectedMonth === 'all') {
+        return { from: '2024-01-01', to: `${new Date().getFullYear()}-12-31` };
       }
+      return monthRange(selectedMonth);
+    } else {
+      if (selectedYear === 'all') {
+        return { from: '2024-01-01', to: `${new Date().getFullYear()}-12-31` };
+      }
+      return yearRange(selectedYear);
     }
-    load();
-    return () => { cancelled = true; };
   }, [period, selectedMonth, selectedYear]);
+
+  // Batch 45: TTL ديناميكي - الفترة الحالية cache قصير، التاريخية cache طويل
+  const isCurrentPeriod = useMemo(() => {
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentY = now.getFullYear();
+    if (period === 'month') return selectedMonth === currentYM || selectedMonth === 'all';
+    return selectedYear === currentY || selectedYear === 'all';
+  }, [period, selectedMonth, selectedYear]);
+
+  const ttl = isCurrentPeriod ? 30 * 1000 : 30 * 60 * 1000; // 30s للحالي، 30min للتاريخي
+
+  // Batch 45: استعلامات مع cache
+  const { data: sales = [], loading: salesLoading, error: salesError } = useCachedQuery(
+    ['sales', from, to],
+    () => getSales(from, to),
+    { ttl, defaultData: [] }
+  );
+  const { data: expenses = [], loading: expLoading, error: expError } = useCachedQuery(
+    ['expenses', from, to],
+    () => getExpenses(from, to),
+    { ttl, defaultData: [] }
+  );
+  const { fromMonth, toMonth } = useMemo(() => dateRangeToMonthRange(from, to), [from, to]);
+  const { data: fixedExpenses = [], loading: fixedLoading } = useCachedQuery(
+    ['fixedExpenses', fromMonth, toMonth],
+    () => getFixedExpensesRange(fromMonth, toMonth),
+    { ttl: 5 * 60 * 1000, defaultData: [] } // 5 دقائق (تتغير نادراً)
+  );
+
+  const loading = salesLoading || expLoading || fixedLoading;
+  const error = salesError || expError;
 
   // فلترة البيانات حسب الفرع
   const filteredSales = useMemo(() => {

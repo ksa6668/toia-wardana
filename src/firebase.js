@@ -37,6 +37,33 @@ import {
   writeBatch,
 } from "firebase/firestore";
 
+// ============================================================
+// Batch 45: Cache Invalidation Helper
+// يُستدعى من دوال CRUD لمسح cache الاستعلامات المتأثرة.
+// يعمل عبر sessionStorage (نفس آلية useCachedQuery).
+// ============================================================
+const CACHE_PREFIX = 'tw_cache_';
+const VERSION_PREFIX = 'tw_cache_v_';
+
+function _invalidateCachePrefix(prefix) {
+  try {
+    if (typeof sessionStorage === 'undefined') return;
+    const fullPrefix = CACHE_PREFIX + prefix;
+    const keysToRemove = [];
+    for (let i = 0; i < sessionStorage.length; i++) {
+      const k = sessionStorage.key(i);
+      if (k && k.startsWith(fullPrefix)) keysToRemove.push(k);
+    }
+    keysToRemove.forEach((k) => sessionStorage.removeItem(k));
+    // version token: يجبر useCachedQuery على re-fetch حتى لو cache لا يزال موجوداً في الذاكرة
+    const versionKey = VERSION_PREFIX + prefix;
+    const currentV = Number(sessionStorage.getItem(versionKey) || '0');
+    sessionStorage.setItem(versionKey, String(currentV + 1));
+  } catch { /* ignore */ }
+}
+
+// ============================================================
+
 // 🔻 الصق هنا كائن firebaseConfig من Firebase Console
 const firebaseConfig = {
   apiKey: "AIzaSyCsNvbrQ_eIGPnU_dR8LJ8Z0w0f1Fp9VuQ",
@@ -193,6 +220,9 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
     date, branchId, cash: cashN, mada: madaN, transfer: transferN, total,
   });
 
+  // Batch 45: مسح cache الاستعلامات المتأثرة
+  _invalidateCachePrefix('sales');
+
   return ref;
 }
 
@@ -252,6 +282,9 @@ export async function addExpense({
     date, branchId, categoryName: catName, amount: amountN, paymentMethodId, notes,
   });
 
+  // Batch 45: مسح cache
+  _invalidateCachePrefix('expenses');
+
   return ref;
 }
 
@@ -287,6 +320,9 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
     date, branchId, cash: cashN, mada: madaN, transfer: transferN, total,
   });
 
+  // Batch 45: مسح cache
+  _invalidateCachePrefix('sales');
+
   return result;
 }
 
@@ -307,6 +343,8 @@ export async function deleteDailySales(id) {
       total: snapshot.total || 0,
     });
   }
+  // Batch 45: مسح cache
+  _invalidateCachePrefix('sales');
   return result;
 }
 
@@ -347,6 +385,9 @@ export async function updateExpense(id, {
     date, branchId, categoryName: catName, amount: amountN, paymentMethodId,
   });
 
+  // Batch 45: مسح cache
+  _invalidateCachePrefix('expenses');
+
   return result;
 }
 
@@ -368,6 +409,8 @@ export async function deleteExpense(id) {
       amount: snapshot.amount || 0,
     });
   }
+  // Batch 45: مسح cache
+  _invalidateCachePrefix('expenses');
   return result;
 }
 
@@ -456,6 +499,8 @@ export async function setFixedExpense({ month, branchId, amount, rent, salaries,
     gosi: gosiN,
     updatedAt: serverTimestamp(),
   });
+  // Batch 45: مسح cache (التقارير تستخدم getFixedExpensesRange)
+  _invalidateCachePrefix('fixedExpenses');
 }
 
 // قائمة كل المستخدمين (للمدير — شاشة إدارة المستخدمين)
@@ -796,6 +841,8 @@ export async function setMonthlyGoal(branchId, monthStr, data) {
   if (data.reviewsTarget !== undefined) payload.reviewsTarget = Number(data.reviewsTarget) || 0;
   if (data.reviewsAchieved !== undefined) payload.reviewsAchieved = Number(data.reviewsAchieved) || 0;
   await setDoc(ref, payload, { merge: true });
+  // Batch 45: مسح cache
+  _invalidateCachePrefix('goals');
 }
 
 /**

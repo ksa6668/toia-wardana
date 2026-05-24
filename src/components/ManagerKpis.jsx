@@ -11,11 +11,13 @@
 //       • نسبة الأون من المتجر (التحويل / كاش+مدى)
 //   - حذف: نسبة التسويق، نسبة المصاريف من المبيعات
 // ----------------------------------------------------------
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Loader2 } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
+import { usePersistedState } from '../hooks/usePersistedState';
+import { useCachedQuery } from '../hooks/useCachedQuery';
 import {
   monthRange,
   yearRange,
@@ -82,55 +84,56 @@ function KpiRow({ icon: Icon, label, pct }) {
 }
 
 export default function ManagerKpis({ lang = 'ar' }) {
-  const [period, setPeriod] = useState('month');
-  const [selectedMonth, setSelectedMonth] = useState(() => {
+  // Batch 45: حفظ الاختيارات
+  const [period, setPeriod] = usePersistedState('kpis.period', 'month');
+  const [selectedMonth, setSelectedMonth] = usePersistedState('kpis.month', () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
-  const [branchFilter, setBranchFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [fixedExpenses, setFixedExpenses] = useState([]); // Batch 43
+  const [selectedYear, setSelectedYear] = usePersistedState('kpis.year', new Date().getFullYear());
+  const [branchFilter, setBranchFilter] = usePersistedState('kpis.branch', 'all');
   const [sheet, setSheet] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        // Batch 36: دعم "كل الأشهر" (في وضع الشهر) أو "كل السنوات"
-        let from, to;
-        if (period === 'month') {
-          if (selectedMonth === 'all') {
-            from = '2024-01-01';
-            to = `${new Date().getFullYear()}-12-31`;
-          } else {
-            ({ from, to } = monthRange(selectedMonth));
-          }
-        } else {
-          ({ from, to } = yearRange(selectedYear));
-        }
-        // Batch 43: نجلب أيضاً المصاريف الثابتة
-        const { fromMonth, toMonth } = dateRangeToMonthRange(from, to);
-        const [s, e, fx] = await Promise.all([
-          getSales(from, to),
-          getExpenses(from, to),
-          getFixedExpensesRange(fromMonth, toMonth),
-        ]);
-        if (!cancelled) { setSales(s); setExpenses(e); setFixedExpenses(fx); }
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
-      } finally {
-        if (!cancelled) setLoading(false);
+  // Batch 45: حساب النطاق
+  const { from, to } = useMemo(() => {
+    if (period === 'month') {
+      if (selectedMonth === 'all') {
+        return { from: '2024-01-01', to: `${new Date().getFullYear()}-12-31` };
       }
+      return monthRange(selectedMonth);
     }
-    load();
-    return () => { cancelled = true; };
+    return yearRange(selectedYear);
   }, [period, selectedMonth, selectedYear]);
+
+  const isCurrentPeriod = useMemo(() => {
+    const now = new Date();
+    const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const currentY = now.getFullYear();
+    if (period === 'month') return selectedMonth === currentYM || selectedMonth === 'all';
+    return selectedYear === currentY;
+  }, [period, selectedMonth, selectedYear]);
+
+  const ttl = isCurrentPeriod ? 30 * 1000 : 30 * 60 * 1000;
+
+  const { data: sales = [], loading: salesLoading, error: salesError } = useCachedQuery(
+    ['sales', from, to],
+    () => getSales(from, to),
+    { ttl, defaultData: [] }
+  );
+  const { data: expenses = [], loading: expLoading, error: expError } = useCachedQuery(
+    ['expenses', from, to],
+    () => getExpenses(from, to),
+    { ttl, defaultData: [] }
+  );
+  const { fromMonth, toMonth } = useMemo(() => dateRangeToMonthRange(from, to), [from, to]);
+  const { data: fixedExpenses = [], loading: fixedLoading } = useCachedQuery(
+    ['fixedExpenses', fromMonth, toMonth],
+    () => getFixedExpensesRange(fromMonth, toMonth),
+    { ttl: 5 * 60 * 1000, defaultData: [] }
+  );
+
+  const loading = salesLoading || expLoading || fixedLoading;
+  const error = salesError || expError;
 
   const filteredSales = useMemo(
     () => branchFilter === 'all' ? sales : sales.filter((s) => s.branchId === branchFilter),

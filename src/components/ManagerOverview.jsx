@@ -10,11 +10,13 @@
 //
 // يستخدم Firestore عبر firebase.js (getSales, getExpenses)
 // ----------------------------------------------------------
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Calendar, ChevronDown, MapPin, TrendingUp, Receipt, BarChart3, Wallet, Loader2 } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
+import { usePersistedState } from '../hooks/usePersistedState';
+import { useCachedQuery } from '../hooks/useCachedQuery';
 import { yearRange, getAvailableYears } from '../utils/periodHelpers';
 
 // كارت متري واحد — Batch 18: الاسم بجانب الأيقونة في الأعلى، الرقم تحت بخط أكبر
@@ -43,46 +45,42 @@ function MetricCard({ icon: Icon, label, value, alt }) {
 }
 
 export default function ManagerOverview({ lang = 'ar' }) {
-  const [selectedYear, setSelectedYear] = useState(() => new Date().getFullYear());
-  const [branchFilter, setBranchFilter] = useState('all');
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
-  const [fixedExpenses, setFixedExpenses] = useState([]); // Batch 43
+  // Batch 45: حفظ الاختيارات في sessionStorage
+  const [selectedYear, setSelectedYear] = usePersistedState('overview.year', new Date().getFullYear());
+  const [branchFilter, setBranchFilter] = usePersistedState('overview.branch', 'all');
   const [sheet, setSheet] = useState(null);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        // Batch 36: دعم "كل السنوات" — يجلب من 2024-01-01 إلى نهاية السنة الحالية
-        let from, to;
-        if (selectedYear === 'all') {
-          from = '2024-01-01';
-          to = `${new Date().getFullYear()}-12-31`;
-        } else {
-          ({ from, to } = yearRange(selectedYear));
-        }
-        // Batch 43: نجلب أيضاً المصاريف الثابتة للشهور الواقعة في النطاق
-        const { fromMonth, toMonth } = dateRangeToMonthRange(from, to);
-        const [s, e, fx] = await Promise.all([
-          getSales(from, to),
-          getExpenses(from, to),
-          getFixedExpensesRange(fromMonth, toMonth),
-        ]);
-        if (!cancelled) { setSales(s); setExpenses(e); setFixedExpenses(fx); }
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  // Batch 45: حساب النطاق
+  const { from, to } = useMemo(() => {
+    if (selectedYear === 'all') {
+      return { from: '2024-01-01', to: `${new Date().getFullYear()}-12-31` };
     }
-    load();
-    return () => { cancelled = true; };
+    return yearRange(selectedYear);
   }, [selectedYear]);
+
+  // Batch 45: TTL ديناميكي
+  const isCurrentYear = selectedYear === new Date().getFullYear() || selectedYear === 'all';
+  const ttl = isCurrentYear ? 30 * 1000 : 30 * 60 * 1000;
+
+  const { data: sales = [], loading: salesLoading, error: salesError } = useCachedQuery(
+    ['sales', from, to],
+    () => getSales(from, to),
+    { ttl, defaultData: [] }
+  );
+  const { data: expenses = [], loading: expLoading, error: expError } = useCachedQuery(
+    ['expenses', from, to],
+    () => getExpenses(from, to),
+    { ttl, defaultData: [] }
+  );
+  const { fromMonth, toMonth } = useMemo(() => dateRangeToMonthRange(from, to), [from, to]);
+  const { data: fixedExpenses = [], loading: fixedLoading } = useCachedQuery(
+    ['fixedExpenses', fromMonth, toMonth],
+    () => getFixedExpensesRange(fromMonth, toMonth),
+    { ttl: 5 * 60 * 1000, defaultData: [] }
+  );
+
+  const loading = salesLoading || expLoading || fixedLoading;
+  const error = salesError || expError;
 
   const filteredSales = useMemo(
     () => branchFilter === 'all' ? sales : sales.filter((s) => s.branchId === branchFilter),
