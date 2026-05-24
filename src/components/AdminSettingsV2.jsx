@@ -46,7 +46,7 @@ const ITEMS = [
     key: 'whatsappBaseline',
     icon: MessageCircle, color: 'blue',
     label: { ar: 'عملاء واتساب', en: 'WhatsApp Customers' },
-    desc: { ar: 'إجمالي عملاء واتساب التاريخي لكل فرع', en: 'Total historical WhatsApp customers per branch' },
+    desc: { ar: 'تسجيل يومي وإجمالي العملاء تاريخياً لكل فرع', en: 'Daily entry and historical total per branch' },
     enabled: true,
   },
   {

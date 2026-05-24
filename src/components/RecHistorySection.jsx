@@ -11,10 +11,17 @@ import SarSymbol from './SarSymbol';
 
 function formatDayHeader(dateStr, lang) {
   if (!dateStr) return '—';
+  // Batch 46.3: التاريخ المحلي بدل UTC (لتجنّب مشكلة المنطقة الزمنية)
+  const localISO = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
   const today = new Date();
-  const todayKey = today.toISOString().slice(0, 10);
+  const todayKey = localISO(today);
   const yest = new Date(today); yest.setDate(today.getDate() - 1);
-  const yestKey = yest.toISOString().slice(0, 10);
+  const yestKey = localISO(yest);
   if (dateStr === todayKey) return lang === 'en' ? 'Today' : 'اليوم';
   if (dateStr === yestKey) return lang === 'en' ? 'Yesterday' : 'أمس';
   const d = new Date(dateStr + 'T00:00:00');
@@ -47,7 +54,14 @@ export default function RecHistorySection({
         const today = new Date();
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
-        const iso = (d) => d.toISOString().slice(0, 10);
+        // Batch 46.3: استخدام التاريخ المحلي (وليس UTC) لتجنّب فرق المنطقة الزمنية
+        // السعودية UTC+3 → toISOString يعطي يوم سابق بعد منتصف الليل
+        const iso = (d) => {
+          const y = d.getFullYear();
+          const m = String(d.getMonth() + 1).padStart(2, '0');
+          const day = String(d.getDate()).padStart(2, '0');
+          return `${y}-${m}-${day}`;
+        };
         // Batch 41: لو branchId === 'all' (المدير)، نجلب كل الفروع
         // لو فرع معيّن، نُمرر branchId لـ getSales/getExpenses ليفلتر في Firestore
         const fetchBranchId = branchId === 'all' ? null : branchId;
@@ -101,7 +115,6 @@ export default function RecHistorySection({
       {showTitle && (
         <div className="tw-rec-history-title">
           <span>{lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام'}</span>
-          <span className="tw-rec-history-count">{allEntries.length}</span>
         </div>
       )}
 

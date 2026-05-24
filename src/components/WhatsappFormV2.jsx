@@ -217,6 +217,7 @@ export default function WhatsappFormV2({
 
       <BranchPickerSheet
         open={branchSheetOpen}
+        branches={branches}
         currentBranchId={branchId}
         onPick={(bid) => {
           if (onBranchChange) onBranchChange(bid);

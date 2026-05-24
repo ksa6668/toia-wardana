@@ -1453,6 +1453,7 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
         const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
         const whatsappPct = Math.min(100, Math.round((actualPct / 20) * 100));
+        // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
         const whatsappSubtext = totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '';
         if (!cancelled) {
           setKpis({ budgetPct, reviewsPct, whatsappPct, whatsappSubtext, loaded: true, hasGoal: goal.exists });
@@ -2615,23 +2616,15 @@ function ManageFixedExpenses({ onBack }) {
               </b>
             </div>
 
-            <div className="flex gap-3 pt-2">
-              <button
-                onClick={onBack}
-                className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 transition-colors"
-              >
-                إلغاء
-              </button>
+            <div className="tw-btn-row pt-2">
               <button
                 onClick={handleSave}
                 disabled={saving}
-                className="flex-1 text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-                style={{
-                  background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
-                  boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
-                }}
+                className="tw-btn"
+                type="button"
+                style={{ flex: 1 }}
               >
-                {saving && <Loader2 size={18} className="animate-spin" />}
+                {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
                 {saving ? 'جارٍ الحفظ...' : 'حفظ'}
               </button>
             </div>

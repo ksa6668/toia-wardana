@@ -212,23 +212,15 @@ export default function ManagerGoals({ onBack, lang = 'ar' }) {
 
         {/* أزرار الإجراءات */}
         {!loading && branches.length > 0 && (
-          <div className="flex gap-3 pt-2">
-            <button
-              onClick={onBack}
-              className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 transition-colors"
-            >
-              {lang === 'en' ? 'Cancel' : 'إلغاء'}
-            </button>
+          <div className="tw-btn-row pt-2">
             <button
               onClick={handleSave}
               disabled={saving}
-              className="flex-1 text-white font-bold py-3.5 rounded-xl hover:opacity-90 transition-opacity disabled:opacity-60 flex items-center justify-center gap-2"
-              style={{
-                background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
-                boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
-              }}
+              className="tw-btn"
+              type="button"
+              style={{ flex: 1 }}
             >
-              {saving && <Loader2 size={18} className="animate-spin" />}
+              {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
               {saving
                 ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...')
                 : (lang === 'en' ? 'Save Goals' : 'حفظ الأهداف')}

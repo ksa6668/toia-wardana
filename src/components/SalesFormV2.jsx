@@ -267,9 +267,6 @@ export default function SalesFormV2({
         )}
 
         <div className="tw-btn-row" style={{ marginTop: 14 }}>
-          <button onClick={() => setView('employeeHome')} className="tw-btn secondary" type="button" style={{ flex: 0.6 }}>
-            {lang === 'en' ? 'Cancel' : 'إلغاء'}
-          </button>
           <button onClick={handleSave} disabled={saving || done} className="tw-btn" type="button" style={{ flex: 1 }}>
             {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
             {saving ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...') : saveBtnLabel}

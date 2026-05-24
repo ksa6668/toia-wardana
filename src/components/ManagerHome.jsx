@@ -16,8 +16,8 @@ import SheetPortal from './SheetPortal';
 import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales, salesNet, getWhatsappEntries } from '../firebase';
 import { usePersistedState } from '../hooks/usePersistedState';
 import {
-  getAvailableMonths, getAvailableYears, formatMonthLabel,
-  monthRange, yearRange,
+  formatMonthLabel,
+  monthRange,
 } from '../utils/periodHelpers';
 import { addNotification } from './NotificationsCenter';
 
@@ -111,7 +111,7 @@ function WhatsappKpiCard({ label, percent, subtext }) {
           <p className="text-base font-extrabold leading-none whitespace-nowrap">{pct}%</p>
         </div>
       </div>
-      {subtext && (
+      {subtext && subtext !== '0 / 0' && (
         <p className="text-[10px] opacity-70 font-bold mt-1 text-center">{subtext}</p>
       )}
     </div>
@@ -155,13 +155,11 @@ function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsD
 }
 
 export default function ManagerHome({ lang }) {
-  // Batch 45: حفظ الاختيارات
-  const [period, setPeriod] = usePersistedState('home.period', 'month');
+  // Batch 46.5: لا توجد تبويبات - شهري فقط
   const [selectedMonth, setSelectedMonth] = usePersistedState('home.month', () => {
     const d = new Date();
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
-  const [selectedYear, setSelectedYear] = usePersistedState('home.year', new Date().getFullYear());
   // للقائمة المنبثقة
   const [sheet, setSheet] = useState(null);
 
@@ -189,10 +187,8 @@ export default function ManagerHome({ lang }) {
         const brs = await getBranches();
         if (cancelled) return;
 
-        // 2) النطاق الزمني
-        const { from, to } = period === 'month'
-          ? monthRange(selectedMonth)
-          : yearRange(selectedYear);
+        // 2) النطاق الزمني (شهري فقط - Batch 46.5)
+        const { from, to } = monthRange(selectedMonth);
 
         // 3) المبيعات لكل الفروع
         const allSales = await getSales(from, to);
@@ -202,41 +198,16 @@ export default function ManagerHome({ lang }) {
         const allWhatsapp = await getWhatsappEntries(from, to);
         if (cancelled) return;
 
-        // 4) الأهداف لكل فرع
-        // للسنة: نحتاج جمع أهداف 12 شهر — تبسيط: نضرب هدف الشهر الحالي × 12
-        // للشهر: نقرأ الأهداف مباشرة
+        // 4) الأهداف لكل فرع (شهري فقط)
         const goalsPromises = brs.map(async (b) => {
-          if (period === 'month') {
-            const g = await getMonthlyGoal(b.id, selectedMonth);
-            return {
-              branchId: b.id,
-              budget: g.budget,
-              reviewsTarget: g.reviewsTarget,
-              reviewsAchieved: g.reviewsAchieved || 0,
-              exists: g.exists,
-            };
-          } else {
-            // سنوي: مجموع أهداف 12 شهر
-            let totalBudget = 0;
-            let totalReviews = 0;
-            let totalAchieved = 0;
-            let anyExists = false;
-            for (let m = 1; m <= 12; m++) {
-              const monthStr = `${selectedYear}-${String(m).padStart(2, '0')}`;
-              const g = await getMonthlyGoal(b.id, monthStr);
-              if (g.exists) anyExists = true;
-              totalBudget += g.budget || 0;
-              totalReviews += g.reviewsTarget || 0;
-              totalAchieved += g.reviewsAchieved || 0;
-            }
-            return {
-              branchId: b.id,
-              budget: totalBudget,
-              reviewsTarget: totalReviews,
-              reviewsAchieved: totalAchieved,
-              exists: anyExists,
-            };
-          }
+          const g = await getMonthlyGoal(b.id, selectedMonth);
+          return {
+            branchId: b.id,
+            budget: g.budget,
+            reviewsTarget: g.reviewsTarget,
+            reviewsAchieved: g.reviewsAchieved || 0,
+            exists: g.exists,
+          };
         });
         const goals = await Promise.all(goalsPromises);
         if (cancelled) return;
@@ -262,9 +233,8 @@ export default function ManagerHome({ lang }) {
           const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
           const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
           const whatsappPct = Math.min(100, Math.round((actualPct / 20) * 100));
-          const whatsappSubtext = totalCustomers > 0
-            ? `${totalBuyers} / ${totalCustomers}`
-            : '';
+          // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
+          const whatsappSubtext = totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '';
           kpisMap[b.id] = {
             budgetPct, reviewsPct,
             whatsappPct, whatsappSubtext,
@@ -279,7 +249,7 @@ export default function ManagerHome({ lang }) {
         // إذا لم يتم تحديد أي أهداف، أرسل إشعاراً (مرة واحدة في اليوم لكل شهر)
         const hasAnyGoals = Object.values(kpisMap).some((k) => k.hasGoal);
         if (!hasAnyGoals && brs.length > 0) {
-          const notifKey = `goals_reminder_${selectedMonth || selectedYear}_${new Date().toDateString()}`;
+          const notifKey = `goals_reminder_${selectedMonth}_${new Date().toDateString()}`;
           try {
             if (!localStorage.getItem(notifKey)) {
               addNotification({
@@ -300,52 +270,47 @@ export default function ManagerHome({ lang }) {
     }
     load();
     return () => { cancelled = true; };
-  }, [period, selectedMonth, selectedYear, refreshCounter]);
+  }, [selectedMonth, refreshCounter]);
 
-  const openPicker = () => {
-    if (period === 'month') {
-      setSheet({
-        title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-        options: getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
-        current: selectedMonth,
-        onPick: (v) => { setSelectedMonth(v); setSheet(null); },
-      });
-    } else {
-      setSheet({
-        title: lang === 'en' ? 'Pick year' : 'اختر السنة',
-        options: getAvailableYears().map((y) => ({ value: y, label: String(y) })),
-        current: selectedYear,
-        onPick: (v) => { setSelectedYear(v); setSheet(null); },
-      });
+  // Batch 46.5: قائمة الأشهر تبدأ من مايو 2026 وما بعد فقط
+  const availableMonths = () => {
+    const months = [];
+    const now = new Date();
+    const startYear = 2026;
+    const startMonth = 5; // مايو
+    const endYear = now.getFullYear();
+    const endMonth = now.getMonth() + 1;
+    let y = startYear, m = startMonth;
+    while (y < endYear || (y === endYear && m <= endMonth)) {
+      months.push(`${y}-${String(m).padStart(2, '0')}`);
+      m++;
+      if (m > 12) { m = 1; y++; }
     }
+    return months.reverse(); // أحدث شهر أولاً
   };
 
-  const currentLabel = period === 'month'
-    ? formatMonthLabel(selectedMonth, lang)
-    : String(selectedYear);
+  const openPicker = () => {
+    setSheet({
+      title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
+      options: availableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+      current: selectedMonth,
+      onPick: (v) => { setSelectedMonth(v); setSheet(null); },
+    });
+  };
+
+  const currentLabel = formatMonthLabel(selectedMonth, lang);
 
   return (
     <div
       className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
       style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
-      {/* تبويبات شهري/سنوي — مطابقة لـ .tabs في الـ prototype */}
-      <div className="tw-tabs relative z-10">
-        <span
-          onClick={() => setPeriod('month')}
-          className={period === 'month' ? 'active' : ''}
-        >
-          {lang === 'en' ? 'Monthly' : 'شهري'}
-        </span>
-        <span
-          onClick={() => setPeriod('year')}
-          className={period === 'year' ? 'active' : ''}
-        >
-          {lang === 'en' ? 'Yearly' : 'سنوي'}
-        </span>
-      </div>
+      {/* Batch 46.5: عنوان "الأهداف" بدل تبويبات شهري/سنوي */}
+      <h2 className="text-center text-tw-navy font-extrabold text-lg mb-3 relative z-10">
+        {lang === 'en' ? 'Goals' : 'الأهداف'}
+      </h2>
 
-      {/* منتقي الفترة — مطابق لـ .period-picker في الـ prototype */}
+      {/* منتقي الشهر */}
       <div onClick={openPicker} className="tw-period-picker relative z-10">
         <svg viewBox="0 0 24 24">
           <rect x="3" y="4" width="18" height="18" rx="2" />
@@ -375,19 +340,17 @@ export default function ManagerHome({ lang }) {
         const subtext = k.reviewsTarget > 0
           ? `${k.reviewsAchieved} / ${k.reviewsTarget}`
           : (lang === 'en' ? 'Double-tap to set' : 'انقر مرتين للتسجيل');
-        // double-click handler — يعمل فقط في الشهري (نسبة سنوية لا تُدخل لشهر معيّن)
-        const handleDoubleClick = period === 'month'
-          ? () => {
-              setReviewsInputOpen({
-                branchId: b.id,
-                branchName: lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`),
-                target: k.reviewsTarget,
-                achieved: k.reviewsAchieved,
-              });
-              setReviewsInputValue(String(k.reviewsAchieved || ''));
-              setReviewsSaveDone(false);
-            }
-          : undefined;
+        // double-click handler (دائماً متاح - شهري فقط)
+        const handleDoubleClick = () => {
+          setReviewsInputOpen({
+            branchId: b.id,
+            branchName: lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`),
+            target: k.reviewsTarget,
+            achieved: k.reviewsAchieved,
+          });
+          setReviewsInputValue(String(k.reviewsAchieved || ''));
+          setReviewsSaveDone(false);
+        };
         return (
           <BranchSection
             key={b.id}

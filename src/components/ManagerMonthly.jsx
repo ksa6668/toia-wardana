@@ -171,6 +171,9 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   }, [filteredExpenses]);
 
   // الربح اليومي
+  // Batch 46.4: توزيع المصاريف الثابتة نسبياً على أيام الشهر
+  // - لكل يوم سجل، نضيف: (مصاريف الشهر الثابتة / عدد أيام الشهر)
+  // - مما يعطي صورة حقيقية للربح اليومي بعد توزيع المصاريف الثابتة
   const profitByDay = useMemo(() => {
     const days = {};
     filteredSales.forEach((s) => {
@@ -185,10 +188,39 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       if (!days[d]) days[d] = { sales: 0, expenses: 0 };
       days[d].expenses += e.amount || 0;
     });
+
+    // Batch 46.4: توزيع المصاريف الثابتة على أيام الشهر بشكل نسبي
+    // أولاً: نجمع المصاريف الثابتة لكل شهر
+    const fixedByMonth = {};
+    filteredFixed.forEach((f) => {
+      const m = f.month; // YYYY-MM
+      if (!m) return;
+      if (!fixedByMonth[m]) fixedByMonth[m] = 0;
+      fixedByMonth[m] += f.amount || 0;
+    });
+
+    // ثانياً: نوزّع على كل يوم في الشهر
+    Object.keys(days).forEach((dayStr) => {
+      const monthKey = dayStr.slice(0, 7); // YYYY-MM
+      const monthlyFixed = fixedByMonth[monthKey] || 0;
+      if (monthlyFixed > 0) {
+        // عدد أيام الشهر الفعلي
+        const [y, m] = monthKey.split('-').map(Number);
+        const daysInMonth = new Date(y, m, 0).getDate();
+        const dailyShare = monthlyFixed / daysInMonth;
+        days[dayStr].expenses += dailyShare;
+      }
+    });
+
     return Object.entries(days)
       .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([day, v]) => ({ day, sales: v.sales, expenses: v.expenses, profit: v.sales - v.expenses }));
-  }, [filteredSales, filteredExpenses]);
+      .map(([day, v]) => ({
+        day,
+        sales: v.sales,
+        expenses: Math.round(v.expenses), // تقريب لأقرب ريال
+        profit: Math.round(v.sales - v.expenses),
+      }));
+  }, [filteredSales, filteredExpenses, filteredFixed]);
 
   // فتح منتقي الفترة (شهر أو سنة بناءً على period الحالي)
   const openPeriodPicker = () => {

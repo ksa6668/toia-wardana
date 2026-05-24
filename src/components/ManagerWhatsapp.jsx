@@ -7,7 +7,7 @@
 // ----------------------------------------------------------
 import { useState, useMemo } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Users, UserPlus, ShoppingBag, Percent } from 'lucide-react';
-import { getWhatsappEntries } from '../firebase';
+import { getWhatsappEntries, getWhatsappBaseline } from '../firebase';
 import BottomSheet from './BottomSheet';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useCachedQuery } from '../hooks/useCachedQuery';
@@ -61,18 +61,39 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
     { ttl, defaultData: [] }
   );
 
+  // Batch 46.2: baseline تاريخي (لا يتغيّر مع الفترة)
+  const { data: baselines = [], loading: baselineLoading } = useCachedQuery(
+    ['whatsappBaseline'],
+    () => getWhatsappBaseline(),
+    { ttl: 5 * 60 * 1000, defaultData: [] }
+  );
+
   const filteredEntries = useMemo(() => {
     return branchFilter === 'all' ? entries : entries.filter((e) => e.branchId === branchFilter);
   }, [entries, branchFilter]);
 
-  // إجماليات
+  // Batch 46.2: الإجماليات الجديدة
+  // - إجمالي عملاء واتساب = baseline + مجموع العملاء الجدد (تراكمي)
+  // - العملاء الجدد = مجموع newCustomers في الفترة
+  // - عدد المشترين = مجموع buyers في الفترة
+  // - نسبة المشترين = buyers / customers (من الكشف فقط، بدون baseline)
   const totals = useMemo(() => {
-    const totalCustomers = filteredEntries.reduce((sum, e) => sum + (e.customers || 0), 0);
+    // مجموع baseline (مفلتر بالفرع)
+    const filteredBaseline = branchFilter === 'all'
+      ? baselines
+      : baselines.filter((b) => b.branchId === branchFilter);
+    const totalBaseline = filteredBaseline.reduce((sum, b) => sum + (b.totalCustomers || 0), 0);
+
     const totalNew = filteredEntries.reduce((sum, e) => sum + (e.newCustomers || 0), 0);
     const totalBuyers = filteredEntries.reduce((sum, e) => sum + (e.buyers || 0), 0);
-    const buyersPct = totalCustomers > 0 ? Math.round((totalBuyers / totalCustomers) * 100) : 0;
+    const dailyCustomers = filteredEntries.reduce((sum, e) => sum + (e.customers || 0), 0);
+
+    // إجمالي العملاء = baseline + الجدد التراكمي
+    const totalCustomers = totalBaseline + totalNew;
+    // نسبة المشترين من سجل الكشف فقط
+    const buyersPct = dailyCustomers > 0 ? Math.round((totalBuyers / dailyCustomers) * 100) : 0;
     return { totalCustomers, totalNew, totalBuyers, buyersPct };
-  }, [filteredEntries]);
+  }, [filteredEntries, baselines, branchFilter]);
 
   // جدول مجمع باليوم
   const byDay = useMemo(() => {
@@ -130,7 +151,7 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
     wardana: lang === 'en' ? 'Wardana' : 'وردانة',
   }[branchFilter];
 
-  if (loading) {
+  if (loading || baselineLoading) {
     return (
       <div className="min-h-full flex items-center justify-center p-8">
         <Loader2 className="animate-spin text-tw-blue" size={32} />
