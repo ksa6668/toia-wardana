@@ -1594,9 +1594,6 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
               <p className="text-base font-extrabold leading-none whitespace-nowrap">{kpis.whatsappPct}%</p>
             </div>
           </div>
-          {kpis.whatsappSubtext && (
-            <p className="text-[10px] opacity-70 font-bold mt-1 text-center">{kpis.whatsappSubtext}</p>
-          )}
         </div>
 
         {/* كارت تسجيل المبيعات — موحّد بنفس تصميم تسجيل المصروفات (أبيض ناعم) */}

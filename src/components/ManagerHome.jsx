@@ -111,9 +111,6 @@ function WhatsappKpiCard({ label, percent, subtext }) {
           <p className="text-base font-extrabold leading-none whitespace-nowrap">{pct}%</p>
         </div>
       </div>
-      {subtext && subtext !== '0 / 0' && (
-        <p className="text-[10px] opacity-70 font-bold mt-1 text-center">{subtext}</p>
-      )}
     </div>
   );
 }
