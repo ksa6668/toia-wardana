@@ -528,6 +528,15 @@ export async function addWhatsappEntry({ date, branchId, customers, newCustomers
     createdAt: serverTimestamp(),
   });
 
+  // Batch 47: إشعار Telegram (fire-and-forget، لا يعطّل الحفظ)
+  notifyTelegramWhatsappAdded({
+    date,
+    branchId,
+    customers: customersN,
+    newCustomers: newCustomersN,
+    buyers: buyersN,
+  });
+
   _invalidateCachePrefix('whatsapp');
   return ref;
 }
@@ -1456,3 +1465,58 @@ export async function notifyTelegramSaleUpdated() { /* disabled */ }
 export async function notifyTelegramSaleDeleted() { /* disabled */ }
 export async function notifyTelegramExpenseUpdated() { /* disabled */ }
 export async function notifyTelegramExpenseDeleted() { /* disabled */ }
+
+// ====================================================================
+// Batch 47: إشعار Telegram لـ عملاء واتساب
+// يُرسل عند الإضافة فقط (مثل المبيعات والمصاريف)
+// يعرض: عدد العملاء + الجدد + المشترين + النسبة + تحقق الهدف (20%)
+// ====================================================================
+
+/**
+ * يحوّل YYYY-MM-DD إلى صيغة عربية مقروءة "25 مايو 2026"
+ */
+function formatDateArabic(dateStr) {
+  if (!dateStr) return '—';
+  try {
+    const months = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو',
+                    'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+    const [y, m, d] = dateStr.split('-').map(Number);
+    return `${d} ${months[m - 1]} ${y}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+/**
+ * إشعار: تسجيل عملاء واتساب جديد — يُرسل فقط لو المُسجِّل موظف
+ */
+export async function notifyTelegramWhatsappAdded({ date, branchId, customers, newCustomers, buyers }) {
+  // فلترة: للموظفين فقط (المدير لا يحتاج إشعار نفسه)
+  const isEmp = await isCurrentUserEmployee();
+  if (!isEmp) return;
+
+  const customersN = Number(customers) || 0;
+  const newCustomersN = Number(newCustomers) || 0;
+  const buyersN = Number(buyers) || 0;
+  // نسبة الشراء = مشترين / إجمالي العملاء × 100
+  const buyersPct = customersN > 0 ? Math.round((buyersN / customersN) * 100) : 0;
+  // الهدف: 20% من اللي يكلّمونا يشترون فعلياً
+  const targetMet = buyersPct >= 20;
+  const goalLine = targetMet
+    ? `🎯 الهدف (20%): ✅ تحقق وتجاوز!`
+    : `🎯 الهدف (20%): ❌ لم يتحقق`;
+
+  const branchName = branchId === 'toia' ? 'تويا' : branchId === 'wardana' ? 'وردانة' : branchId;
+
+  const msg =
+    `💬 <b>عملاء واتساب - فرع ${branchName}</b>\n` +
+    `━━━━━━━━━━━━━━━\n` +
+    `📅 التاريخ: ${formatDateArabic(date)}\n\n` +
+    `👥 إجمالي العملاء: <b>${fmt(customersN)}</b>\n` +
+    `✨ عملاء جدد: <b>${fmt(newCustomersN)}</b>\n` +
+    `🛒 عدد المشترين: <b>${fmt(buyersN)}</b>\n` +
+    `📊 نسبة الشراء: <b>${buyersPct}%</b>\n\n` +
+    goalLine;
+  return sendTelegram(msg);
+}
+

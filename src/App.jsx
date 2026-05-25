@@ -36,6 +36,7 @@ import ManagerKpis from './components/ManagerKpis';
 import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
 import WhatsappFormV2 from './components/WhatsappFormV2';
+import EmployeeWhatsappTable from './components/EmployeeWhatsappTable';
 import ManageWhatsappBaseline from './components/ManageWhatsappBaseline';
 import ReviewsExplain from './components/ReviewsExplain';
 import WhatsappExplain from './components/WhatsappExplain';
@@ -976,6 +977,9 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
             </p>
           </div>
         </button>
+
+        {/* Batch 48: جدول كشف عملاء واتساب - آخر 3 أيام */}
+        <EmployeeWhatsappTable branchId={branchId} lang={lang} />
       </div>
     </div>
   );

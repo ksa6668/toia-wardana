@@ -255,13 +255,19 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
         ) : (
           byDay.map((d) => {
             const ratio = d.customers > 0 ? Math.round((d.buyers / d.customers) * 100) : 0;
+            // Batch 48: تلوين النسبة - أحمر < 20% / أخضر >= 20%
+            const ratioClass = d.customers === 0
+              ? 'text-tw-muted'
+              : ratio >= 20
+                ? 'text-tw-green'
+                : 'text-tw-red';
             return (
               <div key={d.date} className="grid grid-cols-5 px-3 py-2.5 border-b border-tw-line/50 last:border-b-0 text-xs">
                 <div className="text-right font-bold text-tw-navy">{formatDayShort(d.date, lang)}</div>
                 <div className="text-center text-tw-navy">{d.customers}</div>
                 <div className="text-center text-tw-green font-bold">{d.newCustomers}</div>
                 <div className="text-center text-tw-blue font-bold">{d.buyers}</div>
-                <div className="text-center text-tw-green font-bold">{ratio}%</div>
+                <div className={`text-center font-bold ${ratioClass}`}>{ratio}%</div>
               </div>
             );
           })
