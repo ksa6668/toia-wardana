@@ -14,6 +14,7 @@ import { getSales, getExpenses } from '../firebase';
 import { translateCategory } from '../i18n';
 import SarSymbol from './SarSymbol';
 import { formatDayShort } from '../utils/periodHelpers';
+import { localDate } from '../utils/dateHelpers';
 
 export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
   const [loading, setLoading] = useState(true);
@@ -31,15 +32,9 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
         const today = new Date();
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
-        // Batch 46.3: التاريخ المحلي (وليس UTC) لتجنّب فرق timezone
-        const iso = (d) => {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${y}-${m}-${day}`;
-        };
-        const from = iso(sevenDaysAgo);
-        const to = iso(today);
+        // Batch 46.10: utils/dateHelpers الموحّدة (التاريخ المحلي)
+        const from = localDate(sevenDaysAgo);
+        const to = localDate(today);
         // Batch 41: تمرير branchId لـ getSales/getExpenses لتجنّب مشكلة Firestore Rules
         // (نفس إصلاح Batch 39 لكن لشاشة "السجل")
         const [s, e] = await Promise.all([getSales(from, to, branchId), getExpenses(from, to, branchId)]);

@@ -5,7 +5,7 @@
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
-  Calendar, MapPin, Users, UserPlus, ShoppingBag, CheckCircle2, Loader2, ChevronDown,
+  Calendar, MapPin, Users, UserPlus, ShoppingBag, Loader2, ChevronDown,
 } from 'lucide-react';
 import {
   addWhatsappEntry, updateWhatsappEntry, getBranches,

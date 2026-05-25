@@ -7,6 +7,15 @@
 // الـ Firestore queries تستخدم النواتج لتصفية البيانات.
 // ----------------------------------------------------------
 
+// Batch 46.10: التاريخ المحلي (وليس UTC) لتجنّب فرق المنطقة الزمنية
+// السعودية UTC+3 → toISOString يعطي يوم سابق بعد منتصف الليل
+function _localDate(d) {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
 /**
  * يعطي نطاق التاريخ (from, to) من شهر YYYY-MM.
  * مثال: monthRange('2026-05') → { from: '2026-05-01', to: '2026-05-31', days: 31 }
@@ -130,12 +139,11 @@ export function splitMonthToWeeks(monthStr) {
   ranges.forEach((r, i) => {
     const fd = new Date(y, m - 1, r[0]);
     const td = new Date(y, m - 1, r[1]);
-    const iso = (d) => d.toISOString().slice(0, 10);
     weeks.push({
       labelAr: labels[i],
       labelEn: labelsEn[i],
-      from: iso(fd),
-      to: iso(td),
+      from: _localDate(fd),
+      to: _localDate(td),
     });
   });
   return weeks;
@@ -153,12 +161,11 @@ export function splitYearToQuarters(year) {
     const lm = fm + 2;       // 2, 5, 8, 11
     const fd = new Date(year, fm, 1);
     const ld = new Date(year, lm + 1, 0);
-    const iso = (d) => d.toISOString().slice(0, 10);
     quarters.push({
       labelAr: labels[q],
       labelEn: labelsEn[q],
-      from: iso(fd),
-      to: iso(ld),
+      from: _localDate(fd),
+      to: _localDate(ld),
     });
   }
   return quarters;

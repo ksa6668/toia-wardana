@@ -7,21 +7,16 @@ import {
 } from 'lucide-react';
 import { getSales, getExpenses } from '../firebase';
 import { translateCategory } from '../i18n';
+import { localDate } from '../utils/dateHelpers';
 import SarSymbol from './SarSymbol';
 
 function formatDayHeader(dateStr, lang) {
   if (!dateStr) return '—';
-  // Batch 46.3: التاريخ المحلي بدل UTC (لتجنّب مشكلة المنطقة الزمنية)
-  const localISO = (d) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
+  // Batch 46.10: استخدام utils/dateHelpers الموحّدة
   const today = new Date();
-  const todayKey = localISO(today);
+  const todayKey = localDate(today);
   const yest = new Date(today); yest.setDate(today.getDate() - 1);
-  const yestKey = localISO(yest);
+  const yestKey = localDate(yest);
   if (dateStr === todayKey) return lang === 'en' ? 'Today' : 'اليوم';
   if (dateStr === yestKey) return lang === 'en' ? 'Yesterday' : 'أمس';
   const d = new Date(dateStr + 'T00:00:00');
@@ -54,20 +49,12 @@ export default function RecHistorySection({
         const today = new Date();
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
-        // Batch 46.3: استخدام التاريخ المحلي (وليس UTC) لتجنّب فرق المنطقة الزمنية
-        // السعودية UTC+3 → toISOString يعطي يوم سابق بعد منتصف الليل
-        const iso = (d) => {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${y}-${m}-${day}`;
-        };
         // Batch 41: لو branchId === 'all' (المدير)، نجلب كل الفروع
         // لو فرع معيّن، نُمرر branchId لـ getSales/getExpenses ليفلتر في Firestore
         const fetchBranchId = branchId === 'all' ? null : branchId;
         const [s, e] = await Promise.all([
-          getSales(iso(sevenDaysAgo), iso(today), fetchBranchId),
-          getExpenses(iso(sevenDaysAgo), iso(today), fetchBranchId),
+          getSales(localDate(sevenDaysAgo), localDate(today), fetchBranchId),
+          getExpenses(localDate(sevenDaysAgo), localDate(today), fetchBranchId),
         ]);
         if (!cancelled) {
           // البيانات مفلترة في Firestore بالفعل (أو 'all' للمدير)

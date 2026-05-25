@@ -59,15 +59,28 @@ import AppHeader from './components/AppHeader';
 
 // ==========================================
 // أدوات تواريخ مساعدة
+// Batch 46.10: استخدام التاريخ المحلي بدل UTC (السعودية UTC+3)
 // ==========================================
-const todayStr = () => new Date().toISOString().slice(0, 10);
-const monthStr = (d = new Date()) => d.toISOString().slice(0, 7); // YYYY-MM
+const _localDate = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+};
+const _localMonth = (d) => {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  return `${y}-${m}`;
+};
+const todayStr = () => _localDate(new Date());
+const monthStr = (d = new Date()) => _localMonth(d); // YYYY-MM
 
 // يحسب نطاق التاريخ حسب الفترة المختارة
 // يدعم: يومي / أسبوعي / شهري / ربع سنوي / سنوي / مخصص
 function periodRange(period, customFrom, customTo) {
   const now = new Date();
-  const iso = (d) => d.toISOString().slice(0, 10);
+  // Batch 46.10: التاريخ المحلي (وليس UTC) لتجنّب فرق المنطقة الزمنية
+  const iso = (d) => _localDate(d);
   const daysInMonth = (d) => new Date(d.getFullYear(), d.getMonth() + 1, 0).getDate();
 
   if (period === 'مخصص' && customFrom && customTo) {
@@ -504,9 +517,9 @@ function SuperAdminDashboard() {
   // نطاق تاريخ مخصص
   const [customFrom, setCustomFrom] = useState(() => {
     const d = new Date(); d.setDate(d.getDate() - 6);
-    return d.toISOString().slice(0, 10);
+    return _localDate(d);
   });
-  const [customTo, setCustomTo] = useState(() => new Date().toISOString().slice(0, 10));
+  const [customTo, setCustomTo] = useState(() => _localDate(new Date()));
 
   useEffect(() => {
     let cancelled = false;

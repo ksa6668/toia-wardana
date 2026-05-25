@@ -103,7 +103,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
         };
       }
       const json = JSON.stringify(filtered, null, 2);
-      const date = new Date().toISOString().slice(0, 10);
+      const date = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
       const scopeStr = exportScope === 'all' ? 'all' : exportScope;
       downloadFile(
         json,
@@ -185,7 +185,7 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
       const catsSheet = XLSX.utils.json_to_sheet(data.categories);
       XLSX.utils.book_append_sheet(wb, catsSheet, 'Categories');
 
-      const date = new Date().toISOString().slice(0, 10);
+      const date = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; })();
       const scopeStr = exportScope === 'all' ? 'all' : exportScope;
       XLSX.writeFile(wb, `toia-wardana-${scopeStr}-${date}.xlsx`);
       showMsg(lang === 'en' ? 'Excel file downloaded' : 'تم تنزيل ملف Excel');

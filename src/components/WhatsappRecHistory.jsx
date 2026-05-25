@@ -7,20 +7,15 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Edit2, Trash2, Users, UserPlus, ShoppingBag } from 'lucide-react';
 import { getWhatsappEntries } from '../firebase';
+import { localDate } from '../utils/dateHelpers';
 
 function formatDayHeader(dateStr, lang) {
   if (!dateStr) return '—';
-  // التاريخ المحلي بدل UTC
-  const localISO = (d) => {
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    return `${y}-${m}-${day}`;
-  };
+  // Batch 46.10: utils/dateHelpers الموحّدة
   const today = new Date();
-  const todayKey = localISO(today);
+  const todayKey = localDate(today);
   const yest = new Date(today); yest.setDate(today.getDate() - 1);
-  const yestKey = localISO(yest);
+  const yestKey = localDate(yest);
   if (dateStr === todayKey) return lang === 'en' ? 'Today' : 'اليوم';
   if (dateStr === yestKey) return lang === 'en' ? 'Yesterday' : 'أمس';
   const d = new Date(dateStr + 'T00:00:00');
@@ -50,15 +45,8 @@ export default function WhatsappRecHistory({
         const today = new Date();
         const sevenDaysAgo = new Date(today);
         sevenDaysAgo.setDate(today.getDate() - 7);
-        // التاريخ المحلي
-        const iso = (d) => {
-          const y = d.getFullYear();
-          const m = String(d.getMonth() + 1).padStart(2, '0');
-          const day = String(d.getDate()).padStart(2, '0');
-          return `${y}-${m}-${day}`;
-        };
         const fetchBranchId = branchId === 'all' ? null : branchId;
-        const data = await getWhatsappEntries(iso(sevenDaysAgo), iso(today), fetchBranchId);
+        const data = await getWhatsappEntries(localDate(sevenDaysAgo), localDate(today), fetchBranchId);
         if (!cancelled) setEntries(data);
       } catch (err) {
         if (!cancelled) setError(err?.message || (lang === 'en' ? 'Failed to load' : 'تعذّر التحميل'));

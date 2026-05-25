@@ -74,16 +74,24 @@ function formatRelative(iso) {
 
 // تجميع الإشعارات حسب اليوم
 function groupByDay(notifs) {
-  const today = new Date().toISOString().slice(0, 10);
+  // Batch 46.10: التاريخ المحلي (وليس UTC)
+  const localDate = (d) => {
+    const y = d.getFullYear();
+    const m = String(d.getMonth() + 1).padStart(2, '0');
+    const day = String(d.getDate()).padStart(2, '0');
+    return `${y}-${m}-${day}`;
+  };
+  const today = localDate(new Date());
   const yesterday = (() => {
     const d = new Date();
     d.setDate(d.getDate() - 1);
-    return d.toISOString().slice(0, 10);
+    return localDate(d);
   })();
 
   const groups = { اليوم: [], أمس: [], أقدم: [] };
   for (const n of notifs) {
-    const day = n.createdAt?.slice(0, 10);
+    // n.createdAt هو ISO UTC string - نحوّله لـ Date محلي ثم نأخذ التاريخ المحلي
+    const day = n.createdAt ? localDate(new Date(n.createdAt)) : '';
     if (day === today) groups['اليوم'].push(n);
     else if (day === yesterday) groups['أمس'].push(n);
     else groups['أقدم'].push(n);
