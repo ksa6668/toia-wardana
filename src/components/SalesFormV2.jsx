@@ -78,19 +78,28 @@ export default function SalesFormV2({
   const [error, setError] = useState('');
 
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      try { setMethods(await getPaymentMethods()); } catch { /* ignore */ }
+      try {
+        const pm = await getPaymentMethods();
+        if (!cancelled) setMethods(pm);
+      } catch { /* ignore */ }
     })();
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => {
     if (!allowBranchSwitch) return;
+    let cancelled = false;
     (async () => {
-      try { setBranches(await getBranches()); }
-      catch {
-        setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]);
+      try {
+        const bs = await getBranches();
+        if (!cancelled) setBranches(bs);
+      } catch {
+        if (!cancelled) setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]);
       }
     })();
+    return () => { cancelled = true; };
   }, [allowBranchSwitch]);
 
   const labelFor = (id, fallback) => {

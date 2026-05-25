@@ -121,12 +121,16 @@ export default function ExpenseFormV2({
 
   useEffect(() => {
     if (!allowBranchSwitch) return;
+    let cancelled = false;
     (async () => {
-      try { setBranches(await getBranches()); }
-      catch {
-        setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]);
+      try {
+        const bs = await getBranches();
+        if (!cancelled) setBranches(bs);
+      } catch {
+        if (!cancelled) setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]);
       }
     })();
+    return () => { cancelled = true; };
   }, [allowBranchSwitch]);
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
