@@ -38,6 +38,8 @@ import SalesFormV2 from './components/SalesFormV2';
 import ExpenseFormV2 from './components/ExpenseFormV2';
 import WhatsappFormV2 from './components/WhatsappFormV2';
 import ManageWhatsappBaseline from './components/ManageWhatsappBaseline';
+import ReviewsExplain from './components/ReviewsExplain';
+import WhatsappExplain from './components/WhatsappExplain';
 import EmployeeHistory from './components/EmployeeHistory';
 // Batch 12
 import RecHistorySection from './components/RecHistorySection';
@@ -357,6 +359,12 @@ export default function App() {
           )}
           {!authLoading && currentView === 'whatsappForm' && (
             <WhatsappFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+          )}
+          {!authLoading && currentView === 'reviewsExplain' && (
+            <ReviewsExplain onBack={() => setCurrentView('employeeHome')} lang={lang} />
+          )}
+          {!authLoading && currentView === 'whatsappExplain' && (
+            <WhatsappExplain onBack={() => setCurrentView('employeeHome')} lang={lang} />
           )}
           {!authLoading && currentView === 'employeeHistory' && (
             <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
@@ -1526,13 +1534,18 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
             </div>
           </div>
 
-          {/* كارت تقييمات قوقل ماب */}
+          {/* كارت تقييمات قوقل ماب - قابل للضغط (Batch 46.9) */}
           <div
-            className="text-white p-3 rounded-2xl overflow-hidden relative"
+            onClick={() => setView('reviewsExplain')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setView('reviewsExplain'); } }}
+            className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
             style={{
               background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
               boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
               minHeight: 105,
+              cursor: 'pointer',
             }}
           >
             <div
@@ -1561,12 +1574,17 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
           </div>
         </div>
 
-        {/* Batch 46: كرت تحقيق واتساب رفيع */}
+        {/* Batch 46: كرت تحقيق واتساب رفيع - قابل للضغط (Batch 46.9) */}
         <div
-          className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative"
+          onClick={() => setView('whatsappExplain')}
+          role="button"
+          tabIndex={0}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setView('whatsappExplain'); } }}
+          className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
           style={{
             background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
             boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+            cursor: 'pointer',
           }}
         >
           <div
