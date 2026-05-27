@@ -12,7 +12,7 @@
 //   - حذف: نسبة التسويق، نسبة المصاريف من المبيعات
 // ----------------------------------------------------------
 import { useState, useMemo } from 'react';
-import { ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Loader2 } from 'lucide-react';
+import { ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Receipt, Loader2 } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
@@ -29,7 +29,34 @@ import {
 } from '../utils/periodHelpers';
 
 // كارت أسبوع/ربع (navy gradient)
-function PeriodCard({ label, amount, pct }) {
+// Batch 50: wide=true لكرت "كل الأشهر" → layout أفقي عريض
+function PeriodCard({ label, amount, pct, wide = false }) {
+  if (wide) {
+    return (
+      <div
+        className="text-white p-4 rounded-2xl overflow-hidden relative"
+        style={{
+          background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+          boxShadow: '0 6px 16px rgba(0,91,255,0.15)',
+        }}
+      >
+        <div
+          className="absolute inset-0 opacity-30 pointer-events-none"
+          style={{ background: 'radial-gradient(circle at 95% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+        />
+        <div className="relative flex items-center justify-between gap-4">
+          <div className="flex flex-col items-start gap-1">
+            <span className="text-xs font-bold opacity-95">{label}</span>
+            <small className="text-[10px] opacity-80">{pct}%</small>
+          </div>
+          <b className="text-2xl font-extrabold flex items-center gap-1.5 leading-none">
+            {Math.round(amount).toLocaleString()}
+            <SarSymbol className="text-sm" />
+          </b>
+        </div>
+      </div>
+    );
+  }
   return (
     <div
       className="text-white p-3 rounded-2xl overflow-hidden relative"
@@ -199,18 +226,12 @@ export default function ManagerKpis({ lang = 'ar' }) {
         .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
     const flowers = sumByType('flower');
     const delivery = sumByType('delivery');
+    // Batch 50: إجمالي كل المصاريف (variable expenses) من filteredExpenses
+    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
 
+    // Batch 50: الترتيب الجديد:
+    // 1) كاش 2) مدى 3) تحويل 4) أون لاين 5) ورد 6) توصيل 7) إجمالي المصروفات
     return [
-      {
-        icon: Flower2,
-        label: lang === 'en' ? 'Flowers cost ratio of sales' : 'نسبة تكلفة الورد من المبيعات',
-        pct: (flowers / totalSales) * 100,
-      },
-      {
-        icon: Truck,
-        label: lang === 'en' ? 'Delivery cost ratio of sales' : 'نسبة تكلفة التوصيل من المبيعات',
-        pct: (delivery / totalSales) * 100,
-      },
       {
         icon: Wallet,
         label: lang === 'en' ? 'Cash ratio of sales' : 'نسبة الكاش من المبيعات',
@@ -230,6 +251,21 @@ export default function ManagerKpis({ lang = 'ar' }) {
         icon: Globe,
         label: lang === 'en' ? 'Online ratio of store sales' : 'نسبة الأون لاين من المتجر',
         pct: (totalTransfer / storeOnly) * 100,
+      },
+      {
+        icon: Flower2,
+        label: lang === 'en' ? 'Flowers cost ratio of sales' : 'نسبة تكلفة الورد من المبيعات',
+        pct: (flowers / totalSales) * 100,
+      },
+      {
+        icon: Truck,
+        label: lang === 'en' ? 'Delivery cost ratio of sales' : 'نسبة تكلفة التوصيل من المبيعات',
+        pct: (delivery / totalSales) * 100,
+      },
+      {
+        icon: Receipt,
+        label: lang === 'en' ? 'Total expenses ratio of sales' : 'نسبة إجمالي المصروفات من المبيعات',
+        pct: (totalExpenses / totalSales) * 100,
       },
     ];
   }, [filteredSales, filteredExpenses, lang]);
@@ -337,12 +373,18 @@ export default function ManagerKpis({ lang = 'ar' }) {
             }
           </h3>
 
-          {/* 4 كروت */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            {periodCards.map((c, i) => (
-              <PeriodCard key={i} label={c.label} amount={c.amount} pct={c.pct} />
-            ))}
-          </div>
+          {/* 4 كروت أو كرت واحد مستطيل لـ "كل الأشهر" */}
+          {periodCards.length === 1 ? (
+            <div className="mb-5">
+              <PeriodCard label={periodCards[0].label} amount={periodCards[0].amount} pct={periodCards[0].pct} wide />
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3 mb-5">
+              {periodCards.map((c, i) => (
+                <PeriodCard key={i} label={c.label} amount={c.amount} pct={c.pct} />
+              ))}
+            </div>
+          )}
 
           {/* قائمة المؤشرات الجديدة */}
           <div className="bg-white rounded-2xl border border-tw-line shadow-sm px-4 py-2">

@@ -326,7 +326,7 @@ export default function App() {
               }
               notifCount={isAdmin ? unreadCount : 0}
               onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
-              onNotifClick={() => isAdmin && setShowNotifications(true)}
+              onNotifClick={() => setShowNotifications(true)}
               langButton={
                 (!isAdmin && !screenCtx) ? (
                   <button

@@ -615,7 +615,19 @@ const DEFAULT_BRANCHES = [
 ];
 
 // جلب الفروع النشطة، مرتبة، مع زرع افتراضي عند أول تشغيل
+// Batch 50: cache للفروع (in-memory) - مدته دقيقة كاملة
+// الفروع نادراً ما تتغير، لذا التخزين المؤقت آمن ويسرّع الشاشات التي تستدعيها
+let _branchesCache = null;
+let _branchesCacheTime = 0;
+const BRANCHES_CACHE_TTL = 60 * 1000; // 60 ثانية
+
 export async function getBranches() {
+  // إعادة من الـ cache لو لا يزال صالح
+  const now = Date.now();
+  if (_branchesCache && (now - _branchesCacheTime) < BRANCHES_CACHE_TTL) {
+    return _branchesCache;
+  }
+
   const snap = await getDocs(collection(db, "branches"));
   if (snap.empty) {
     try {
@@ -630,19 +642,33 @@ export async function getBranches() {
       }
       await batch.commit();
     } catch {
+      _branchesCache = DEFAULT_BRANCHES;
+      _branchesCacheTime = now;
       return DEFAULT_BRANCHES;
     }
+    _branchesCache = DEFAULT_BRANCHES;
+    _branchesCacheTime = now;
     return DEFAULT_BRANCHES;
   }
-  return snap.docs
+  const result = snap.docs
     .map((d) => ({ id: d.id, ...d.data() }))
     .filter((b) => b.active !== false)
     .sort((a, b) => (a.order || 0) - (b.order || 0));
+  _branchesCache = result;
+  _branchesCacheTime = now;
+  return result;
+}
+
+// Batch 50: تنظيف cache الفروع عند أي تعديل
+function _invalidateBranchesCache() {
+  _branchesCache = null;
+  _branchesCacheTime = 0;
 }
 
 // تحديث اسم فرع أو حالته
 export async function updateBranch(id, data) {
   await updateDoc(doc(db, "branches", id), data);
+  _invalidateBranchesCache();
 }
 
 // ========== طرق الدفع (§12 من المنطق) ==========

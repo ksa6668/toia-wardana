@@ -39,15 +39,23 @@ export default function EmployeeWhatsappTable({ branchId, lang = 'ar', refreshKe
     return () => { cancelled = true; };
   }, [branchId, refreshKey, lang]);
 
-  // تجميع حسب اليوم
+  // Batch 50: تجميع حسب اليوم - يعرض دائماً 3 أيام (حتى الأيام الفارغة)
   const byDay = useMemo(() => {
-    const map = new Map();
+    // ابني 3 أيام دائماً: اليوم + أمس + قبله
+    const days = [
+      { date: localDate(new Date()), customers: 0, newCustomers: 0, buyers: 0 },
+      { date: daysAgoLocal(1), customers: 0, newCustomers: 0, buyers: 0 },
+      { date: daysAgoLocal(2), customers: 0, newCustomers: 0, buyers: 0 },
+    ];
+    const map = new Map(days.map(d => [d.date, d]));
+    // اجمع السجلات
     for (const e of entries) {
-      const cur = map.get(e.date) || { date: e.date, customers: 0, newCustomers: 0, buyers: 0 };
-      cur.customers += e.customers || 0;
-      cur.newCustomers += e.newCustomers || 0;
-      cur.buyers += e.buyers || 0;
-      map.set(e.date, cur);
+      const cur = map.get(e.date);
+      if (cur) {
+        cur.customers += e.customers || 0;
+        cur.newCustomers += e.newCustomers || 0;
+        cur.buyers += e.buyers || 0;
+      }
     }
     return Array.from(map.values()).sort((a, b) => b.date.localeCompare(a.date));
   }, [entries]);
@@ -78,12 +86,7 @@ export default function EmployeeWhatsappTable({ branchId, lang = 'ar', refreshKe
             <div className="text-center">{lang === 'en' ? 'Ratio' : 'النسبة'}</div>
           </div>
 
-          {byDay.length === 0 ? (
-            <p className="text-center text-tw-muted text-xs py-6">
-              {lang === 'en' ? 'No entries in the last 3 days' : 'لا توجد تسجيلات في آخر 3 أيام'}
-            </p>
-          ) : (
-            byDay.map((d) => {
+          {byDay.map((d) => {
               const ratio = d.customers > 0 ? Math.round((d.buyers / d.customers) * 100) : 0;
               // تلوين النسبة - أحمر < 20% / أخضر >= 20%
               const ratioClass = d.customers === 0
@@ -94,14 +97,15 @@ export default function EmployeeWhatsappTable({ branchId, lang = 'ar', refreshKe
               return (
                 <div key={d.date} className="grid grid-cols-5 px-3 py-2.5 border-b border-tw-line/50 last:border-b-0 text-xs">
                   <div className="text-right font-bold text-tw-navy">{formatDayShort(d.date, lang)}</div>
-                  <div className="text-center text-tw-navy">{d.customers}</div>
-                  <div className="text-center text-tw-green font-bold">{d.newCustomers}</div>
-                  <div className="text-center text-tw-blue font-bold">{d.buyers}</div>
-                  <div className={`text-center font-bold ${ratioClass}`}>{ratio}%</div>
+                  <div className="text-center text-tw-navy">{d.customers || '—'}</div>
+                  <div className="text-center text-tw-green font-bold">{d.newCustomers || '—'}</div>
+                  <div className="text-center text-tw-blue font-bold">{d.buyers || '—'}</div>
+                  <div className={`text-center font-bold ${ratioClass}`}>
+                    {d.customers === 0 ? '—' : `${ratio}%`}
+                  </div>
                 </div>
               );
-            })
-          )}
+            })}
         </>
       )}
     </div>

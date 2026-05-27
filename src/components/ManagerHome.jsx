@@ -190,53 +190,61 @@ export default function ManagerHome({ lang }) {
   const [sheet, setSheet] = useState(null);
 
   // ====== البيانات الحقيقية من Firestore ======
-  const [branches, setBranches] = useState([]);
+  // Batch 50: استعادة فورية من sessionStorage (يحدّث في الخلفية)
+  const cacheKey = `home_kpis_${selectedMonth}`;
+  const cachedSnapshot = (() => {
+    try {
+      const raw = sessionStorage.getItem(cacheKey);
+      if (!raw) return null;
+      const obj = JSON.parse(raw);
+      // صلاحية الـ cache: 5 دقائق
+      if (Date.now() - (obj.ts || 0) > 5 * 60 * 1000) return null;
+      return obj;
+    } catch { return null; }
+  })();
+  const [branches, setBranches] = useState(cachedSnapshot?.branches || []);
   // map: { [branchId]: { budgetPct, reviewsPct, hasGoal, reviewsTarget, reviewsAchieved } }
-  const [branchKpis, setBranchKpis] = useState({});
-  const [loading, setLoading] = useState(true);
+  const [branchKpis, setBranchKpis] = useState(cachedSnapshot?.branchKpis || {});
+  const [loading, setLoading] = useState(!cachedSnapshot); // لو فيه cache، نبدأ بدون loading
   const [error, setError] = useState('');
   const [refreshCounter, setRefreshCounter] = useState(0); // لإعادة تحميل البيانات بعد الحفظ
   // Batch 49: شاشة تعديل الهدف الحالية
   const [editScreen, setEditScreen] = useState(null); // { type: 'budget'|'reviews'|'whatsapp', branchId, branchName }
 
   // تحميل البيانات عند تغيير الفترة
+  // Batch 50: تحميل متوازي - getBranches + getSales + getWhatsappEntries في نفس الوقت
   useEffect(() => {
     let cancelled = false;
     async function load() {
       setLoading(true);
       setError('');
       try {
-        // 1) الفروع
-        const brs = await getBranches();
-        if (cancelled) return;
-
-        // 2) النطاق الزمني (شهري فقط - Batch 46.5)
+        // 1) النطاق الزمني (شهري فقط - Batch 46.5)
         const { from, to } = monthRange(selectedMonth);
 
-        // 3) المبيعات لكل الفروع
-        const allSales = await getSales(from, to);
+        // 2) Batch 50: تحميل متوازي للفروع + المبيعات + الواتساب
+        const [brs, allSales, allWhatsapp] = await Promise.all([
+          getBranches(),
+          getSales(from, to),
+          getWhatsappEntries(from, to),
+        ]);
         if (cancelled) return;
 
-        // Batch 46: 3b) عملاء واتساب لكل الفروع
-        const allWhatsapp = await getWhatsappEntries(from, to);
-        if (cancelled) return;
-
-        // 4) الأهداف لكل فرع (شهري فقط)
-        const goalsPromises = brs.map(async (b) => {
-          const g = await getMonthlyGoal(b.id, selectedMonth);
-          return {
+        // 3) الأهداف لكل فرع بشكل متوازي
+        const goalsPromises = brs.map((b) =>
+          getMonthlyGoal(b.id, selectedMonth).then((g) => ({
             branchId: b.id,
             budget: g.budget,
             reviewsTarget: g.reviewsTarget,
             reviewsAchieved: g.reviewsAchieved || 0,
             whatsappTarget: g.whatsappTarget || 0,
             exists: g.exists,
-          };
-        });
+          }))
+        );
         const goals = await Promise.all(goalsPromises);
         if (cancelled) return;
 
-        // 5) حساب KPIs لكل فرع
+        // 4) حساب KPIs لكل فرع
         const kpisMap = {};
         for (const b of brs) {
           const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0 };
@@ -272,6 +280,15 @@ export default function ManagerHome({ lang }) {
         }
         setBranches(brs);
         setBranchKpis(kpisMap);
+
+        // Batch 50: حفظ snapshot لـ sessionStorage (للعودة الفورية)
+        try {
+          sessionStorage.setItem(cacheKey, JSON.stringify({
+            ts: Date.now(),
+            branches: brs,
+            branchKpis: kpisMap,
+          }));
+        } catch { /* قد يفشل في الوضع الخصوصي */ }
 
         // إذا لم يتم تحديد أي أهداف، أرسل إشعاراً (مرة واحدة في اليوم لكل شهر)
         const hasAnyGoals = Object.values(kpisMap).some((k) => k.hasGoal);

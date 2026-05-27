@@ -10,7 +10,7 @@
 //
 // تستهلك Firestore عبر firebase.js الموجود فعلاً (getSales, getExpenses)
 // ----------------------------------------------------------
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Filter } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
@@ -37,6 +37,9 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   const [branchFilter, setBranchFilter] = usePersistedState('monthly.branch', 'all');
   const [activeTab, setActiveTab] = usePersistedState('monthly.tab', 'sales');
   const [categoryFilter, setCategoryFilter] = usePersistedState('monthly.category', 'all');
+  // Batch 50: فرز - sortBy = null | 'salesTotal' | 'profit', sortDir = 'asc' | 'desc'
+  const [sortBy, setSortBy] = useState(null);
+  const [sortDir, setSortDir] = useState('desc');
   // قائمة منبثقة (لا تُحفظ - حالة UI مؤقتة)
   const [sheet, setSheet] = useState(null);
 
@@ -222,6 +225,37 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       }));
   }, [filteredSales, filteredExpenses, filteredFixed]);
 
+  // Batch 50: نسخ مفروزة - sortBy='salesTotal' للمبيعات | sortBy='profit' للربح
+  const sortedSalesByDay = useMemo(() => {
+    if (sortBy !== 'salesTotal') return salesByDay;
+    const arr = [...salesByDay];
+    arr.sort((a, b) => sortDir === 'asc' ? a.total - b.total : b.total - a.total);
+    return arr;
+  }, [salesByDay, sortBy, sortDir]);
+
+  const sortedProfitByDay = useMemo(() => {
+    if (sortBy !== 'profit') return profitByDay;
+    const arr = [...profitByDay];
+    arr.sort((a, b) => sortDir === 'asc' ? a.profit - b.profit : b.profit - a.profit);
+    return arr;
+  }, [profitByDay, sortBy, sortDir]);
+
+  // helper: تبديل الفرز عند الضغط على رأس العمود
+  const toggleSort = (col) => {
+    if (sortBy === col) {
+      // ضغطة ثانية على نفس العمود → عكس الاتجاه
+      setSortDir(sortDir === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortBy(col);
+      setSortDir('desc'); // ابدأ تنازلي (الأعلى → الأقل)
+    }
+  };
+  // إعادة فرز افتراضي عند تبديل التبويب
+  useEffect(() => {
+    setSortBy(null);
+    setSortDir('desc');
+  }, [activeTab]);
+
   // فتح منتقي الفترة (شهر أو سنة بناءً على period الحالي)
   const openPeriodPicker = () => {
     if (period === 'month') {
@@ -267,9 +301,8 @@ export default function ManagerMonthly({ lang = 'ar' }) {
 
   return (
     <div
-      className="min-h-full px-4 pt-4 pb-8"
+      className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
       style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
@@ -403,13 +436,23 @@ export default function ManagerMonthly({ lang = 'ar' }) {
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Cash' : 'كاش'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Mada' : 'مدى'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Transfer' : 'تحويل'}</th>
-                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Total' : 'إجمالي'}</th>
+                  <th
+                    onClick={() => toggleSort('salesTotal')}
+                    className="p-2 text-center font-bold text-tw-muted cursor-pointer select-none hover:text-tw-blue active:bg-tw-soft/50"
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {lang === 'en' ? 'Total' : 'إجمالي'}
+                      <span className="text-[10px] opacity-70">
+                        {sortBy === 'salesTotal' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+                      </span>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {salesByDay.length === 0 ? (
+                {sortedSalesByDay.length === 0 ? (
                   <tr><td colSpan={5} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                ) : salesByDay.map((row) => (
+                ) : sortedSalesByDay.map((row) => (
                   <tr key={row.day} className="border-t border-tw-line/60">
                     <td className="p-2 font-bold text-tw-navy">{formatDayShort(row.day, lang)}</td>
                     <td className="p-2 text-center text-tw-muted">{Math.round(row.cash).toLocaleString()}</td>
@@ -481,13 +524,23 @@ export default function ManagerMonthly({ lang = 'ar' }) {
                   <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Sales' : 'المبيعات'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Expenses' : 'المصاريف'}</th>
-                  <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Profit' : 'الربح'}</th>
+                  <th
+                    onClick={() => toggleSort('profit')}
+                    className="p-2 text-center font-bold text-tw-muted cursor-pointer select-none hover:text-tw-blue active:bg-tw-soft/50"
+                  >
+                    <span className="inline-flex items-center gap-1">
+                      {lang === 'en' ? 'Profit' : 'الربح'}
+                      <span className="text-[10px] opacity-70">
+                        {sortBy === 'profit' ? (sortDir === 'asc' ? '▲' : '▼') : '⇅'}
+                      </span>
+                    </span>
+                  </th>
                 </tr>
               </thead>
               <tbody>
-                {profitByDay.length === 0 ? (
+                {sortedProfitByDay.length === 0 ? (
                   <tr><td colSpan={4} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                ) : profitByDay.map((row) => (
+                ) : sortedProfitByDay.map((row) => (
                   <tr key={row.day} className="border-t border-tw-line/60">
                     <td className="p-2 font-bold text-tw-navy">{formatDayShort(row.day, lang)}</td>
                     <td className="p-2 text-center text-tw-blue">{Math.round(row.sales).toLocaleString()}</td>
