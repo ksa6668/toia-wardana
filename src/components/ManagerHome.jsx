@@ -10,10 +10,12 @@
 // التقييمات: placeholder حالياً (يحتاج Google Places API)
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { ChevronDown, Loader2, Star, CheckCircle2 } from 'lucide-react';
+import { ChevronDown, Loader2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
-import SheetPortal from './SheetPortal';
-import { getBranches, getAllGoalsForMonth, getMonthlyGoal, setReviewsAchieved, getSales, salesNet, getWhatsappEntries } from '../firebase';
+import BudgetGoalEdit from './BudgetGoalEdit';
+import ReviewsGoalEdit from './ReviewsGoalEdit';
+import WhatsappGoalEdit from './WhatsappGoalEdit';
+import { getBranches, getMonthlyGoal, getSales, salesNet, getWhatsappEntries } from '../firebase';
 import { usePersistedState } from '../hooks/usePersistedState';
 import {
   formatMonthLabel,
@@ -30,16 +32,19 @@ const SHINE_OVERLAY = {
 };
 
 // كارت KPI واحد (تحقيق الميزانية أو التقييمات)
-// Batch 16: يدعم onDoubleClick لكرت التقييمات لتسجيل العدد المُحقّق
-function KpiCard({ label, percent, showStars, onDoubleClick, subtext }) {
+// Batch 49: onClick يفتح صفحة إدخال الهدف
+function KpiCard({ label, percent, showStars, onClick, subtext }) {
   const pct = Math.min(100, Math.max(0, percent));
   return (
     <div
-      className="text-white p-3 rounded-2xl overflow-hidden relative"
-      style={{ ...NAVY_GRADIENT, cursor: onDoubleClick ? 'pointer' : 'default' }}
-      onDoubleClick={onDoubleClick}
-      role={onDoubleClick ? 'button' : undefined}
-      title={onDoubleClick ? 'انقر مرتين لتسجيل التقييمات المُحقّقة' : undefined}
+      className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+      style={{ ...NAVY_GRADIENT, cursor: onClick ? 'pointer' : 'default' }}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); }
+      }}
     >
       <div className="absolute inset-0 opacity-30 pointer-events-none" style={SHINE_OVERLAY} />
       <div className="relative flex flex-col items-center text-center gap-2 min-h-[130px] justify-between">
@@ -82,12 +87,19 @@ function WindmillIcon() {
 }
 
 // كارت KPI رفيع لتحقيق واتساب (متوازن مع الكروت الأخرى لكن أقصر)
-function WhatsappKpiCard({ label, percent, subtext }) {
+// Batch 49: onClick يفتح صفحة إدخال نسبة الهدف
+function WhatsappKpiCard({ label, percent, subtext, onClick, noTarget }) {
   const pct = Math.min(100, Math.max(0, percent));
   return (
     <div
-      className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative"
-      style={NAVY_GRADIENT}
+      className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+      style={{ ...NAVY_GRADIENT, cursor: onClick ? 'pointer' : 'default' }}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); }
+      }}
     >
       <div className="absolute inset-0 opacity-30 pointer-events-none" style={SHINE_OVERLAY} />
       <div className="relative flex items-center justify-between gap-3">
@@ -98,17 +110,25 @@ function WhatsappKpiCard({ label, percent, subtext }) {
           <p className="text-[11px] font-bold opacity-95 leading-tight">{label}</p>
         </div>
         <div className="flex items-center gap-2 flex-1 max-w-[60%]">
-          <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-            <div
-              className="h-full rounded-full transition-all"
-              style={{
-                width: `${pct}%`,
-                background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
-                boxShadow: '0 0 8px rgba(40,223,255,0.5)',
-              }}
-            />
-          </div>
-          <p className="text-base font-extrabold leading-none whitespace-nowrap">{pct}%</p>
+          {noTarget ? (
+            <p className="text-[10px] font-bold whitespace-nowrap opacity-80 text-center w-full">
+              لم يُحدّد هدف
+            </p>
+          ) : (
+            <>
+              <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all"
+                  style={{
+                    width: `${pct}%`,
+                    background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                    boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                  }}
+                />
+              </div>
+              <p className="text-base font-extrabold leading-none whitespace-nowrap">{pct}%</p>
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -116,7 +136,13 @@ function WhatsappKpiCard({ label, percent, subtext }) {
 }
 
 // قسم لكل فرع (عنوان + شبكة 2×1 + كرت واتساب)
-function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsDoubleClick, whatsappPct, whatsappSubtext, lang }) {
+// Batch 49: onBudgetClick / onReviewsClick / onWhatsappClick
+function BranchSection({
+  name, budgetPct, reviewsPct, reviewsSubtext,
+  whatsappPct, whatsappSubtext, whatsappNoTarget,
+  onBudgetClick, onReviewsClick, onWhatsappClick,
+  lang
+}) {
   return (
     <div className="mb-4">
       {/* فاصل اسم الفرع */}
@@ -132,13 +158,14 @@ function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsD
         <KpiCard
           label={lang === 'en' ? 'Budget' : 'تحقيق الميزانية'}
           percent={budgetPct}
+          onClick={onBudgetClick}
         />
         <KpiCard
           label={lang === 'en' ? 'Google Reviews' : 'تقييمات قوقل ماب'}
           percent={reviewsPct}
           showStars
           subtext={reviewsSubtext}
-          onDoubleClick={onReviewsDoubleClick}
+          onClick={onReviewsClick}
         />
       </div>
       {/* Batch 46: كرت تحقيق واتساب رفيع */}
@@ -146,6 +173,8 @@ function BranchSection({ name, budgetPct, reviewsPct, reviewsSubtext, onReviewsD
         label={lang === 'en' ? 'WhatsApp Sales' : 'تحقيق مبيعات واتساب'}
         percent={whatsappPct}
         subtext={whatsappSubtext}
+        noTarget={whatsappNoTarget}
+        onClick={onWhatsappClick}
       />
     </div>
   );
@@ -166,12 +195,9 @@ export default function ManagerHome({ lang }) {
   const [branchKpis, setBranchKpis] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  // Batch 16: state لـ Reviews input sheet
-  const [reviewsInputOpen, setReviewsInputOpen] = useState(null); // null | { branchId, branchName, target, achieved }
-  const [reviewsInputValue, setReviewsInputValue] = useState('');
-  const [reviewsSaving, setReviewsSaving] = useState(false);
-  const [reviewsSaveDone, setReviewsSaveDone] = useState(false);
   const [refreshCounter, setRefreshCounter] = useState(0); // لإعادة تحميل البيانات بعد الحفظ
+  // Batch 49: شاشة تعديل الهدف الحالية
+  const [editScreen, setEditScreen] = useState(null); // { type: 'budget'|'reviews'|'whatsapp', branchId, branchName }
 
   // تحميل البيانات عند تغيير الفترة
   useEffect(() => {
@@ -203,6 +229,7 @@ export default function ManagerHome({ lang }) {
             budget: g.budget,
             reviewsTarget: g.reviewsTarget,
             reviewsAchieved: g.reviewsAchieved || 0,
+            whatsappTarget: g.whatsappTarget || 0,
             exists: g.exists,
           };
         });
@@ -212,7 +239,7 @@ export default function ManagerHome({ lang }) {
         // 5) حساب KPIs لكل فرع
         const kpisMap = {};
         for (const b of brs) {
-          const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0 };
+          const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0 };
           const branchSales = allSales.filter((s) => s.branchId === b.id);
           const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
           const budgetPct = goal.budget > 0
@@ -222,19 +249,22 @@ export default function ManagerHome({ lang }) {
           const reviewsPct = goal.reviewsTarget > 0
             ? Math.min(100, Math.round((goal.reviewsAchieved / goal.reviewsTarget) * 100))
             : 0;
-          // Batch 46: نسبة تحقيق مبيعات واتساب
-          // الحساب: (مشترين / إجمالي عملاء) ÷ 20% × 100، بسقف 100%
-          // مثال: 20% فعلي = 100% تحقيق، 10% = 50%، 30% = 100% (يتجاوز السقف)
+          // Batch 49: نسبة تحقيق واتساب - تعتمد على whatsappTarget من goal
+          // لو ما حُدّد هدف للشهر → noTarget = true (يعرض "لم يُحدّد هدف")
           const branchWa = allWhatsapp.filter((w) => w.branchId === b.id);
           const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
           const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
           const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
-          const whatsappPct = Math.min(100, Math.round((actualPct / 20) * 100));
+          const whatsappTarget = goal.whatsappTarget || 0;
+          const whatsappPct = whatsappTarget > 0
+            ? Math.min(100, Math.round((actualPct / whatsappTarget) * 100))
+            : 0;
+          const whatsappNoTarget = whatsappTarget <= 0;
           // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
           const whatsappSubtext = totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '';
           kpisMap[b.id] = {
             budgetPct, reviewsPct,
-            whatsappPct, whatsappSubtext,
+            whatsappPct, whatsappSubtext, whatsappNoTarget,
             hasGoal: goal.exists,
             reviewsTarget: goal.reviewsTarget || 0,
             reviewsAchieved: goal.reviewsAchieved || 0,
@@ -297,6 +327,36 @@ export default function ManagerHome({ lang }) {
 
   const currentLabel = formatMonthLabel(selectedMonth, lang);
 
+  // Batch 49: لو شاشة تعديل مفتوحة، نعرضها بدل الرئيسية
+  const closeEdit = () => {
+    setEditScreen(null);
+    setRefreshCounter((c) => c + 1); // إعادة تحميل البيانات بعد الحفظ
+  };
+  if (editScreen?.type === 'budget') {
+    return <BudgetGoalEdit
+      onBack={closeEdit}
+      branchId={editScreen.branchId}
+      branchName={editScreen.branchName}
+      lang={lang}
+    />;
+  }
+  if (editScreen?.type === 'reviews') {
+    return <ReviewsGoalEdit
+      onBack={closeEdit}
+      branchId={editScreen.branchId}
+      branchName={editScreen.branchName}
+      lang={lang}
+    />;
+  }
+  if (editScreen?.type === 'whatsapp') {
+    return <WhatsappGoalEdit
+      onBack={closeEdit}
+      branchId={editScreen.branchId}
+      branchName={editScreen.branchName}
+      lang={lang}
+    />;
+  }
+
   return (
     <div
       className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
@@ -333,31 +393,24 @@ export default function ManagerHome({ lang }) {
       {/* قائمة الفروع الديناميكية من Firestore */}
       {!loading && !error && branches.map((b) => {
         const k = branchKpis[b.id] || { budgetPct: 0, reviewsPct: 0, hasGoal: false, reviewsTarget: 0, reviewsAchieved: 0 };
-        // الـ subtext: "X / Y" إذا فيه هدف
+        const branchDisplayName = lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`);
+        // Batch 49: الـ subtext - إذا فيه هدف يعرض "محقق / هدف"
         const subtext = k.reviewsTarget > 0
           ? `${k.reviewsAchieved} / ${k.reviewsTarget}`
-          : (lang === 'en' ? 'Double-tap to set' : 'انقر مرتين للتسجيل');
-        // double-click handler (دائماً متاح - شهري فقط)
-        const handleDoubleClick = () => {
-          setReviewsInputOpen({
-            branchId: b.id,
-            branchName: lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`),
-            target: k.reviewsTarget,
-            achieved: k.reviewsAchieved,
-          });
-          setReviewsInputValue(String(k.reviewsAchieved || ''));
-          setReviewsSaveDone(false);
-        };
+          : (lang === 'en' ? 'Tap to set' : 'اضغط للتسجيل');
         return (
           <BranchSection
             key={b.id}
-            name={lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`)}
+            name={branchDisplayName}
             budgetPct={k.budgetPct}
             reviewsPct={k.reviewsPct}
             reviewsSubtext={subtext}
-            onReviewsDoubleClick={handleDoubleClick}
             whatsappPct={k.whatsappPct || 0}
             whatsappSubtext={k.whatsappSubtext}
+            whatsappNoTarget={k.whatsappNoTarget}
+            onBudgetClick={() => setEditScreen({ type: 'budget', branchId: b.id, branchName: branchDisplayName })}
+            onReviewsClick={() => setEditScreen({ type: 'reviews', branchId: b.id, branchName: branchDisplayName })}
+            onWhatsappClick={() => setEditScreen({ type: 'whatsapp', branchId: b.id, branchName: branchDisplayName })}
             lang={lang}
           />
         );
@@ -372,114 +425,6 @@ export default function ManagerHome({ lang }) {
         onPick={sheet?.onPick || (() => {})}
         onClose={() => setSheet(null)}
       />
-
-      {/* Batch 16: Sheet لإدخال عدد التقييمات المُحقّقة */}
-      {reviewsInputOpen && (
-        <SheetPortal>
-          <div className="tw-sheet-overlay show" onClick={() => setReviewsInputOpen(null)} />
-          <div className="tw-sheet-panel show" role="dialog" aria-modal="true">
-            <div className="tw-sheet-grab" />
-            <h3 style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Star size={18} className="text-tw-orange" />
-              <span>{lang === 'en' ? 'Reviews achieved' : 'التقييمات المُحقّقة'}</span>
-            </h3>
-            <p style={{
-              fontSize: 12, color: 'var(--tw-muted)', textAlign: 'center',
-              margin: '0 0 14px', fontWeight: 600,
-            }}>
-              {reviewsInputOpen.branchName}
-              {reviewsInputOpen.target > 0 && (
-                <span style={{ display: 'block', marginTop: 4, color: 'var(--tw-blue)' }}>
-                  {lang === 'en'
-                    ? `Target: ${reviewsInputOpen.target} reviews`
-                    : `الهدف: ${reviewsInputOpen.target} تقييم`}
-                </span>
-              )}
-            </p>
-
-            <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--tw-muted)', display: 'block', marginBottom: 6 }}>
-              {lang === 'en' ? 'Achieved count' : 'العدد المُحقّق'}
-            </label>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8,
-              background: 'rgba(40,57,90,.04)',
-              border: '1px solid var(--tw-line)',
-              borderRadius: 12, padding: 12, marginBottom: 14,
-            }}>
-              <input
-                type="number"
-                inputMode="numeric"
-                placeholder="0"
-                value={reviewsInputValue}
-                onChange={(e) => setReviewsInputValue(e.target.value.replace(/[^\d]/g, ''))}
-                style={{
-                  flex: 1, background: 'transparent', border: 'none', outline: 'none',
-                  fontSize: 18, fontWeight: 800, color: 'var(--tw-navy)',
-                  textAlign: 'center', direction: 'ltr',
-                }}
-              />
-              <Star size={16} className="text-tw-orange" />
-            </div>
-
-            {reviewsSaveDone && (
-              <p style={{
-                fontSize: 12, fontWeight: 700, textAlign: 'center',
-                background: '#ecfdf5', color: 'var(--tw-green)',
-                padding: '8px 12px', borderRadius: 10,
-                border: '1px solid #d1fae5', marginBottom: 12,
-                display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-              }}>
-                <CheckCircle2 size={16} />
-                {lang === 'en' ? 'Saved' : 'تم الحفظ'}
-              </p>
-            )}
-
-            <div style={{ display: 'flex', gap: 10 }}>
-              <button
-                onClick={() => setReviewsInputOpen(null)}
-                style={{
-                  flex: 1, padding: '12px', borderRadius: 12,
-                  background: 'white', border: '1px solid var(--tw-line)',
-                  color: 'var(--tw-navy)', fontWeight: 700, fontSize: 13,
-                }}
-              >
-                {lang === 'en' ? 'Cancel' : 'إلغاء'}
-              </button>
-              <button
-                onClick={async () => {
-                  setReviewsSaving(true);
-                  try {
-                    await setReviewsAchieved(
-                      reviewsInputOpen.branchId,
-                      selectedMonth,
-                      reviewsInputValue
-                    );
-                    setReviewsSaveDone(true);
-                    // إعادة تحميل البيانات لتحديث النسبة في الواجهة
-                    setRefreshCounter((c) => c + 1);
-                    setTimeout(() => setReviewsInputOpen(null), 800);
-                  } catch (err) {
-                    console.error('Save reviews failed:', err);
-                  } finally {
-                    setReviewsSaving(false);
-                  }
-                }}
-                disabled={reviewsSaving || !reviewsInputValue}
-                style={{
-                  flex: 1, padding: '12px', borderRadius: 12,
-                  background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
-                  color: 'white', fontWeight: 700, fontSize: 13,
-                  opacity: (reviewsSaving || !reviewsInputValue) ? 0.6 : 1,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-                }}
-              >
-                {reviewsSaving && <Loader2 size={14} className="animate-spin" />}
-                {reviewsSaving ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...') : (lang === 'en' ? 'Save' : 'حفظ')}
-              </button>
-            </div>
-          </div>
-        </SheetPortal>
-      )}
     </div>
   );
 }

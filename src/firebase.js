@@ -918,14 +918,16 @@ export async function getMonthlyGoal(branchId, monthStr) {
   const ref = doc(db, "goals", goalId);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
-    return { budget: 0, reviewsTarget: 0, exists: false };
+    return { budget: 0, reviewsTarget: 0, whatsappTarget: 0, exists: false };
   }
   return { ...snap.data(), exists: true };
 }
 
 /**
- * يحفظ هدف فرع لشهر معين. الـ data: { budget, reviewsTarget, reviewsAchieved? }
+ * يحفظ هدف فرع لشهر معين.
+ * الـ data: { budget, reviewsTarget, reviewsAchieved?, whatsappTarget? }
  * Batch 16: يدعم تحديث reviewsAchieved (التقييمات المُحقّقة) باستقلال.
+ * Batch 49: يدعم whatsappTarget (نسبة هدف الواتساب لهذا الشهر).
  */
 export async function setMonthlyGoal(branchId, monthStr, data) {
   const goalId = `${branchId}_${monthStr}`;
@@ -938,6 +940,7 @@ export async function setMonthlyGoal(branchId, monthStr, data) {
   if (data.budget !== undefined) payload.budget = Number(data.budget) || 0;
   if (data.reviewsTarget !== undefined) payload.reviewsTarget = Number(data.reviewsTarget) || 0;
   if (data.reviewsAchieved !== undefined) payload.reviewsAchieved = Number(data.reviewsAchieved) || 0;
+  if (data.whatsappTarget !== undefined) payload.whatsappTarget = Number(data.whatsappTarget) || 0;
   await setDoc(ref, payload, { merge: true });
   // Batch 45: مسح cache
   _invalidateCachePrefix('goals');
@@ -1489,6 +1492,7 @@ function formatDateArabic(dateStr) {
 
 /**
  * إشعار: تسجيل عملاء واتساب جديد — يُرسل فقط لو المُسجِّل موظف
+ * Batch 49: يستخدم whatsappTarget من goal الشهر (بدل 20% الثابت)
  */
 export async function notifyTelegramWhatsappAdded({ date, branchId, customers, newCustomers, buyers }) {
   // فلترة: للموظفين فقط (المدير لا يحتاج إشعار نفسه)
@@ -1500,11 +1504,24 @@ export async function notifyTelegramWhatsappAdded({ date, branchId, customers, n
   const buyersN = Number(buyers) || 0;
   // نسبة الشراء = مشترين / إجمالي العملاء × 100
   const buyersPct = customersN > 0 ? Math.round((buyersN / customersN) * 100) : 0;
-  // الهدف: 20% من اللي يكلّمونا يشترون فعلياً
-  const targetMet = buyersPct >= 20;
-  const goalLine = targetMet
-    ? `🎯 الهدف (20%): ✅ تحقق وتجاوز!`
-    : `🎯 الهدف (20%): ❌ لم يتحقق`;
+
+  // Batch 49: نجلب الهدف من goal الشهر
+  const monthStr = date.slice(0, 7); // YYYY-MM
+  let goalLine;
+  try {
+    const goal = await getMonthlyGoal(branchId, monthStr);
+    const target = Number(goal.whatsappTarget) || 0;
+    if (target <= 0) {
+      goalLine = `🎯 الهدف: لم يُحدّد`;
+    } else {
+      const targetMet = buyersPct >= target;
+      goalLine = targetMet
+        ? `🎯 الهدف (${target}%): ✅ تحقق وتجاوز!`
+        : `🎯 الهدف (${target}%): ❌ لم يتحقق`;
+    }
+  } catch {
+    goalLine = `🎯 الهدف: لم يُحدّد`;
+  }
 
   const branchName = branchId === 'toia' ? 'تويا' : branchId === 'wardana' ? 'وردانة' : branchId;
 

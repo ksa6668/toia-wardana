@@ -771,15 +771,19 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
         const reviewsPct = reviewsTarget > 0
           ? Math.min(100, Math.round((reviewsAchieved / reviewsTarget) * 100))
           : 0;
-        // Batch 46: نسبة تحقيق واتساب (20% من المشترين = 100% تحقيق)
+        // Batch 49: نسبة تحقيق واتساب - تعتمد على whatsappTarget من goal
         const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
         const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
         const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
-        const whatsappPct = Math.min(100, Math.round((actualPct / 20) * 100));
+        const whatsappTarget = Number(goal.whatsappTarget) || 0;
+        const whatsappPct = whatsappTarget > 0
+          ? Math.min(100, Math.round((actualPct / whatsappTarget) * 100))
+          : 0;
+        const whatsappNoTarget = whatsappTarget <= 0;
         // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
         const whatsappSubtext = totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '';
         if (!cancelled) {
-          setKpis({ budgetPct, reviewsPct, whatsappPct, whatsappSubtext, loaded: true, hasGoal: goal.exists });
+          setKpis({ budgetPct, reviewsPct, whatsappPct, whatsappSubtext, whatsappNoTarget, loaded: true, hasGoal: goal.exists });
         }
       } catch (err) {
         // Batch 39: نسجّل الخطأ بدل ابتلاعه — مفيد للتشخيص في Console
@@ -914,17 +918,25 @@ function EmployeeHome({ setView, branch, branchId, lang, setLang }) {
               </p>
             </div>
             <div className="flex items-center gap-2 flex-1 max-w-[55%]">
-              <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${kpis.whatsappPct}%`,
-                    background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
-                    boxShadow: '0 0 8px rgba(40,223,255,0.5)',
-                  }}
-                />
-              </div>
-              <p className="text-base font-extrabold leading-none whitespace-nowrap">{kpis.whatsappPct}%</p>
+              {kpis.whatsappNoTarget ? (
+                <p className="text-[10px] font-bold whitespace-nowrap opacity-80 text-center w-full">
+                  {lang === 'en' ? 'No target set' : 'لم يُحدّد هدف'}
+                </p>
+              ) : (
+                <>
+                  <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${kpis.whatsappPct}%`,
+                        background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                        boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                      }}
+                    />
+                  </div>
+                  <p className="text-base font-extrabold leading-none whitespace-nowrap">{kpis.whatsappPct}%</p>
+                </>
+              )}
             </div>
           </div>
         </div>

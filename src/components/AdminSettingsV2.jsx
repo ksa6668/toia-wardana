@@ -7,11 +7,10 @@
 // ----------------------------------------------------------
 import { useState } from 'react';
 import {
-  ChevronRight, Target, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
+  ChevronRight, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
   PieChart, GripVertical, MessageCircle,
 } from 'lucide-react';
 import { useDragSort } from '../hooks/useDragSort';
-import ManagerGoals from './ManagerGoals';
 import ManagerBranches from './ManagerBranches';
 import ManagerGeneralSettings from './ManagerGeneralSettings';
 import ManagerNotifications from './ManagerNotifications';
@@ -25,13 +24,6 @@ const ITEMS = [
     icon: PieChart, color: 'blue',
     label: { ar: 'المبيعات والمصروفات', en: 'Sales & Expenses' },
     desc: { ar: 'تسجيل وتعديل وحذف عمليات آخر 7 أيام', en: 'Record, edit and delete operations from last 7 days' },
-    enabled: true,
-  },
-  {
-    key: 'goals',
-    icon: Target, color: 'blue',
-    label: { ar: 'الأهداف الشهرية', en: 'Monthly Goals' },
-    desc: { ar: 'تحديد أهداف المبيعات والتقييمات شهرياً', en: 'Set monthly sales and reviews targets' },
     enabled: true,
   },
   {
@@ -137,7 +129,6 @@ export default function AdminSettingsV2({
   if (screen === 'whatsappBaseline') return <ManageWhatsappBaseline onBack={goBack} lang={lang} />;
   if (screen === 'categories' && ManageCategoriesComponent) return <ManageCategoriesComponent onBack={goBack} />;
   if (screen === 'adminEntry' && AdminDataEntryComponent) return <AdminDataEntryComponent onBack={goBack} />;
-  if (screen === 'goals') return <ManagerGoals onBack={goBack} lang={lang} />;
   if (screen === 'branches') return <ManagerBranches onBack={goBack} lang={lang} />;
   if (screen === 'general') return <ManagerGeneralSettings onBack={goBack} lang={lang} />;
   if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;
