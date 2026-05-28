@@ -175,10 +175,16 @@ export function splitYearToQuarters(year) {
  * يحوّل تاريخ ISO إلى نص يوم/تاريخ مختصر بالعربية:
  * '2026-05-21' → '21 مايو'
  */
-export function formatDayShort(isoDate, lang = 'ar') {
+export function formatDayShort(isoDate, lang = 'ar', withYear = false) {
   const d = new Date(isoDate);
   const monthsAr = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
   const monthsEn = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
   const arr = lang === 'en' ? monthsEn : monthsAr;
-  return `${d.getDate()} ${arr[d.getMonth()]}`;
+  const base = `${d.getDate()} ${arr[d.getMonth()]}`;
+  // Batch 51: لو withYear=true، نضيف آخر رقمين من السنة (مثلاً 24)
+  if (withYear) {
+    const yy = String(d.getFullYear()).slice(-2);
+    return `${base} ${yy}`;
+  }
+  return base;
 }

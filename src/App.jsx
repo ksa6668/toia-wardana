@@ -199,6 +199,8 @@ export default function App() {
   const [showChangePinModal, setShowChangePinModal] = useState(false);
   // Batch 18: عنوان الشاشة الفرعية + handler العودة (للهيدر)
   const [screenCtx, setScreenCtx] = useState(null); // { title, onBack } | null
+  // Batch 51: سجل معلّق للتعديل (من شاشة الكشف الشامل)
+  const [pendingEditRecord, setPendingEditRecord] = useState(null);
   
   // Batch 35: عداد الإشعارات غير المقروءة — يقرأ من localStorage ويستمع لـ events
   const [unreadCount, setUnreadCount] = useState(() => getUnreadCount());
@@ -384,7 +386,16 @@ export default function App() {
           )}
           {/* ====== شاشات المدير ====== */}
           {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" />}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && <ManagerMonthly lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && (
+            <ManagerMonthly
+              lang="ar"
+              onEditRecord={(rec) => {
+                // Batch 51: انتقل لتبويب الإعدادات → AdminDataEntry → تعديل
+                setPendingEditRecord(rec);
+                setAdminTab('settings');
+              }}
+            />
+          )}
           {!authLoading && currentView === 'adminHome' && adminTab === 'whatsapp' && <ManagerWhatsapp lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
@@ -394,6 +405,8 @@ export default function App() {
               ManageFixedExpensesComponent={ManageFixedExpenses}
               ManageCategoriesComponent={ManageCategories}
               AdminDataEntryComponent={AdminDataEntry}
+              pendingEditRecord={pendingEditRecord}
+              onPendingConsumed={() => setPendingEditRecord(null)}
             />
           )}
         </main>
@@ -2033,7 +2046,7 @@ function ChangeMyPin({ onBack }) {
 // - فرع تويا افتراضياً (للمدير)
 // - الفرع يُغيَّر من داخل النماذج عبر pill قابل للنقر → bottom sheet
 // - كل سطر في القائمة فيه ✎ تعديل + 🗑 حذف (للمدير فقط)
-function AdminDataEntry({ onBack }) {
+function AdminDataEntry({ onBack, pendingEditRecord = null, onPendingConsumed }) {
   const [step, setStep] = useState('home');
   // Batch 41: نُجبر إعادة تسجيل الـ header عند تغيّر step
   // (عند العودة لـ home بعد فتح salesForm، الـ ctx يكون null)
@@ -2093,6 +2106,15 @@ function AdminDataEntry({ onBack }) {
     if (entry.kind === 'sale') setStep('editSalesForm');
     else setStep('editExpenseForm');
   };
+
+  // Batch 51: عند تمرير سجل معلّق للتعديل من خارج (شاشة الكشف)، نفتحه فوراً
+  useEffect(() => {
+    if (pendingEditRecord) {
+      handleEdit(pendingEditRecord);
+      onPendingConsumed?.();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingEditRecord]);
 
   const handleDeleteRequest = (entry) => {
     setDeleteError('');

@@ -12,8 +12,10 @@
 // ----------------------------------------------------------
 import { useState, useMemo, useEffect } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Filter } from 'lucide-react';
-import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, getBranches } from '../firebase';
 import BottomSheet from './BottomSheet';
+import DayRecordsSheet from './DayRecordsSheet';
+import MonthlyBreakdownSheet from './MonthlyBreakdownSheet';
 import SarSymbol from './SarSymbol';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useCachedQuery } from '../hooks/useCachedQuery';
@@ -26,7 +28,7 @@ import {
   formatDayShort,
 } from '../utils/periodHelpers';
 
-export default function ManagerMonthly({ lang = 'ar' }) {
+export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   // Batch 45: حفظ اختيارات المستخدم عبر التنقل (sessionStorage)
   const [period, setPeriod] = usePersistedState('monthly.period', 'month');
   const [selectedMonth, setSelectedMonth] = usePersistedState('monthly.month', () => {
@@ -40,6 +42,22 @@ export default function ManagerMonthly({ lang = 'ar' }) {
   // Batch 50: فرز - sortBy = null | 'salesTotal' | 'profit', sortDir = 'asc' | 'desc'
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
+  // Batch 51: تاريخ السجلات المعروضة في Bottom Sheet
+  const [dayDetailDate, setDayDetailDate] = useState(null);
+  // Batch 53: نوع المؤشر المعروض في BreakdownSheet (null = مغلق)
+  const [breakdownMetric, setBreakdownMetric] = useState(null);
+  // Batch 51: قائمة الفروع (لإظهار الأسماء في DayRecordsSheet)
+  const [branchesList, setBranchesList] = useState([
+    { id: 'toia', name: 'تويا' },
+    { id: 'wardana', name: 'وردانة' },
+  ]);
+  useEffect(() => {
+    let cancelled = false;
+    getBranches().then((bs) => {
+      if (!cancelled && bs?.length) setBranchesList(bs);
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, []);
   // قائمة منبثقة (لا تُحفظ - حالة UI مؤقتة)
   const [sheet, setSheet] = useState(null);
 
@@ -129,6 +147,15 @@ export default function ManagerMonthly({ lang = 'ar' }) {
     const totalFixedExp = filteredFixed.reduce((sum, f) => sum + (f.amount || 0), 0);
     const totalExp = totalVarExp + totalFixedExp;
     const profit = totalSales - totalExp;
+    // Batch 51: تفصيل طرق الدفع
+    const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
+    const totalMadaNet = filteredSales.reduce((s, x) => {
+      if (typeof x.madaNet === 'number') return s + x.madaNet;
+      const m = Number(x.mada) || 0;
+      return s + +(m * (1 - 0.0092)).toFixed(2);
+    }, 0);
+    const totalTransfer = filteredSales.reduce((s, x) => s + (Number(x.transfer) || 0), 0);
+    const salesBase = totalSales || 1;
     // عدد الأيام الفريدة للحساب المتوسطات
     const daysWithSales = new Set(filteredSales.map((s) => s.date)).size || 1;
     const daysWithExp = new Set(filteredExpenses.map((e) => e.date)).size || 1;
@@ -143,6 +170,12 @@ export default function ManagerMonthly({ lang = 'ar' }) {
       avgSales: Math.round(totalSales / daysWithSales),
       avgExp: Math.round(totalExp / daysWithExp),
       avgProfit: Math.round(profit / daysWithAny),
+      cash: Math.round(totalCash),
+      cashPct: Math.round((totalCash / salesBase) * 100),
+      mada: Math.round(totalMadaNet),
+      madaPct: Math.round((totalMadaNet / salesBase) * 100),
+      transfer: Math.round(totalTransfer),
+      transferPct: Math.round((totalTransfer / salesBase) * 100),
     };
   }, [filteredSales, filteredExpenses, filteredFixed]);
 
@@ -352,46 +385,107 @@ export default function ManagerMonthly({ lang = 'ar' }) {
         </button>
       </div>
 
-      {/* Batch 44: 6 كروت (3 إجماليات + 3 متوسطات) */}
+      {/* Batch 44: 6 كروت (3 إجماليات + 3 متوسطات) - Batch 53: قابلة للضغط لعرض التفصيل الشهري */}
       <div className="grid grid-cols-3 gap-2 mb-2">
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+        <button
+          onClick={() => setBreakdownMetric('sales')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Sales' : 'إجمالي المبيعات'}</p>
           <p className="text-sm font-bold text-tw-blue flex items-center justify-center gap-1">
             {Math.round(totals.sales).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+        </button>
+        <button
+          onClick={() => setBreakdownMetric('expenses')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Expenses' : 'إجمالي المصاريف'}</p>
           <p className="text-sm font-bold text-tw-red flex items-center justify-center gap-1">
             {Math.round(totals.expenses).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+        </button>
+        <button
+          onClick={() => setBreakdownMetric('profit')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Net Profit' : 'صافي الربح'}</p>
           <p className="text-sm font-bold text-tw-green flex items-center justify-center gap-1">
             {Math.round(totals.profit).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-        </div>
+        </button>
       </div>
       <div className="grid grid-cols-3 gap-2 mb-4">
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+        <button
+          onClick={() => setBreakdownMetric('avgSales')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg sales' : 'متوسط المبيعات'}</p>
           <p className="text-sm font-bold text-tw-blue/80 flex items-center justify-center gap-1">
             {totals.avgSales.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+        </button>
+        <button
+          onClick={() => setBreakdownMetric('avgExpenses')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg expenses' : 'متوسط المصاريف'}</p>
           <p className="text-sm font-bold text-tw-red/80 flex items-center justify-center gap-1">
             {totals.avgExp.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-        </div>
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+        </button>
+        <button
+          onClick={() => setBreakdownMetric('avgProfit')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
           <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg net profit' : 'متوسط صافي الربح'}</p>
           <p className="text-sm font-bold text-tw-green/80 flex items-center justify-center gap-1">
             {totals.avgProfit.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-        </div>
+        </button>
+      </div>
+
+      {/* Batch 51: كروت طرق الدفع - الكاش + مدى + التحويل (مبلغ ونسبة) - Batch 53: قابلة للضغط */}
+      <div className="grid grid-cols-3 gap-2 mb-4">
+        <button
+          onClick={() => setBreakdownMetric('cash')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Cash' : 'الكاش'}</p>
+          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
+            {totals.cash.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+          <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.cashPct}%</p>
+        </button>
+        <button
+          onClick={() => setBreakdownMetric('mada')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Mada' : 'مدى'}</p>
+          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
+            {totals.mada.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+          <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.madaPct}%</p>
+        </button>
+        <button
+          onClick={() => setBreakdownMetric('transfer')}
+          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          type="button"
+        >
+          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Transfer' : 'تحويل'}</p>
+          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
+            {totals.transfer.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+          <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.transferPct}%</p>
+        </button>
       </div>
 
       {/* تبويبات */}
@@ -452,15 +546,24 @@ export default function ManagerMonthly({ lang = 'ar' }) {
               <tbody>
                 {sortedSalesByDay.length === 0 ? (
                   <tr><td colSpan={5} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                ) : sortedSalesByDay.map((row) => (
+                ) : sortedSalesByDay.map((row) => {
+                  // Batch 51: السنة تظهر فقط في "سنوي كل السنوات"
+                  const showYear = (period === 'month' && selectedMonth === 'all') || (period === 'year' && selectedYear === 'all');
+                  return (
                   <tr key={row.day} className="border-t border-tw-line/60">
-                    <td className="p-2 font-bold text-tw-navy">{formatDayShort(row.day, lang)}</td>
+                    <td
+                      className="p-2 font-bold text-tw-navy cursor-pointer hover:text-tw-blue active:opacity-70"
+                      onClick={() => setDayDetailDate(row.day)}
+                    >
+                      {formatDayShort(row.day, lang, showYear)}
+                    </td>
                     <td className="p-2 text-center text-tw-muted">{Math.round(row.cash).toLocaleString()}</td>
                     <td className="p-2 text-center text-tw-muted">{Math.round(row.mada).toLocaleString()}</td>
                     <td className="p-2 text-center text-tw-muted">{Math.round(row.transfer).toLocaleString()}</td>
                     <td className="p-2 text-center font-bold text-tw-blue">{Math.round(row.total).toLocaleString()}</td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -540,16 +643,24 @@ export default function ManagerMonthly({ lang = 'ar' }) {
               <tbody>
                 {sortedProfitByDay.length === 0 ? (
                   <tr><td colSpan={4} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                ) : sortedProfitByDay.map((row) => (
+                ) : sortedProfitByDay.map((row) => {
+                  const showYear = (period === 'month' && selectedMonth === 'all') || (period === 'year' && selectedYear === 'all');
+                  return (
                   <tr key={row.day} className="border-t border-tw-line/60">
-                    <td className="p-2 font-bold text-tw-navy">{formatDayShort(row.day, lang)}</td>
+                    <td
+                      className="p-2 font-bold text-tw-navy cursor-pointer hover:text-tw-blue active:opacity-70"
+                      onClick={() => setDayDetailDate(row.day)}
+                    >
+                      {formatDayShort(row.day, lang, showYear)}
+                    </td>
                     <td className="p-2 text-center text-tw-blue">{Math.round(row.sales).toLocaleString()}</td>
                     <td className="p-2 text-center text-tw-red">{Math.round(row.expenses).toLocaleString()}</td>
                     <td className={`p-2 text-center font-bold ${row.profit >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
                       {Math.round(row.profit).toLocaleString()}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           )}
@@ -564,6 +675,32 @@ export default function ManagerMonthly({ lang = 'ar' }) {
         onPick={sheet?.onPick || (() => {})}
         onClose={() => setSheet(null)}
       />
+
+      {/* Batch 51: Sheet لعرض سجلات اليوم وتعديلها */}
+      {dayDetailDate && (
+        <DayRecordsSheet
+          date={dayDetailDate}
+          sales={filteredSales.filter((s) => s.date === dayDetailDate)}
+          expenses={filteredExpenses.filter((e) => e.date === dayDetailDate)}
+          branches={branchesList}
+          lang={lang}
+          onClose={() => setDayDetailDate(null)}
+          onEditRecord={(rec) => {
+            setDayDetailDate(null);
+            if (onEditRecord) onEditRecord(rec);
+          }}
+        />
+      )}
+
+      {/* Batch 53: Sheet لعرض تفصيل المؤشر شهرياً */}
+      {breakdownMetric && (
+        <MonthlyBreakdownSheet
+          metric={breakdownMetric}
+          branchFilter={branchFilter}
+          lang={lang}
+          onClose={() => setBreakdownMetric(null)}
+        />
+      )}
     </div>
   );
 }

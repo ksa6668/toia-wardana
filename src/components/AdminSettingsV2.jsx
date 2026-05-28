@@ -5,7 +5,7 @@
 //   - "تغيير الرمز السري" انتقل لقائمة الحساب من زر الـ profile
 //   - "المبيعات والمصروفات" صار بنفس لون باقي الإعدادات (blue)
 // ----------------------------------------------------------
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   ChevronRight, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
   PieChart, GripVertical, MessageCircle,
@@ -97,10 +97,19 @@ export default function AdminSettingsV2({
   ManageFixedExpensesComponent,
   ManageCategoriesComponent,
   AdminDataEntryComponent,
+  pendingEditRecord = null,
+  onPendingConsumed,
 }) {
   const [screen, setScreen] = useState('menu');
   const [showCategoriesFromReceipts, setShowCategoriesFromReceipts] = useState(false);
   const goBack = () => setScreen('menu');
+
+  // Batch 51: لو فيه سجل معلّق للتعديل، انتقل تلقائياً لشاشة AdminDataEntry
+  useEffect(() => {
+    if (pendingEditRecord) {
+      setScreen('adminEntry');
+    }
+  }, [pendingEditRecord]);
 
   // Batch 19+22: ترتيب مخصّص بالسحب (يدعم touch على الموبايل)
   const STORAGE_KEY = 'tw-settings-order-v1';
@@ -128,7 +137,13 @@ export default function AdminSettingsV2({
   if (screen === 'fixed' && ManageFixedExpensesComponent) return <ManageFixedExpensesComponent onBack={goBack} />;
   if (screen === 'whatsappBaseline') return <ManageWhatsappBaseline onBack={goBack} lang={lang} />;
   if (screen === 'categories' && ManageCategoriesComponent) return <ManageCategoriesComponent onBack={goBack} />;
-  if (screen === 'adminEntry' && AdminDataEntryComponent) return <AdminDataEntryComponent onBack={goBack} />;
+  if (screen === 'adminEntry' && AdminDataEntryComponent) return (
+    <AdminDataEntryComponent
+      onBack={() => { goBack(); onPendingConsumed?.(); }}
+      pendingEditRecord={pendingEditRecord}
+      onPendingConsumed={onPendingConsumed}
+    />
+  );
   if (screen === 'branches') return <ManagerBranches onBack={goBack} lang={lang} />;
   if (screen === 'general') return <ManagerGeneralSettings onBack={goBack} lang={lang} />;
   if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;

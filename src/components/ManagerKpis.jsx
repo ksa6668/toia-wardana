@@ -12,7 +12,7 @@
 //   - حذف: نسبة التسويق، نسبة المصاريف من المبيعات
 // ----------------------------------------------------------
 import { useState, useMemo } from 'react';
-import { ChevronDown, MapPin, Wallet, CreditCard, Send, Globe, Flower2, Truck, Receipt, Loader2 } from 'lucide-react';
+import { ChevronDown, MapPin, Globe, Flower2, Truck, Receipt, TrendingUp, Loader2 } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
@@ -82,8 +82,19 @@ function PeriodCard({ label, amount, pct, wide = false }) {
 }
 
 // صف KPI واحد (أيقونة + اسم + نسبة)
+// Batch 52: KpiRow يدعم النسب السالبة و >100% بدقة
+// - الدائرة البصرية تُحجز بين 0-100% (للعرض فقط)
+// - الرقم المعروض يُظهر القيمة الحقيقية (سالب أو فوق 100%)
+// - لون النسبة: أحمر للسالب، أزرق للموجب
 function KpiRow({ icon: Icon, label, pct }) {
-  const p = Math.max(0, Math.min(100, Math.round(pct) || 0));
+  const safePct = Number.isFinite(pct) ? pct : 0;
+  const displayPct = Math.round(safePct); // قد يكون سالب أو فوق 100
+  // الدائرة البصرية: مقيدة 0-100% للعرض
+  const visualPct = Math.max(0, Math.min(100, displayPct));
+  // لون الرقم: أحمر إذا سالب
+  const isNegative = displayPct < 0;
+  // لون الدائرة: أحمر إذا سالب، أزرق إذا موجب
+  const strokeColor = isNegative ? '#EF4444' : '#005BFF';
   return (
     <div className="flex items-center justify-between py-3 border-b border-tw-line last:border-0">
       <div className="flex items-center gap-3">
@@ -98,13 +109,15 @@ function KpiRow({ icon: Icon, label, pct }) {
           <circle
             cx="22" cy="22" r="18"
             fill="none"
-            stroke="#005BFF"
+            stroke={strokeColor}
             strokeWidth="4"
             strokeLinecap="round"
-            strokeDasharray={`${(p / 100) * 113} 113`}
+            strokeDasharray={`${(visualPct / 100) * 113} 113`}
           />
         </svg>
-        <span className="text-[10px] font-bold text-black relative">{p}%</span>
+        <span className={`text-[10px] font-bold relative ${isNegative ? 'text-tw-red' : 'text-black'}`}>
+          {displayPct}%
+        </span>
       </div>
     </div>
   );
@@ -121,13 +134,17 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const [branchFilter, setBranchFilter] = usePersistedState('kpis.branch', 'all');
   const [sheet, setSheet] = useState(null);
 
-  // Batch 45: حساب النطاق
+  // Batch 52: حساب النطاق - يدعم "كل السنوات" أيضاً
   const { from, to } = useMemo(() => {
     if (period === 'month') {
       if (selectedMonth === 'all') {
         return { from: '2024-01-01', to: `${new Date().getFullYear()}-12-31` };
       }
       return monthRange(selectedMonth);
+    }
+    // سنوي
+    if (selectedYear === 'all') {
+      return { from: '2024-01-01', to: `${new Date().getFullYear()}-12-31` };
     }
     return yearRange(selectedYear);
   }, [period, selectedMonth, selectedYear]);
@@ -137,7 +154,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
     const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     const currentY = now.getFullYear();
     if (period === 'month') return selectedMonth === currentYM || selectedMonth === 'all';
-    return selectedYear === currentY;
+    return selectedYear === currentY || selectedYear === 'all';
   }, [period, selectedMonth, selectedYear]);
 
   const ttl = isCurrentPeriod ? 30 * 1000 : 30 * 60 * 1000;
@@ -182,9 +199,18 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const periodCards = useMemo(() => {
     // Batch 36: لو "كل الأشهر" نعرضها كقسم واحد (لا يوجد أسابيع منطقية)
     if (period === 'month' && selectedMonth === 'all') {
-      const totalAll = filteredSales.reduce((sum, s) => sum + salesNet(s), 0) || 1;
+      const totalAll = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
       return [{
         label: lang === 'en' ? 'All months' : 'كل الأشهر',
+        amount: totalAll,
+        pct: '100.0',
+      }];
+    }
+    // Batch 52: نفس الشيء لـ "كل السنوات"
+    if (period === 'year' && selectedYear === 'all') {
+      const totalAll = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
+      return [{
+        label: lang === 'en' ? 'All years' : 'كل السنوات',
         amount: totalAll,
         pct: '100.0',
       }];
@@ -205,7 +231,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
     });
   }, [period, selectedMonth, selectedYear, filteredSales, lang]);
 
-  // النسب (Batch 13 + Batch 15)
+  // النسب (Batch 52 - حسبة متينة + معالجة edge cases)
   const kpiRows = useMemo(() => {
     // Batch 29: نستخدم madaNet (بعد رسوم مدى) ليطابق netTotal — مبالغ الحساب البنكي الفعلية
     const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
@@ -216,8 +242,9 @@ export default function ManagerKpis({ lang = 'ar' }) {
       return s + +(m * (1 - 0.0092)).toFixed(2);
     }, 0);
     const totalTransfer = filteredSales.reduce((s, x) => s + (Number(x.transfer) || 0), 0);
-    const totalSales = totalCash + totalMadaNet + totalTransfer || 1;
-    const storeOnly = totalCash + totalMadaNet || 1; // كاش + مدى صافي = المتجر
+    // Batch 52: إجمالي المبيعات الحقيقي (يطابق salesNet)
+    const totalSales = totalCash + totalMadaNet + totalTransfer;
+    const storeOnly = totalCash + totalMadaNet; // كاش + مدى صافي = المتجر
 
     // مصاريف الورد والتوصيل من filteredExpenses
     const sumByType = (type) =>
@@ -226,49 +253,51 @@ export default function ManagerKpis({ lang = 'ar' }) {
         .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
     const flowers = sumByType('flower');
     const delivery = sumByType('delivery');
-    // Batch 50: إجمالي كل المصاريف (variable expenses) من filteredExpenses
-    const totalExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    // Batch 50: إجمالي كل المصاريف المتغيرة
+    const totalVarExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+    // Batch 51: المصاريف الثابتة + صافي الربح
+    const totalFixedExpenses = filteredFixed.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+    const totalAllExpenses = totalVarExpenses + totalFixedExpenses;
+    const netProfit = totalSales - totalAllExpenses;
 
-    // Batch 50: الترتيب الجديد:
-    // 1) كاش 2) مدى 3) تحويل 4) أون لاين 5) ورد 6) توصيل 7) إجمالي المصروفات
+    // Batch 52: دالة آمنة للنسبة - تتعامل مع القسمة على صفر
+    // - لو totalSales = 0: نُرجع 0 (لا توجد مبيعات في الفترة)
+    // - السماح بنسب سالبة (للربح) وفوق 100% (للمصاريف)
+    const safePct = (numerator, denominator) => {
+      if (!denominator || denominator === 0) return 0;
+      const result = (numerator / denominator) * 100;
+      return Number.isFinite(result) ? result : 0;
+    };
+
+    // Batch 51: الترتيب الجديد
     return [
       {
-        icon: Wallet,
-        label: lang === 'en' ? 'Cash ratio of sales' : 'نسبة الكاش من المبيعات',
-        pct: (totalCash / totalSales) * 100,
-      },
-      {
-        icon: CreditCard,
-        label: lang === 'en' ? 'Mada ratio of sales' : 'نسبة مدى من المبيعات',
-        pct: (totalMadaNet / totalSales) * 100,
-      },
-      {
-        icon: Send,
-        label: lang === 'en' ? 'Transfer ratio of sales' : 'نسبة التحويل من المبيعات',
-        pct: (totalTransfer / totalSales) * 100,
+        icon: TrendingUp,
+        label: lang === 'en' ? 'Net profit ratio of sales' : 'نسبة صافي الربح من المبيعات',
+        pct: safePct(netProfit, totalSales),
       },
       {
         icon: Globe,
         label: lang === 'en' ? 'Online ratio of store sales' : 'نسبة الأون لاين من المتجر',
-        pct: (totalTransfer / storeOnly) * 100,
+        pct: safePct(totalTransfer, storeOnly),
       },
       {
         icon: Flower2,
         label: lang === 'en' ? 'Flowers cost ratio of sales' : 'نسبة تكلفة الورد من المبيعات',
-        pct: (flowers / totalSales) * 100,
+        pct: safePct(flowers, totalSales),
       },
       {
         icon: Truck,
         label: lang === 'en' ? 'Delivery cost ratio of sales' : 'نسبة تكلفة التوصيل من المبيعات',
-        pct: (delivery / totalSales) * 100,
+        pct: safePct(delivery, totalSales),
       },
       {
         icon: Receipt,
         label: lang === 'en' ? 'Total expenses ratio of sales' : 'نسبة إجمالي المصروفات من المبيعات',
-        pct: (totalExpenses / totalSales) * 100,
+        pct: safePct(totalVarExpenses, totalSales),
       },
     ];
-  }, [filteredSales, filteredExpenses, lang]);
+  }, [filteredSales, filteredExpenses, filteredFixed, lang]);
 
   const openPeriodPicker = () => {
     if (period === 'month') {
@@ -284,7 +313,10 @@ export default function ManagerKpis({ lang = 'ar' }) {
     } else {
       setSheet({
         title: lang === 'en' ? 'Pick year' : 'اختر السنة',
-        options: getAvailableYears().map((y) => ({ value: y, label: String(y) })),
+        options: [
+          { value: 'all', label: lang === 'en' ? 'All years' : 'كل السنوات' },
+          ...getAvailableYears().map((y) => ({ value: y, label: String(y) })),
+        ],
         current: selectedYear,
         onPick: (v) => { setSelectedYear(v); setSheet(null); },
       });
@@ -312,7 +344,9 @@ export default function ManagerKpis({ lang = 'ar' }) {
     ? (selectedMonth === 'all'
         ? (lang === 'en' ? 'All months' : 'كل الأشهر')
         : formatMonthLabel(selectedMonth, lang))
-    : String(selectedYear);
+    : (selectedYear === 'all'
+        ? (lang === 'en' ? 'All years' : 'كل السنوات')
+        : String(selectedYear));
 
   return (
     <div
@@ -368,8 +402,12 @@ export default function ManagerKpis({ lang = 'ar' }) {
           {/* عنوان القسم */}
           <h3 className="text-center text-sm font-extrabold text-tw-navy my-3">
             {period === 'month'
-              ? (lang === 'en' ? 'Weekly sales performance' : 'أداء المبيعات الأسبوعي')
-              : (lang === 'en' ? 'Quarterly sales performance' : 'أداء المبيعات الربع سنوي')
+              ? (selectedMonth === 'all'
+                  ? (lang === 'en' ? 'Total sales' : 'إجمالي المبيعات')
+                  : (lang === 'en' ? 'Weekly sales performance' : 'أداء المبيعات الأسبوعي'))
+              : (selectedYear === 'all'
+                  ? (lang === 'en' ? 'Total sales' : 'إجمالي المبيعات')
+                  : (lang === 'en' ? 'Quarterly sales performance' : 'أداء المبيعات الربع سنوي'))
             }
           </h3>
 
