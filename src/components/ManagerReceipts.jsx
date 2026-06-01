@@ -3,7 +3,7 @@ import { Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, X, Settings } f
 import { getExpenses } from '../firebase';
 import SarSymbol from './SarSymbol';
 import SheetPortal from './SheetPortal';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 // شاشة الإيصالات والفواتير — تعرض المصاريف اللي عليها صورة فاتورة
 // الفلاتر: الفترة (آخر 7 أيام / آخر 30 يوم / الكل) + الفرع (تويا / وردانة / الكل)

@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import { Bell, Loader2, AlertCircle } from 'lucide-react';
 import { getAppSettings, setAppSettings } from '../firebase';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 // مكون toggle مخصص بتصميم prototype
 function ToggleSwitch({ value, onChange, disabled }) {

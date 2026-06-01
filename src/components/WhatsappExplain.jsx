@@ -3,7 +3,7 @@
 // Batch 46.9: شاشة شرح نسبة تحقيق مبيعات واتساب للموظف
 // ----------------------------------------------------------
 import { MessageCircle, Calculator, Lightbulb, Info, Target } from 'lucide-react';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 export default function WhatsappExplain({ onBack, lang = 'ar' }) {
   useScreenHeader(

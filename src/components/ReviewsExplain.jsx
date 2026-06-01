@@ -3,7 +3,7 @@
 // Batch 46.9: شاشة شرح نسبة تحقيق تقييمات قوقل ماب للموظف
 // ----------------------------------------------------------
 import { Star, Calculator, Lightbulb, Info } from 'lucide-react';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 export default function ReviewsExplain({ onBack, lang = 'ar' }) {
   useScreenHeader(

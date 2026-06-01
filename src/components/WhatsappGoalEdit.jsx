@@ -7,7 +7,7 @@
 import { useState, useEffect } from 'react';
 import { Calendar, ChevronDown, Loader2, MessageCircle } from 'lucide-react';
 import { getMonthlyGoal, setMonthlyGoal } from '../firebase';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 import BottomSheet from './BottomSheet';
 import { formatMonthLabel } from '../utils/periodHelpers';
 

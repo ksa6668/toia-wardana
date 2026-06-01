@@ -11,7 +11,7 @@ import {
   getBranches, addBranch, updateBranch, deleteBranch,
 } from '../firebase';
 import EditSheet from './EditSheet';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 // الفروع الأساسية لا يمكن حذفها
 const PRIMARY_BRANCH_IDS = ['toia', 'wardana'];

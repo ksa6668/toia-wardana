@@ -21,7 +21,7 @@ import { t, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 function todayStr() {
   const d = new Date();

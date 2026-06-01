@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { getBranches, getAllDataForBackup, getDataStats, salesNet as salesNetFn } from '../firebase';
 import BottomSheet from './BottomSheet';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 // بطاقة إحصائية واحدة
 function StatCard({ value, label }) {

@@ -18,7 +18,7 @@ import { getAppSettings, setAppSettings, resetAllData } from '../firebase';
 import BottomSheet from './BottomSheet';
 import DeleteConfirmSheet from './DeleteConfirmSheet';
 import SarSymbol from './SarSymbol';
-import { useScreenHeader } from '../App';
+import { useScreenHeader } from '../context/ScreenCtx';
 
 const APP_VERSION = '1.0.0';
 const APP_BUILD = '2026.05';
