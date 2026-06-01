@@ -1550,16 +1550,17 @@ export async function notifyTelegramWhatsappAdded({ date, branchId, customers, n
     if (target <= 0) {
       goalLine = `🎯 الهدف: لم يُحدّد`;
     } else if (targetType === 'amount') {
-      // هدف "مبلغ" = عدد مشترين مستهدف للشهر → نقارن تراكمياً (الإدخال الجديد محفوظ مسبقاً)
-      let monthBuyers = buyersN;
+      // Batch 55: هدف "مبلغ" = مبلغ ريالي من مبيعات التحويل (أونلاين) للشهر
+      // التحقيق نسبة وتناسب: مبيعات التحويل المحقّقة ÷ الهدف
+      let monthTransfer = 0;
       try {
-        const monthEntries = await getWhatsappEntries(`${monthStr}-01`, `${monthStr}-31`, branchId);
-        monthBuyers = monthEntries.reduce((sum, w) => sum + (Number(w.buyers) || 0), 0);
-      } catch { /* fallback: نستخدم مشتري هذا الإدخال فقط */ }
-      const targetMet = monthBuyers >= target;
+        const monthSales = await getSales(`${monthStr}-01`, `${monthStr}-31`, branchId);
+        monthTransfer = monthSales.reduce((sum, s) => sum + (Number(s.transfer) || 0), 0);
+      } catch { /* fallback: نعرض الهدف فقط دون تقدّم */ }
+      const targetMet = monthTransfer >= target;
       goalLine = targetMet
-        ? `🎯 الهدف (${target} مشترٍ): ✅ ${monthBuyers}/${target} — تحقق!`
-        : `🎯 الهدف (${target} مشترٍ): ${monthBuyers}/${target} هذا الشهر`;
+        ? `🎯 هدف التحويل (${fmt(target)} ﷼): ✅ ${fmt(monthTransfer)}/${fmt(target)} — تحقق!`
+        : `🎯 هدف التحويل (${fmt(target)} ﷼): ${fmt(monthTransfer)}/${fmt(target)} هذا الشهر`;
     } else {
       // هدف "نسبة" = % المشترين من العملاء (السلوك الأصلي — لكل إدخال)
       const targetMet = buyersPct >= target;

@@ -52,22 +52,25 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
           ? Math.min(100, Math.round((reviewsAchieved / reviewsTarget) * 100))
           : 0;
         // Batch 49: نسبة تحقيق واتساب - تعتمد على whatsappTarget من goal
-        // Batch 55: يدعم نوعين — نسبة (pct) أو مبلغ/عدد مشترين (amount)
+        // Batch 55: يدعم نوعين:
+        //   • نسبة (pct):   % المشترين من إجمالي عملاء الواتساب
+        //   • مبلغ (amount): مبلغ ريالي = مبيعات التحويل (أونلاين) المحقّقة ÷ الهدف
         const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
         const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
+        const totalTransfer = branchSales.reduce((sum, s) => sum + (Number(s.transfer) || 0), 0);
         const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
         const whatsappTarget = Number(goal.whatsappTarget) || 0;
         const whatsappTargetType = goal.whatsappTargetType === 'amount' ? 'amount' : 'pct';
         const whatsappPct = whatsappTarget > 0
           ? (whatsappTargetType === 'amount'
-              ? Math.min(100, Math.round((totalBuyers / whatsappTarget) * 100))
+              ? Math.min(100, Math.round((totalTransfer / whatsappTarget) * 100))
               : Math.min(100, Math.round((actualPct / whatsappTarget) * 100)))
           : 0;
         const whatsappNoTarget = whatsappTarget <= 0;
         // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
-        // Batch 55: للنوع "مبلغ" نعرض المشترين/الهدف بدل المشترين/العملاء
+        // Batch 55: للنوع "مبلغ" نعرض المبلغ المحقّق/الهدف بالريال
         const whatsappSubtext = whatsappTargetType === 'amount'
-          ? (whatsappTarget > 0 ? `${totalBuyers} / ${whatsappTarget}` : (totalBuyers > 0 ? `${totalBuyers}` : ''))
+          ? (whatsappTarget > 0 ? `${totalTransfer.toLocaleString('en-US')} / ${whatsappTarget.toLocaleString('en-US')} ﷼` : '')
           : (totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '');
         if (!cancelled) {
           setKpis({ budgetPct, reviewsPct, whatsappPct, whatsappSubtext, whatsappNoTarget, loaded: true, hasGoal: goal.exists });
