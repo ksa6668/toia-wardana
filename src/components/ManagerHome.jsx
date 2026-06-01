@@ -238,6 +238,7 @@ export default function ManagerHome({ lang }) {
             reviewsTarget: g.reviewsTarget,
             reviewsAchieved: g.reviewsAchieved || 0,
             whatsappTarget: g.whatsappTarget || 0,
+            whatsappTargetType: g.whatsappTargetType === 'amount' ? 'amount' : 'pct',
             exists: g.exists,
           }))
         );
@@ -247,7 +248,7 @@ export default function ManagerHome({ lang }) {
         // 4) حساب KPIs لكل فرع
         const kpisMap = {};
         for (const b of brs) {
-          const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0 };
+          const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0, whatsappTargetType: 'pct' };
           const branchSales = allSales.filter((s) => s.branchId === b.id);
           const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
           const budgetPct = goal.budget > 0
@@ -264,12 +265,18 @@ export default function ManagerHome({ lang }) {
           const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
           const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
           const whatsappTarget = goal.whatsappTarget || 0;
+          const whatsappTargetType = goal.whatsappTargetType === 'amount' ? 'amount' : 'pct';
           const whatsappPct = whatsappTarget > 0
-            ? Math.min(100, Math.round((actualPct / whatsappTarget) * 100))
+            ? (whatsappTargetType === 'amount'
+                ? Math.min(100, Math.round((totalBuyers / whatsappTarget) * 100))
+                : Math.min(100, Math.round((actualPct / whatsappTarget) * 100)))
             : 0;
           const whatsappNoTarget = whatsappTarget <= 0;
           // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
-          const whatsappSubtext = totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '';
+          // Batch 55: للنوع "مبلغ" نعرض المشترين/الهدف
+          const whatsappSubtext = whatsappTargetType === 'amount'
+            ? (whatsappTarget > 0 ? `${totalBuyers} / ${whatsappTarget}` : (totalBuyers > 0 ? `${totalBuyers}` : ''))
+            : (totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '');
           kpisMap[b.id] = {
             budgetPct, reviewsPct,
             whatsappPct, whatsappSubtext, whatsappNoTarget,

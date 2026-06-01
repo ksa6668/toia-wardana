@@ -1,11 +1,13 @@
 // src/components/WhatsappGoalEdit.jsx
 // ----------------------------------------------------------
-// Batch 49: شاشة إدخال نسبة هدف الواتساب لفرع معيّن
+// Batch 49: شاشة إدخال هدف الواتساب لفرع معيّن
 // تفتح عند الضغط على كرت "تحقيق مبيعات واتساب" في الشاشة الرئيسية للمدير
-// النسبة = % من عملاء الواتساب اللي يشترون فعلياً (مثلاً 20%)
+// Batch 55: نوع الهدف يختاره المدير —
+//   • نسبة (pct): % من عملاء الواتساب اللي يشترون فعلياً (مثلاً 20%)
+//   • مبلغ (amount): عدد مشترين مستهدف للشهر (مثل هدف الميزانية)
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { Calendar, ChevronDown, Loader2, MessageCircle } from 'lucide-react';
+import { Calendar, ChevronDown, Loader2, MessageCircle, Percent, Hash } from 'lucide-react';
 import { getMonthlyGoal, setMonthlyGoal } from '../firebase';
 import { useScreenHeader } from '../context/ScreenCtx';
 import BottomSheet from './BottomSheet';
@@ -38,6 +40,7 @@ export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
   });
   const [target, setTarget] = useState('');
+  const [targetType, setTargetType] = useState('pct'); // 'pct' | 'amount'
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -53,6 +56,7 @@ export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 
         const goal = await getMonthlyGoal(branchId, selectedMonth);
         if (cancelled) return;
         setTarget(goal.whatsappTarget > 0 ? String(goal.whatsappTarget) : '');
+        setTargetType(goal.whatsappTargetType === 'amount' ? 'amount' : 'pct');
       } catch (err) {
         if (!cancelled) setError(err?.message || 'تعذّر التحميل');
       } finally {
@@ -67,14 +71,23 @@ export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 
     if (saving) return;
     setError('');
     const targetN = Number(target) || 0;
-    if (targetN < 0 || targetN > 100) {
-      setError(lang === 'en' ? 'Percentage must be between 0-100' : 'النسبة يجب أن تكون بين 0 و 100');
-      return;
+    if (targetType === 'pct') {
+      if (targetN < 0 || targetN > 100) {
+        setError(lang === 'en' ? 'Percentage must be between 0-100' : 'النسبة يجب أن تكون بين 0 و 100');
+        return;
+      }
+    } else {
+      // amount = عدد مشترين مستهدف (عدد صحيح موجب)
+      if (targetN < 0 || !Number.isInteger(targetN)) {
+        setError(lang === 'en' ? 'Enter a valid whole number' : 'أدخل عدداً صحيحاً صالحاً');
+        return;
+      }
     }
     setSaving(true);
     try {
       await setMonthlyGoal(branchId, selectedMonth, {
         whatsappTarget: targetN,
+        whatsappTargetType: targetType,
       });
       setDone(true);
       setTimeout(() => setDone(false), 1500);
@@ -120,23 +133,61 @@ export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 
         </div>
       ) : (
         <>
-          {/* كرت إدخال نسبة الهدف */}
+          {/* كرت إدخال الهدف */}
           <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 mb-4">
             <div className="flex items-center gap-2 mb-3">
               <div className="w-9 h-9 rounded-xl bg-tw-soft text-tw-blue flex items-center justify-center">
                 <MessageCircle size={18} />
               </div>
               <h4 className="text-sm font-bold text-tw-navy">
-                {lang === 'en' ? 'WhatsApp purchase target' : 'نسبة هدف الواتساب'}
+                {lang === 'en' ? 'WhatsApp target' : 'هدف الواتساب'}
               </h4>
             </div>
+
+            {/* Batch 55: منتقي نوع الهدف — نسبة / مبلغ */}
+            <label className="text-xs text-tw-muted font-bold mb-1.5 block">
+              {lang === 'en' ? 'Target type' : 'نوع الهدف'}
+            </label>
+            <div className="grid grid-cols-2 gap-2 mb-3">
+              <button
+                type="button"
+                onClick={() => setTargetType('pct')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold border transition-colors ${
+                  targetType === 'pct'
+                    ? 'bg-tw-blue text-white border-tw-blue'
+                    : 'bg-white text-tw-navy border-tw-line'
+                }`}
+              >
+                <Percent size={15} />
+                {lang === 'en' ? 'Percentage' : 'نسبة'}
+              </button>
+              <button
+                type="button"
+                onClick={() => setTargetType('amount')}
+                className={`flex items-center justify-center gap-1.5 rounded-xl py-2.5 text-sm font-bold border transition-colors ${
+                  targetType === 'amount'
+                    ? 'bg-tw-blue text-white border-tw-blue'
+                    : 'bg-white text-tw-navy border-tw-line'
+                }`}
+              >
+                <Hash size={15} />
+                {lang === 'en' ? 'Amount' : 'مبلغ'}
+              </button>
+            </div>
+
             <p className="text-[11px] text-tw-muted mb-3 leading-relaxed">
-              {lang === 'en'
-                ? 'Percentage of WhatsApp inquiries you aim to convert into actual buyers.'
-                : 'نسبة المشترين من إجمالي عملاء الواتساب المستهدفة لهذا الشهر.'}
+              {targetType === 'pct'
+                ? (lang === 'en'
+                    ? 'Percentage of WhatsApp inquiries you aim to convert into actual buyers.'
+                    : 'نسبة المشترين من إجمالي عملاء الواتساب المستهدفة لهذا الشهر.')
+                : (lang === 'en'
+                    ? 'Target number of WhatsApp buyers for this month.'
+                    : 'عدد المشترين المستهدف من عملاء الواتساب لهذا الشهر.')}
             </p>
             <label className="text-xs text-tw-muted font-bold mb-1.5 block">
-              {lang === 'en' ? 'Target percentage' : 'النسبة المستهدفة'}
+              {targetType === 'pct'
+                ? (lang === 'en' ? 'Target percentage' : 'النسبة المستهدفة')
+                : (lang === 'en' ? 'Target buyers' : 'عدد المشترين المستهدف')}
             </label>
             <div className="flex items-center gap-2 bg-tw-soft/40 border border-tw-line rounded-xl p-3">
               <input
@@ -148,9 +199,12 @@ export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 
                 className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                 dir="ltr"
                 min="0"
-                max="100"
+                max={targetType === 'pct' ? '100' : undefined}
+                step={targetType === 'pct' ? '1' : '1'}
               />
-              <span className="text-tw-muted/70 text-base font-bold">%</span>
+              <span className="text-tw-muted/70 text-base font-bold whitespace-nowrap">
+                {targetType === 'pct' ? '%' : (lang === 'en' ? 'buyer' : 'مشترٍ')}
+              </span>
             </div>
           </div>
 

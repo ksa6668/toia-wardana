@@ -944,9 +944,11 @@ export async function getMonthlyGoal(branchId, monthStr) {
   const ref = doc(db, "goals", goalId);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
-    return { budget: 0, reviewsTarget: 0, whatsappTarget: 0, exists: false };
+    return { budget: 0, reviewsTarget: 0, whatsappTarget: 0, whatsappTargetType: 'pct', exists: false };
   }
-  return { ...snap.data(), exists: true };
+  // Batch 55: توافق رجعي — أي هدف قديم بدون نوع يُعامَل كـ "نسبة"
+  const data = snap.data();
+  return { ...data, whatsappTargetType: data.whatsappTargetType || 'pct', exists: true };
 }
 
 /**
@@ -954,6 +956,7 @@ export async function getMonthlyGoal(branchId, monthStr) {
  * الـ data: { budget, reviewsTarget, reviewsAchieved?, whatsappTarget? }
  * Batch 16: يدعم تحديث reviewsAchieved (التقييمات المُحقّقة) باستقلال.
  * Batch 49: يدعم whatsappTarget (نسبة هدف الواتساب لهذا الشهر).
+ * Batch 55: يدعم whatsappTargetType ('pct' | 'amount') — نوع هدف الواتساب.
  */
 export async function setMonthlyGoal(branchId, monthStr, data) {
   const goalId = `${branchId}_${monthStr}`;
@@ -967,6 +970,10 @@ export async function setMonthlyGoal(branchId, monthStr, data) {
   if (data.reviewsTarget !== undefined) payload.reviewsTarget = Number(data.reviewsTarget) || 0;
   if (data.reviewsAchieved !== undefined) payload.reviewsAchieved = Number(data.reviewsAchieved) || 0;
   if (data.whatsappTarget !== undefined) payload.whatsappTarget = Number(data.whatsappTarget) || 0;
+  // Batch 55: نوع هدف الواتساب — نقبل فقط 'pct' أو 'amount'
+  if (data.whatsappTargetType !== undefined) {
+    payload.whatsappTargetType = data.whatsappTargetType === 'amount' ? 'amount' : 'pct';
+  }
   await setDoc(ref, payload, { merge: true });
   // Batch 45: مسح cache
   _invalidateCachePrefix('goals');
@@ -1532,14 +1539,29 @@ export async function notifyTelegramWhatsappAdded({ date, branchId, customers, n
   const buyersPct = customersN > 0 ? Math.round((buyersN / customersN) * 100) : 0;
 
   // Batch 49: نجلب الهدف من goal الشهر
+  // Batch 55: يدعم نوعين — نسبة (pct) أو مبلغ/عدد مشترين (amount)
   const monthStr = date.slice(0, 7); // YYYY-MM
   let goalLine;
   try {
     const goal = await getMonthlyGoal(branchId, monthStr);
     const target = Number(goal.whatsappTarget) || 0;
+    const targetType = goal.whatsappTargetType === 'amount' ? 'amount' : 'pct';
+
     if (target <= 0) {
       goalLine = `🎯 الهدف: لم يُحدّد`;
+    } else if (targetType === 'amount') {
+      // هدف "مبلغ" = عدد مشترين مستهدف للشهر → نقارن تراكمياً (الإدخال الجديد محفوظ مسبقاً)
+      let monthBuyers = buyersN;
+      try {
+        const monthEntries = await getWhatsappEntries(`${monthStr}-01`, `${monthStr}-31`, branchId);
+        monthBuyers = monthEntries.reduce((sum, w) => sum + (Number(w.buyers) || 0), 0);
+      } catch { /* fallback: نستخدم مشتري هذا الإدخال فقط */ }
+      const targetMet = monthBuyers >= target;
+      goalLine = targetMet
+        ? `🎯 الهدف (${target} مشترٍ): ✅ ${monthBuyers}/${target} — تحقق!`
+        : `🎯 الهدف (${target} مشترٍ): ${monthBuyers}/${target} هذا الشهر`;
     } else {
+      // هدف "نسبة" = % المشترين من العملاء (السلوك الأصلي — لكل إدخال)
       const targetMet = buyersPct >= target;
       goalLine = targetMet
         ? `🎯 الهدف (${target}%): ✅ تحقق وتجاوز!`
