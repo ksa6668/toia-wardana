@@ -12,6 +12,8 @@
 import { initializeApp } from "firebase/app";
 import {
   getAuth,
+  setPersistence,
+  browserLocalPersistence,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
   signOut,
@@ -78,6 +80,36 @@ const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
 export const db = getFirestore(app);
 
+// ========== Batch 56: ثبات الجلسة + خمول 30 يوم ==========
+// نثبّت الجلسة محلياً → عند فتح التطبيق يدخل مباشرة بدون طلب الاسم/الرمز.
+// نطبّق خروجاً تلقائياً فقط بعد 30 يوماً من عدم الاستخدام.
+setPersistence(auth, browserLocalPersistence).catch(() => { /* fallback للافتراضي */ });
+
+const LAST_ACTIVE_KEY = 'tw_last_active';
+const INACTIVITY_LIMIT_MS = 30 * 24 * 60 * 60 * 1000; // 30 يوم
+
+// يجدّد ختم آخر نشاط (يُستدعى عند الدخول وفتح/استخدام التطبيق)
+export function markActive() {
+  try { localStorage.setItem(LAST_ACTIVE_KEY, String(Date.now())); } catch { /* ignore */ }
+}
+
+// هل تجاوزت الجلسة 30 يوم خمول؟ (لا سجل = ليست منتهية — أول استخدام/ترقية)
+export function isSessionExpired() {
+  try {
+    const raw = localStorage.getItem(LAST_ACTIVE_KEY);
+    if (!raw) return false;
+    const last = Number(raw);
+    if (!last || Number.isNaN(last)) return false;
+    return (Date.now() - last) > INACTIVITY_LIMIT_MS;
+  } catch {
+    return false;
+  }
+}
+
+function clearLastActive() {
+  try { localStorage.removeItem(LAST_ACTIVE_KEY); } catch { /* ignore */ }
+}
+
 // ========== تحويل اسم المستخدم/الرمز ==========
 
 const EMAIL_DOMAIN = "toia-wardana.app"; // نطاق وهمي داخلي فقط
@@ -106,6 +138,9 @@ export async function login(username, pin) {
   const email = usernameToEmail(username);
   const password = pinToPassword(pin);
 
+  // Batch 56: نضمن ثبات الجلسة قبل الدخول
+  try { await setPersistence(auth, browserLocalPersistence); } catch { /* fallback */ }
+
   const cred = await signInWithEmailAndPassword(auth, email, password);
   const userDoc = await getDoc(doc(db, "users", cred.user.uid));
   if (!userDoc.exists()) {
@@ -116,21 +151,31 @@ export async function login(username, pin) {
     await signOut(auth);
     throw new Error("هذا الحساب معطّل. تواصل مع المدير.");
   }
+  markActive(); // Batch 56: بدء عدّاد الخمول
   return { uid: cred.user.uid, ...data };
 }
 
 export async function logout() {
   // Batch 40: مسح cache اسم المستخدم (إن وُجد)
   try { clearUserNameCache(); } catch { /* ignore */ }
+  clearLastActive(); // Batch 56: إنهاء عدّاد الخمول
   await signOut(auth);
 }
 
 // مراقبة حالة الدخول (تُستخدم عند فتح التطبيق)
 export function watchAuth(callback) {
   return onAuthStateChanged(auth, async (user) => {
-    if (!user) return callback(null);
+    if (!user) { clearLastActive(); return callback(null); }
+    // Batch 56: خروج تلقائي بعد 30 يوم خمول
+    if (isSessionExpired()) {
+      try { await signOut(auth); } catch { /* ignore */ }
+      clearLastActive();
+      return callback(null);
+    }
     const userDoc = await getDoc(doc(db, "users", user.uid));
-    callback(userDoc.exists() ? { uid: user.uid, ...userDoc.data() } : null);
+    if (!userDoc.exists()) return callback(null);
+    markActive(); // جلسة مستعادة وصالحة → جدّد ختم النشاط
+    callback({ uid: user.uid, ...userDoc.data() });
   });
 }
 

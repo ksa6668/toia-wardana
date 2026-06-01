@@ -6,6 +6,7 @@ import {
 import {
   logout, watchAuth,
   saveUserLanguage,
+  markActive,
 } from './firebase';
 import { dirFor, readSavedLang, saveLangLocal, translateBranch } from './i18n';
 import { clearAllPersistedState } from './hooks/usePersistedState';
@@ -74,6 +75,23 @@ export default function App() {
   }, []);
 
   const userRole = user?.role || null;
+
+  // Batch 56: تجديد ختم النشاط أثناء استخدام التطبيق (لعدّاد خمول الـ 30 يوم)
+  useEffect(() => {
+    if (!user) return;
+    markActive();
+    const onActive = () => markActive();
+    const onVisible = () => { if (!document.hidden) markActive(); };
+    window.addEventListener('focus', onActive);
+    document.addEventListener('visibilitychange', onVisible);
+    const interval = setInterval(markActive, 5 * 60 * 1000); // كل 5 دقائق
+    return () => {
+      window.removeEventListener('focus', onActive);
+      document.removeEventListener('visibilitychange', onVisible);
+      clearInterval(interval);
+    };
+  }, [user]);
+
   const branchId = user?.branchId || 'toia';
   const isAdmin = userRole === 'admin';
   // اسم الفرع: للموظف يترجم حسب اللغة، للمدير يبقى عربي
