@@ -39,10 +39,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   const [branchFilter, setBranchFilter] = usePersistedState('monthly.branch', 'all');
   const [activeTab, setActiveTab] = usePersistedState('monthly.tab', 'sales');
   const [categoryFilter, setCategoryFilter] = usePersistedState('monthly.category', 'all');
-  // Batch 57: مستوى تجميع الصفوف للعرض المجمّع
-  //   كل الأشهر → 'day' | 'month'   |   كل السنوات → 'month' | 'year'
+  // Batch 57: مستوى تجميع الصفوف لـ "كل الأشهر" → 'day' | 'month'
   const [allMonthsGroup, setAllMonthsGroup] = usePersistedState('monthly.allMonthsGroup', 'month');
-  const [allYearsGroup, setAllYearsGroup] = usePersistedState('monthly.allYearsGroup', 'year');
   // Batch 50: فرز - sortBy = null | 'salesTotal' | 'profit', sortDir = 'asc' | 'desc'
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
@@ -148,8 +146,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   //   شهر محدّد → يومي | كل الأشهر → (يومي/شهري) | سنة محددة → شهري | كل السنوات → (شهري/سنوي)
   const groupBy = useMemo(() => {
     if (period === 'month') return selectedMonth === 'all' ? allMonthsGroup : 'day';
-    return selectedYear === 'all' ? allYearsGroup : 'month';
-  }, [period, selectedMonth, selectedYear, allMonthsGroup, allYearsGroup]);
+    return selectedYear === 'all' ? 'year' : 'month';
+  }, [period, selectedMonth, selectedYear, allMonthsGroup]);
 
   // مفتاح التجميع لتاريخ ISO حسب المستوى
   const periodKey = (date, mode) => {
@@ -364,7 +362,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
     : groupBy === 'month' ? (lang === 'en' ? 'Month' : 'الشهر')
     : (lang === 'en' ? 'Day' : 'اليوم');
 
-  // Batch 57: خيارات زر مستوى التجميع (يظهر فقط في "كل الأشهر" و"كل السنوات")
+  // Batch 57: زر مستوى التجميع (يظهر فقط في "كل الأشهر" → يومي/شهري)
   const groupToggle = (() => {
     if (period === 'month' && selectedMonth === 'all') {
       return {
@@ -373,16 +371,6 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         options: [
           { value: 'day', label: lang === 'en' ? 'Daily' : 'يومي' },
           { value: 'month', label: lang === 'en' ? 'Monthly' : 'شهري' },
-        ],
-      };
-    }
-    if (period === 'year' && selectedYear === 'all') {
-      return {
-        value: allYearsGroup,
-        set: setAllYearsGroup,
-        options: [
-          { value: 'month', label: lang === 'en' ? 'Monthly' : 'شهري' },
-          { value: 'year', label: lang === 'en' ? 'Yearly' : 'سنوي' },
         ],
       };
     }
@@ -545,25 +533,20 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         </button>
       </div>
 
-      {/* Batch 57: زر مستوى التجميع — يظهر فقط في "كل الأشهر" و"كل السنوات" */}
+      {/* Batch 57: زر مستوى التجميع — يظهر فقط في "كل الأشهر" (يومي/شهري) */}
       {groupToggle && (
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-[11px] text-tw-muted font-bold whitespace-nowrap">
-            {lang === 'en' ? 'View' : 'العرض'}
-          </span>
-          <div className="flex flex-1 bg-tw-soft p-1 rounded-xl">
-            {groupToggle.options.map((opt) => (
-              <button
-                key={opt.value}
-                onClick={() => groupToggle.set(opt.value)}
-                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                  groupToggle.value === opt.value ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
-                }`}
-              >
-                {opt.label}
-              </button>
-            ))}
-          </div>
+        <div className="flex bg-tw-soft p-1 rounded-xl mb-3">
+          {groupToggle.options.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => groupToggle.set(opt.value)}
+              className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                groupToggle.value === opt.value ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
+              }`}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
       )}
 
