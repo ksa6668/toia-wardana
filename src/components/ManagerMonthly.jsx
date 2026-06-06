@@ -39,6 +39,10 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   const [branchFilter, setBranchFilter] = usePersistedState('monthly.branch', 'all');
   const [activeTab, setActiveTab] = usePersistedState('monthly.tab', 'sales');
   const [categoryFilter, setCategoryFilter] = usePersistedState('monthly.category', 'all');
+  // Batch 57: مستوى تجميع الصفوف للعرض المجمّع
+  //   كل الأشهر → 'day' | 'month'   |   كل السنوات → 'month' | 'year'
+  const [allMonthsGroup, setAllMonthsGroup] = usePersistedState('monthly.allMonthsGroup', 'month');
+  const [allYearsGroup, setAllYearsGroup] = usePersistedState('monthly.allYearsGroup', 'year');
   // Batch 50: فرز - sortBy = null | 'salesTotal' | 'profit', sortDir = 'asc' | 'desc'
   const [sortBy, setSortBy] = useState(null);
   const [sortDir, setSortDir] = useState('desc');
@@ -140,12 +144,54 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
     return branchFilter === 'all' ? fixedExpenses : fixedExpenses.filter((f) => f.branchId === branchFilter);
   }, [fixedExpenses, branchFilter]);
 
+  // Batch 57: مستوى التجميع الفعلي حسب الفترة المختارة
+  //   شهر محدّد → يومي | كل الأشهر → (يومي/شهري) | سنة محددة → شهري | كل السنوات → (شهري/سنوي)
+  const groupBy = useMemo(() => {
+    if (period === 'month') return selectedMonth === 'all' ? allMonthsGroup : 'day';
+    return selectedYear === 'all' ? allYearsGroup : 'month';
+  }, [period, selectedMonth, selectedYear, allMonthsGroup, allYearsGroup]);
+
+  // مفتاح التجميع لتاريخ ISO حسب المستوى
+  const periodKey = (date, mode) => {
+    if (mode === 'year') return date.slice(0, 4);   // YYYY
+    if (mode === 'month') return date.slice(0, 7);  // YYYY-MM
+    return date;                                    // YYYY-MM-DD
+  };
+
+  // Batch 57: مجموع المصاريف الثابتة لكل شهر (مفلتر بالفرع)
+  const fixedByMonth = useMemo(() => {
+    const map = {};
+    filteredFixed.forEach((f) => {
+      if (!f.month) return;
+      map[f.month] = (map[f.month] || 0) + (f.amount || 0);
+    });
+    return map;
+  }, [filteredFixed]);
+
+  // نصيب اليوم الواحد من المصاريف الثابتة لشهره (ثابت الشهر ÷ أيام الشهر)
+  const dailyFixedShare = (dateStr) => {
+    const mk = dateStr.slice(0, 7);
+    const mf = fixedByMonth[mk] || 0;
+    if (mf <= 0) return 0;
+    const [y, m] = mk.split('-').map(Number);
+    const daysInMonth = new Date(y, m, 0).getDate();
+    return mf / daysInMonth;
+  };
+
   // Batch 36+43+44: الإجماليات + المتوسطات
+  // Batch 57: المصاريف الثابتة تُوزّع نسبة وتناسب على الأيام المسجّلة
+  //           (نفس منطق الجدول اليومي) → الكرت = مجموع الجدول، ويختفي تضخّم الشهر الجاري.
   const totals = useMemo(() => {
     const totalSales = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
     const totalVarExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    const totalFixedExp = filteredFixed.reduce((sum, f) => sum + (f.amount || 0), 0);
-    const totalExp = totalVarExp + totalFixedExp;
+    // الأيام المسجّلة = أي يوم فيه مبيعات أو مصروف متغيّر
+    const loggedDays = new Set([
+      ...filteredSales.map((s) => s.date),
+      ...filteredExpenses.map((e) => e.date),
+    ].filter(Boolean));
+    let proratedFixed = 0;
+    loggedDays.forEach((d) => { proratedFixed += dailyFixedShare(d); });
+    const totalExp = totalVarExp + proratedFixed;
     const profit = totalSales - totalExp;
     // Batch 51: تفصيل طرق الدفع
     const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
@@ -156,19 +202,15 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
     }, 0);
     const totalTransfer = filteredSales.reduce((s, x) => s + (Number(x.transfer) || 0), 0);
     const salesBase = totalSales || 1;
-    // عدد الأيام الفريدة للحساب المتوسطات
+    // عدد الأيام الفريدة لحساب المتوسطات
     const daysWithSales = new Set(filteredSales.map((s) => s.date)).size || 1;
-    const daysWithExp = new Set(filteredExpenses.map((e) => e.date)).size || 1;
-    const daysWithAny = new Set([
-      ...filteredSales.map((s) => s.date),
-      ...filteredExpenses.map((e) => e.date),
-    ]).size || 1;
+    const daysWithAny = loggedDays.size || 1;
     return {
       sales: totalSales,
       expenses: totalExp,
       profit,
       avgSales: Math.round(totalSales / daysWithSales),
-      avgExp: Math.round(totalExp / daysWithExp),
+      avgExp: Math.round(totalExp / daysWithAny),
       avgProfit: Math.round(profit / daysWithAny),
       cash: Math.round(totalCash),
       cashPct: Math.round((totalCash / salesBase) * 100),
@@ -177,101 +219,79 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       transfer: Math.round(totalTransfer),
       transferPct: Math.round((totalTransfer / salesBase) * 100),
     };
-  }, [filteredSales, filteredExpenses, filteredFixed]);
+  }, [filteredSales, filteredExpenses, fixedByMonth]);
 
-  // تجميع المبيعات حسب اليوم — يستخدم salesNet للـ total
-  const salesByDay = useMemo(() => {
+  // Batch 57: تجميع المبيعات حسب المستوى (يومي/شهري/سنوي) — total = salesNet
+  const salesByGroup = useMemo(() => {
     const map = {};
     filteredSales.forEach((s) => {
-      const day = s.date;
-      if (!day) return;
-      if (!map[day]) map[day] = { cash: 0, mada: 0, transfer: 0, total: 0 };
-      map[day].cash += s.cash || 0;
-      map[day].mada += s.mada || 0;
-      map[day].transfer += s.transfer || 0;
-      map[day].total += salesNet(s); // صافي بعد رسوم مدى
+      if (!s.date) return;
+      const k = periodKey(s.date, groupBy);
+      if (!map[k]) map[k] = { cash: 0, mada: 0, transfer: 0, total: 0 };
+      map[k].cash += s.cash || 0;
+      map[k].mada += s.mada || 0;
+      map[k].transfer += s.transfer || 0;
+      map[k].total += salesNet(s);
     });
     return Object.entries(map)
       .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([day, vals]) => ({ day, ...vals }));
-  }, [filteredSales]);
+      .map(([key, vals]) => ({ key, ...vals }));
+  }, [filteredSales, groupBy]);
 
-  // المصاريف بترتيب اليوم
-  const expensesByDay = useMemo(() => {
-    return [...filteredExpenses]
-      .sort((a, b) => {
-        const dA = a.date || '';
-        const dB = b.date || '';
-        return dB.localeCompare(dA);
-      });
-  }, [filteredExpenses]);
-
-  // الربح اليومي
-  // Batch 46.4: توزيع المصاريف الثابتة نسبياً على أيام الشهر
-  // - لكل يوم سجل، نضيف: (مصاريف الشهر الثابتة / عدد أيام الشهر)
-  // - مما يعطي صورة حقيقية للربح اليومي بعد توزيع المصاريف الثابتة
-  const profitByDay = useMemo(() => {
+  // Batch 57: الربح حسب المستوى — يوزّع الثابت نسبة وتناسب على الأيام ثم يجمّع
+  const profitByGroup = useMemo(() => {
     const days = {};
     filteredSales.forEach((s) => {
-      const d = s.date;
-      if (!d) return;
-      if (!days[d]) days[d] = { sales: 0, expenses: 0 };
-      days[d].sales += salesNet(s);
+      if (!s.date) return;
+      if (!days[s.date]) days[s.date] = { sales: 0, expenses: 0 };
+      days[s.date].sales += salesNet(s);
     });
     filteredExpenses.forEach((e) => {
-      const d = e.date;
-      if (!d) return;
-      if (!days[d]) days[d] = { sales: 0, expenses: 0 };
-      days[d].expenses += e.amount || 0;
+      if (!e.date) return;
+      if (!days[e.date]) days[e.date] = { sales: 0, expenses: 0 };
+      days[e.date].expenses += e.amount || 0;
     });
-
-    // Batch 46.4: توزيع المصاريف الثابتة على أيام الشهر بشكل نسبي
-    // أولاً: نجمع المصاريف الثابتة لكل شهر
-    const fixedByMonth = {};
-    filteredFixed.forEach((f) => {
-      const m = f.month; // YYYY-MM
-      if (!m) return;
-      if (!fixedByMonth[m]) fixedByMonth[m] = 0;
-      fixedByMonth[m] += f.amount || 0;
+    // توزيع المصاريف الثابتة نسبياً على كل يوم مسجّل
+    Object.keys(days).forEach((d) => { days[d].expenses += dailyFixedShare(d); });
+    // التجميع حسب المستوى
+    const g = {};
+    Object.entries(days).forEach(([d, v]) => {
+      const k = periodKey(d, groupBy);
+      if (!g[k]) g[k] = { sales: 0, expenses: 0 };
+      g[k].sales += v.sales;
+      g[k].expenses += v.expenses;
     });
-
-    // ثانياً: نوزّع على كل يوم في الشهر
-    Object.keys(days).forEach((dayStr) => {
-      const monthKey = dayStr.slice(0, 7); // YYYY-MM
-      const monthlyFixed = fixedByMonth[monthKey] || 0;
-      if (monthlyFixed > 0) {
-        // عدد أيام الشهر الفعلي
-        const [y, m] = monthKey.split('-').map(Number);
-        const daysInMonth = new Date(y, m, 0).getDate();
-        const dailyShare = monthlyFixed / daysInMonth;
-        days[dayStr].expenses += dailyShare;
-      }
-    });
-
-    return Object.entries(days)
+    return Object.entries(g)
       .sort((a, b) => b[0].localeCompare(a[0]))
-      .map(([day, v]) => ({
-        day,
+      .map(([key, v]) => ({
+        key,
         sales: v.sales,
-        expenses: Math.round(v.expenses), // تقريب لأقرب ريال
+        expenses: Math.round(v.expenses),
         profit: Math.round(v.sales - v.expenses),
       }));
-  }, [filteredSales, filteredExpenses, filteredFixed]);
+  }, [filteredSales, filteredExpenses, fixedByMonth, groupBy]);
+
+  // المصاريف:
+  //   • يومي → سجلات فردية (يوم/تصنيف/مبلغ) كما هي
+  //   • شهري/سنوي → مجموع المصاريف لكل فترة (متغيّر + نصيب الثابت) من profitByGroup
+  const expenseLineItems = useMemo(() => {
+    return [...filteredExpenses].sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+  }, [filteredExpenses]);
 
   // Batch 50: نسخ مفروزة - sortBy='salesTotal' للمبيعات | sortBy='profit' للربح
-  const sortedSalesByDay = useMemo(() => {
-    if (sortBy !== 'salesTotal') return salesByDay;
-    const arr = [...salesByDay];
+  const sortedSalesByGroup = useMemo(() => {
+    if (sortBy !== 'salesTotal') return salesByGroup;
+    const arr = [...salesByGroup];
     arr.sort((a, b) => sortDir === 'asc' ? a.total - b.total : b.total - a.total);
     return arr;
-  }, [salesByDay, sortBy, sortDir]);
+  }, [salesByGroup, sortBy, sortDir]);
 
-  const sortedProfitByDay = useMemo(() => {
-    if (sortBy !== 'profit') return profitByDay;
-    const arr = [...profitByDay];
+  const sortedProfitByGroup = useMemo(() => {
+    if (sortBy !== 'profit') return profitByGroup;
+    const arr = [...profitByGroup];
     arr.sort((a, b) => sortDir === 'asc' ? a.profit - b.profit : b.profit - a.profit);
     return arr;
-  }, [profitByDay, sortBy, sortDir]);
+  }, [profitByGroup, sortBy, sortDir]);
 
   // helper: تبديل الفرز عند الضغط على رأس العمود
   const toggleSort = (col) => {
@@ -331,6 +351,43 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
     toia: lang === 'en' ? 'Toia' : 'تويا',
     wardana: lang === 'en' ? 'Wardana' : 'وردانة',
   }[branchFilter];
+
+  // Batch 57: تسمية صف الفترة حسب المستوى
+  const showYearInDay = (period === 'month' && selectedMonth === 'all');
+  const formatPeriodLabel = (key) => {
+    if (groupBy === 'year') return key;                       // 2026
+    if (groupBy === 'month') return formatMonthLabel(key, lang); // يونيو 2026
+    return formatDayShort(key, lang, showYearInDay);          // 5 يونيو
+  };
+  const periodColLabel =
+    groupBy === 'year' ? (lang === 'en' ? 'Year' : 'السنة')
+    : groupBy === 'month' ? (lang === 'en' ? 'Month' : 'الشهر')
+    : (lang === 'en' ? 'Day' : 'اليوم');
+
+  // Batch 57: خيارات زر مستوى التجميع (يظهر فقط في "كل الأشهر" و"كل السنوات")
+  const groupToggle = (() => {
+    if (period === 'month' && selectedMonth === 'all') {
+      return {
+        value: allMonthsGroup,
+        set: setAllMonthsGroup,
+        options: [
+          { value: 'day', label: lang === 'en' ? 'Daily' : 'يومي' },
+          { value: 'month', label: lang === 'en' ? 'Monthly' : 'شهري' },
+        ],
+      };
+    }
+    if (period === 'year' && selectedYear === 'all') {
+      return {
+        value: allYearsGroup,
+        set: setAllYearsGroup,
+        options: [
+          { value: 'month', label: lang === 'en' ? 'Monthly' : 'شهري' },
+          { value: 'year', label: lang === 'en' ? 'Yearly' : 'سنوي' },
+        ],
+      };
+    }
+    return null;
+  })();
 
   return (
     <div
@@ -488,6 +545,28 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         </button>
       </div>
 
+      {/* Batch 57: زر مستوى التجميع — يظهر فقط في "كل الأشهر" و"كل السنوات" */}
+      {groupToggle && (
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-[11px] text-tw-muted font-bold whitespace-nowrap">
+            {lang === 'en' ? 'View' : 'العرض'}
+          </span>
+          <div className="flex flex-1 bg-tw-soft p-1 rounded-xl">
+            {groupToggle.options.map((opt) => (
+              <button
+                key={opt.value}
+                onClick={() => groupToggle.set(opt.value)}
+                className={`flex-1 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                  groupToggle.value === opt.value ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-muted'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* تبويبات */}
       <div className="flex bg-tw-soft p-1 rounded-xl mb-4">
         {[
@@ -526,7 +605,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
             <table className="w-full text-xs">
               <thead className="bg-tw-soft/40">
                 <tr>
-                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                  <th className="p-2 text-right font-bold text-tw-muted">{periodColLabel}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Cash' : 'كاش'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Mada' : 'مدى'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Transfer' : 'تحويل'}</th>
@@ -544,26 +623,22 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                 </tr>
               </thead>
               <tbody>
-                {sortedSalesByDay.length === 0 ? (
+                {sortedSalesByGroup.length === 0 ? (
                   <tr><td colSpan={5} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                ) : sortedSalesByDay.map((row) => {
-                  // Batch 51: السنة تظهر فقط في "سنوي كل السنوات"
-                  const showYear = (period === 'month' && selectedMonth === 'all') || (period === 'year' && selectedYear === 'all');
-                  return (
-                  <tr key={row.day} className="border-t border-tw-line/60">
+                ) : sortedSalesByGroup.map((row) => (
+                  <tr key={row.key} className="border-t border-tw-line/60">
                     <td
-                      className="p-2 font-bold text-tw-navy cursor-pointer hover:text-tw-blue active:opacity-70"
-                      onClick={() => setDayDetailDate(row.day)}
+                      className={`p-2 font-bold text-tw-navy ${groupBy === 'day' ? 'cursor-pointer hover:text-tw-blue active:opacity-70' : ''}`}
+                      onClick={groupBy === 'day' ? () => setDayDetailDate(row.key) : undefined}
                     >
-                      {formatDayShort(row.day, lang, showYear)}
+                      {formatPeriodLabel(row.key)}
                     </td>
                     <td className="p-2 text-center text-tw-muted">{Math.round(row.cash).toLocaleString()}</td>
                     <td className="p-2 text-center text-tw-muted">{Math.round(row.mada).toLocaleString()}</td>
                     <td className="p-2 text-center text-tw-muted">{Math.round(row.transfer).toLocaleString()}</td>
                     <td className="p-2 text-center font-bold text-tw-blue">{Math.round(row.total).toLocaleString()}</td>
                   </tr>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           )}
@@ -571,8 +646,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           {/* تبويب المصاريف */}
           {activeTab === 'expenses' && (
             <>
-              {/* Batch 36: زر فلتر التصنيف فوق الجدول */}
-              {availableCategories.length > 0 && (
+              {/* Batch 36: زر فلتر التصنيف فوق الجدول (يومي فقط) */}
+              {groupBy === 'day' && availableCategories.length > 0 && (
                 <div className="px-2 pt-2 pb-1 flex justify-end">
                   <button
                     onClick={() => setSheet({
@@ -596,26 +671,48 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                   </button>
                 </div>
               )}
-              <table className="w-full text-xs">
-                <thead className="bg-tw-soft/40">
-                  <tr>
-                    <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
-                    <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
-                    <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {expensesByDay.length === 0 ? (
-                    <tr><td colSpan={3} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                  ) : expensesByDay.map((row, i) => (
-                    <tr key={row.id || i} className="border-t border-tw-line/60">
-                      <td className="p-2 text-tw-navy">{formatDayShort(row.date, lang)}</td>
-                      <td className="p-2 text-tw-navy">{row.categoryName || row.category || row.expenseType || '—'}</td>
-                      <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.amount).toLocaleString()}</td>
+              {groupBy === 'day' ? (
+                <table className="w-full text-xs">
+                  <thead className="bg-tw-soft/40">
+                    <tr>
+                      <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                      <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
+                      <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {expenseLineItems.length === 0 ? (
+                      <tr><td colSpan={3} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
+                    ) : expenseLineItems.map((row, i) => (
+                      <tr key={row.id || i} className="border-t border-tw-line/60">
+                        <td className="p-2 text-tw-navy">{formatDayShort(row.date, lang, showYearInDay)}</td>
+                        <td className="p-2 text-tw-navy">{row.categoryName || row.category || row.expenseType || '—'}</td>
+                        <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.amount).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                /* Batch 57: عرض مجمّع — إجمالي المصاريف لكل فترة (متغيّر + نصيب الثابت) */
+                <table className="w-full text-xs">
+                  <thead className="bg-tw-soft/40">
+                    <tr>
+                      <th className="p-2 text-right font-bold text-tw-muted">{periodColLabel}</th>
+                      <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Total expenses' : 'إجمالي المصاريف'}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {profitByGroup.length === 0 ? (
+                      <tr><td colSpan={2} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
+                    ) : profitByGroup.map((row) => (
+                      <tr key={row.key} className="border-t border-tw-line/60">
+                        <td className="p-2 font-bold text-tw-navy">{formatPeriodLabel(row.key)}</td>
+                        <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.expenses).toLocaleString()}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
             </>
           )}
 
@@ -624,7 +721,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
             <table className="w-full text-xs">
               <thead className="bg-tw-soft/40">
                 <tr>
-                  <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                  <th className="p-2 text-right font-bold text-tw-muted">{periodColLabel}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Sales' : 'المبيعات'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Expenses' : 'المصاريف'}</th>
                   <th
@@ -641,17 +738,15 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                 </tr>
               </thead>
               <tbody>
-                {sortedProfitByDay.length === 0 ? (
+                {sortedProfitByGroup.length === 0 ? (
                   <tr><td colSpan={4} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
-                ) : sortedProfitByDay.map((row) => {
-                  const showYear = (period === 'month' && selectedMonth === 'all') || (period === 'year' && selectedYear === 'all');
-                  return (
-                  <tr key={row.day} className="border-t border-tw-line/60">
+                ) : sortedProfitByGroup.map((row) => (
+                  <tr key={row.key} className="border-t border-tw-line/60">
                     <td
-                      className="p-2 font-bold text-tw-navy cursor-pointer hover:text-tw-blue active:opacity-70"
-                      onClick={() => setDayDetailDate(row.day)}
+                      className={`p-2 font-bold text-tw-navy ${groupBy === 'day' ? 'cursor-pointer hover:text-tw-blue active:opacity-70' : ''}`}
+                      onClick={groupBy === 'day' ? () => setDayDetailDate(row.key) : undefined}
                     >
-                      {formatDayShort(row.day, lang, showYear)}
+                      {formatPeriodLabel(row.key)}
                     </td>
                     <td className="p-2 text-center text-tw-blue">{Math.round(row.sales).toLocaleString()}</td>
                     <td className="p-2 text-center text-tw-red">{Math.round(row.expenses).toLocaleString()}</td>
@@ -659,8 +754,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                       {Math.round(row.profit).toLocaleString()}
                     </td>
                   </tr>
-                  );
-                })}
+                ))}
               </tbody>
             </table>
           )}
