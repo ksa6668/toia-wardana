@@ -61,6 +61,14 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
     { ttl, defaultData: [] }
   );
 
+  // Batch 58.1: إصلاح الإجمالي التراكمي — نجلب كل العملاء الجدد منذ البداية
+  // وحتى نهاية الفترة المعروضة (to)، لأن الإجمالي يتراكم عبر الأشهر وليس داخل الشهر فقط.
+  const { data: cumulativeEntries = [] } = useCachedQuery(
+    ['whatsapp', '2024-01-01', to],
+    () => getWhatsappEntries('2024-01-01', to),
+    { ttl, defaultData: [] }
+  );
+
   // Batch 46.2: baseline تاريخي (لا يتغيّر مع الفترة)
   const { data: baselines = [], loading: baselineLoading } = useCachedQuery(
     ['whatsappBaseline'],
@@ -73,8 +81,8 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
   }, [entries, branchFilter]);
 
   // Batch 46.2: الإجماليات الجديدة
-  // - إجمالي عملاء واتساب = baseline + مجموع العملاء الجدد (تراكمي)
-  // - العملاء الجدد = مجموع newCustomers في الفترة
+  // - إجمالي عملاء واتساب = baseline + كل العملاء الجدد التراكمي حتى نهاية الفترة
+  // - العملاء الجدد (الكرت) = مجموع newCustomers في الفترة المختارة فقط
   // - عدد المشترين = مجموع buyers في الفترة
   // - نسبة المشترين = buyers / customers (من الكشف فقط، بدون baseline)
   const totals = useMemo(() => {
@@ -84,16 +92,23 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
       : baselines.filter((b) => b.branchId === branchFilter);
     const totalBaseline = filteredBaseline.reduce((sum, b) => sum + (b.totalCustomers || 0), 0);
 
+    // Batch 58.1: العملاء الجدد التراكمي (منذ البداية حتى نهاية الفترة) — للإجمالي
+    const cumByBranch = branchFilter === 'all'
+      ? cumulativeEntries
+      : cumulativeEntries.filter((e) => e.branchId === branchFilter);
+    const cumulativeNew = cumByBranch.reduce((sum, e) => sum + (e.newCustomers || 0), 0);
+
+    // جدد الفترة المختارة فقط — لكرت "العملاء الجدد"
     const totalNew = filteredEntries.reduce((sum, e) => sum + (e.newCustomers || 0), 0);
     const totalBuyers = filteredEntries.reduce((sum, e) => sum + (e.buyers || 0), 0);
     const dailyCustomers = filteredEntries.reduce((sum, e) => sum + (e.customers || 0), 0);
 
-    // إجمالي العملاء = baseline + الجدد التراكمي
-    const totalCustomers = totalBaseline + totalNew;
+    // إجمالي العملاء = baseline + الجدد التراكمي (عبر كل الأشهر السابقة + الحالي)
+    const totalCustomers = totalBaseline + cumulativeNew;
     // نسبة المشترين من سجل الكشف فقط
     const buyersPct = dailyCustomers > 0 ? Math.round((totalBuyers / dailyCustomers) * 100) : 0;
     return { totalCustomers, totalNew, totalBuyers, buyersPct };
-  }, [filteredEntries, baselines, branchFilter]);
+  }, [filteredEntries, cumulativeEntries, baselines, branchFilter]);
 
   // جدول مجمع باليوم
   const byDay = useMemo(() => {
