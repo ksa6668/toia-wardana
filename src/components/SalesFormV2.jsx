@@ -14,7 +14,7 @@ import {
   Calendar, MapPin, Wallet, CreditCard, Send, CheckCircle2, Loader2, ChevronDown,
 } from 'lucide-react';
 import {
-  addDailySales, updateDailySales, getPaymentMethods, getBranches,
+  addDailySales, updateDailySales, getPaymentMethods, getBranches, getSales,
   madaFees, madaNet, MADA_FEE_RATE,
 } from '../firebase';
 import { t, translatePM } from '../i18n';
@@ -76,6 +76,9 @@ export default function SalesFormV2({
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
+  // Batch 58: تحذير عند وجود تسجيل سابق لنفس اليوم/الفرع (يُحفظ بالضغطة الثانية)
+  const [dupWarn, setDupWarn] = useState(false);
+  useEffect(() => { setDupWarn(false); }, [date, branchId]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,6 +121,22 @@ export default function SalesFormV2({
     if (total <= 0) { setError(t(lang, 'sales.err.amount')); return; }
     setSaving(true);
     try {
+      // Batch 58: فحص التكرار — إضافة جديدة فقط (التعديل مستثنى)
+      if (!isEdit && !dupWarn) {
+        try {
+          const existing = await getSales(date, date);
+          const sameDay = existing.filter((s) => s.branchId === branchId);
+          if (sameDay.length > 0) {
+            const prevTotal = sameDay.reduce((sum, s) => sum + (Number(s.total) || 0), 0);
+            setDupWarn(true);
+            setSaving(false);
+            setError(lang === 'en'
+              ? `A record already exists for this day (${prevTotal.toLocaleString('en-US')} SAR). Tap save again to add anyway.`
+              : `يوجد تسجيل سابق لهذا اليوم بمبلغ ${prevTotal.toLocaleString('en-US')} ﷼ — سيُضاف هذا المبلغ فوقه. اضغط حفظ مرة أخرى للمتابعة.`);
+            return;
+          }
+        } catch { /* فشل الفحص لا يمنع الحفظ */ }
+      }
       if (isEdit) {
         await updateDailySales(existingRecord.id, { date, branchId, cash, mada, transfer });
       } else {
@@ -195,8 +214,8 @@ export default function SalesFormV2({
               <Wallet />
               <span>{labelFor('Cash', t(lang, 'sales.cash'))}</span>
             </label>
-            <input type="number" inputMode="decimal" placeholder="0"
-              value={cash} onChange={(e) => setCash(e.target.value)} dir="ltr" />
+            <input type="number" inputMode="decimal" placeholder="0" min="0"
+              value={cash} onChange={(e) => setCash(e.target.value.replace('-', ''))} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
 
@@ -205,8 +224,8 @@ export default function SalesFormV2({
               <CreditCard />
               <span>{labelFor('Mada', t(lang, 'sales.mada'))}</span>
             </label>
-            <input type="number" inputMode="decimal" placeholder="0"
-              value={mada} onChange={(e) => setMada(e.target.value)} dir="ltr" />
+            <input type="number" inputMode="decimal" placeholder="0" min="0"
+              value={mada} onChange={(e) => setMada(e.target.value.replace('-', ''))} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
 
@@ -215,8 +234,8 @@ export default function SalesFormV2({
               <Send />
               <span>{labelFor('Transfer', t(lang, 'sales.transfer'))}</span>
             </label>
-            <input type="number" inputMode="decimal" placeholder="0"
-              value={transfer} onChange={(e) => setTransfer(e.target.value)} dir="ltr" />
+            <input type="number" inputMode="decimal" placeholder="0" min="0"
+              value={transfer} onChange={(e) => setTransfer(e.target.value.replace('-', ''))} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
         </div>

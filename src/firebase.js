@@ -238,9 +238,10 @@ export function salesNet(sale) {
 // ملاحظة: المبلغ المدخل لـ mada هو الإجمالي قبل الرسوم.
 // نحفظ كذلك madaFees و madaNet لأغراض التقارير.
 export async function addDailySales({ date, branchId, cash, mada, transfer }) {
-  const cashN = Number(cash) || 0;
-  const madaN = Number(mada) || 0;
-  const transferN = Number(transfer) || 0;
+  // Batch 58: قصّ القيم السالبة (حماية من إدخال خاطئ يفسد التقارير)
+  const cashN = Math.max(0, Number(cash) || 0);
+  const madaN = Math.max(0, Number(mada) || 0);
+  const transferN = Math.max(0, Number(transfer) || 0);
   const total = cashN + madaN + transferN;
   const madaFeesAmt = +(madaN * MADA_FEE_RATE).toFixed(2);
   const madaNetAmt = +(madaN - madaFeesAmt).toFixed(2);
@@ -304,7 +305,7 @@ export async function addExpense({
   invoiceUrl = null,
   invoicePath = null,
 }) {
-  const amountN = Number(amount) || 0;
+  const amountN = Math.max(0, Number(amount) || 0); // Batch 58: قصّ السالب
   const catName = categoryName || categoryId;
 
   const ref = await addDoc(collection(db, "expenses"), {
@@ -337,10 +338,11 @@ export async function addExpense({
 // التحقق من صلاحيات المدير يتم على مستوى الـ UI + Firestore Security Rules.
 
 // تحديث مبيعة يومية — يعيد حساب total/madaFees/madaNet/netTotal تلقائياً
+// Batch 58: قصّ القيم السالبة
 export async function updateDailySales(id, { date, branchId, cash, mada, transfer }) {
-  const cashN = Number(cash) || 0;
-  const madaN = Number(mada) || 0;
-  const transferN = Number(transfer) || 0;
+  const cashN = Math.max(0, Number(cash) || 0);
+  const madaN = Math.max(0, Number(mada) || 0);
+  const transferN = Math.max(0, Number(transfer) || 0);
   const total = cashN + madaN + transferN;
   const madaFeesAmt = +(madaN * MADA_FEE_RATE).toFixed(2);
   const madaNetAmt = +(madaN - madaFeesAmt).toFixed(2);
@@ -405,7 +407,7 @@ export async function updateExpense(id, {
   invoiceUrl,
   invoicePath,
 }) {
-  const amountN = Number(amount) || 0;
+  const amountN = Math.max(0, Number(amount) || 0); // Batch 58: قصّ السالب
   const catName = categoryName || categoryId;
 
   const payload = {

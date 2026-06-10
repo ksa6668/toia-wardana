@@ -12,8 +12,9 @@ import {
 } from 'lucide-react';
 import {
   addExpense, updateExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,
-  classifyExpense,
+  classifyExpense, getExpenses,
 } from '../firebase';
+import { addNotification } from './NotificationsCenter';
 import { t, translateCategory, translatePM } from '../i18n';
 import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
@@ -213,6 +214,31 @@ export default function ExpenseFormV2({
         await updateExpense(existingRecord.id, payload);
       } else {
         await addExpense(payload);
+        // Batch 58: تنبيه شذوذ — لو المبلغ > ضعف متوسط مصاريف الفرع لآخر 30 يوماً
+        // (فحص في الخلفية، لا يؤخر الحفظ ولا يفشل معه)
+        (async () => {
+          try {
+            const d = new Date(date);
+            d.setDate(d.getDate() - 30);
+            const from = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+            const recent = (await getExpenses(from, date)).filter((e) => e.branchId === branchId);
+            const amounts = recent.map((e) => Number(e.amount) || 0).filter((a) => a > 0);
+            if (amounts.length >= 5) {
+              const avg = amounts.reduce((a, b) => a + b, 0) / amounts.length;
+              const amtN = Number(amount) || 0;
+              if (amtN > 2 * avg) {
+                addNotification({
+                  emoji: '⚠️',
+                  type: 'warning',
+                  title: lang === 'en' ? 'High expense alert' : 'تنبيه: مصروف مرتفع',
+                  body: lang === 'en'
+                    ? `An expense of ${amtN.toLocaleString('en-US')} SAR was recorded — more than 2× the 30-day average (${Math.round(avg).toLocaleString('en-US')}).`
+                    : `سُجّل مصروف بمبلغ ${amtN.toLocaleString('en-US')} ﷼ — أعلى من ضعف متوسط آخر 30 يوماً (${Math.round(avg).toLocaleString('en-US')} ﷼).`,
+                });
+              }
+            }
+          } catch { /* فحص اختياري */ }
+        })();
       }
       setDone(true);
       setTimeout(() => setView('employeeHome'), 1200);
@@ -330,8 +356,8 @@ export default function ExpenseFormV2({
         <div className="tw-form-card">
           <label>{t(lang, 'expense.amount')}</label>
           <div className="tw-field">
-            <input type="number" inputMode="decimal" placeholder="0"
-              value={amount} onChange={(e) => setAmount(e.target.value)} dir="ltr" />
+            <input type="number" inputMode="decimal" placeholder="0" min="0"
+              value={amount} onChange={(e) => setAmount(e.target.value.replace('-', ''))} dir="ltr" />
             <span className="tw-field-suffix">{t(lang, 'sales.currency')}</span>
           </div>
 

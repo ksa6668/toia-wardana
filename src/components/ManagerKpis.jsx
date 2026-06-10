@@ -187,9 +187,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
     () => branchFilter === 'all' ? expenses : expenses.filter((e) => e.branchId === branchFilter),
     [expenses, branchFilter]
   );
-  // Batch 43: المصاريف الثابتة محمَّلة (للاتساق) لكن KPIs الحالية نسب من المبيعات فقط
-  // (إذا أضفنا KPI ربح لاحقاً، الـ filteredFixed جاهز)
-  // eslint-disable-next-line no-unused-vars
+  // Batch 58: المصاريف الثابتة تُستخدم الآن في حساب نسبة صافي الربح (موزّعة نسبياً)
   const filteredFixed = useMemo(
     () => branchFilter === 'all' ? fixedExpenses : fixedExpenses.filter((f) => f.branchId === branchFilter),
     [fixedExpenses, branchFilter]
@@ -256,7 +254,26 @@ export default function ManagerKpis({ lang = 'ar' }) {
     // Batch 50: إجمالي كل المصاريف المتغيرة
     const totalVarExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
     // Batch 51: المصاريف الثابتة + صافي الربح
-    const totalFixedExpenses = filteredFixed.reduce((sum, f) => sum + (Number(f.amount) || 0), 0);
+    // Batch 58: الثابت يُوزّع نسبة وتناسب على الأيام المسجّلة (نفس منطق الكشف الشامل Batch 57)
+    //           بدل تحميل الشهر كاملاً — حتى لا تتشوّه نسبة صافي الربح في الشهر الجاري.
+    const fixedByMonth = {};
+    filteredFixed.forEach((f) => {
+      if (!f.month) return;
+      fixedByMonth[f.month] = (fixedByMonth[f.month] || 0) + (Number(f.amount) || 0);
+    });
+    const loggedDays = new Set([
+      ...filteredSales.map((s) => s.date),
+      ...filteredExpenses.map((e) => e.date),
+    ].filter(Boolean));
+    let totalFixedExpenses = 0;
+    loggedDays.forEach((d) => {
+      const mk = d.slice(0, 7);
+      const mf = fixedByMonth[mk] || 0;
+      if (mf > 0) {
+        const [y, m] = mk.split('-').map(Number);
+        totalFixedExpenses += mf / new Date(y, m, 0).getDate();
+      }
+    });
     const totalAllExpenses = totalVarExpenses + totalFixedExpenses;
     const netProfit = totalSales - totalAllExpenses;
 

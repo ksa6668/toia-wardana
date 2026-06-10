@@ -122,6 +122,17 @@ export default function MonthlyBreakdownSheet({
       row.fixedExpenses += Number(f.amount) || 0;
     }
 
+    // Batch 58: توزيع الثابت نسبة وتناسب على الأيام المسجّلة لكل شهر
+    // (ثابت الشهر ÷ أيام الشهر × الأيام المسجّلة) — ليطابق كروت الكشف الشامل.
+    // الأشهر المكتملة التسجيل تبقى كما هي تقريباً، والشهر الجاري لا يتضخّم.
+    for (const row of byMonth.values()) {
+      if (row.fixedExpenses > 0) {
+        const [y, m] = row.month.split('-').map(Number);
+        const daysInMonth = new Date(y, m, 0).getDate();
+        row.fixedExpenses = (row.fixedExpenses / daysInMonth) * row.daysWithAny.size;
+      }
+    }
+
     // ترتيب الأحدث أولاً
     return Array.from(byMonth.values()).sort((a, b) => b.month.localeCompare(a.month));
   }, [filteredSales, filteredExpenses, filteredFixed]);
