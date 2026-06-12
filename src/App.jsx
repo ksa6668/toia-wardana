@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Settings, Loader2,
-  Home, List, Activity, MessageCircle,
+  Home, List, Activity, MessageCircle, LogOut,
 } from 'lucide-react';
 import {
   logout, watchAuth,
@@ -145,9 +145,12 @@ export default function App() {
   const pageDir = isAdmin ? 'rtl' : dirFor(lang);
   const pageAlign = pageDir === 'rtl' ? 'text-right' : 'text-left';
 
+  // Batch 59: هل يظهر الشريط الجانبي (تابلت/مكتب)؟ نفس شرط الشريط السفلي
+  const hasSideNav = userRole === 'admin' && currentView === 'adminHome' && !authLoading;
+
   return (
     <ScreenCtxContext.Provider value={{ setScreenCtx }}>
-    <div className={`md:flex md:items-center md:justify-center md:p-4 ${pageAlign}`}
+    <div className={`${pageAlign}`}
          dir={pageDir}
          style={{
            fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
@@ -158,13 +161,11 @@ export default function App() {
          }}>
       <div
         id="tw-app-frame"
-        className="tw-app-frame w-full overflow-hidden flex flex-col relative
-                   md:max-w-md md:rounded-[2.5rem]
-                   md:shadow-[0_20px_50px_rgba(8,_112,_184,_0.25)]
-                   md:border-8 md:border-slate-900
-                   md:!h-[850px]"
+        className={`tw-app-frame w-full h-full overflow-hidden flex flex-col relative
+                   ${hasSideNav ? 'md:pr-[76px] lg:pr-[248px]' : ''}`}
         style={{
           /* Batch 20: ارتفاع ديناميكي ثابت — يحل خلل صعود/نزول الهيدر والبوتوم على iOS */
+          /* Batch 59: أُزيل إطار الجوال الوهمي — تخطيط متجاوب حقيقي للتابلت والمكتب */
           height: '100dvh',
           /* Batch 21: خلفية موحّدة — نفس لون status bar فوق + bottom safe area تحت */
           background: '#F2F6FC',
@@ -230,6 +231,8 @@ export default function App() {
           className="flex-1 overflow-y-auto"
           style={{ background: 'transparent', minHeight: 0 }}
         >
+        {/* Batch 59: حاوية عرض أقصى — المحتوى لا يتمدد بلا نهاية على الشاشات الكبيرة */}
+        <div className="mx-auto w-full max-w-[1180px] min-h-full">
           {authLoading && (
             <div className="h-full flex flex-col items-center justify-center text-tw-muted/70 gap-3 pt-20">
               <Loader2 size={32} className="animate-spin" />
@@ -285,11 +288,12 @@ export default function App() {
               onPendingConsumed={() => setPendingEditRecord(null)}
             />
           )}
+        </div>
         </main>
 
         {userRole === 'admin' && currentView === 'adminHome' && !authLoading && (
           <nav
-            className="flex items-center px-2 z-10 flex-shrink-0"
+            className="flex items-center px-2 z-10 flex-shrink-0 md:hidden"
             style={{
               /* Batch 23: ارتفاع مناسب لإظهار الأيقونة + النص + safe-area للـ iPhone */
               background: '#F2F6FC',
@@ -330,6 +334,64 @@ export default function App() {
               );
             })}
           </nav>
+        )}
+
+        {/* Batch 59: شريط جانبي للتابلت (أيقونات) والمكتب (أيقونات + نصوص) — يحل محل الشريط السفلي */}
+        {hasSideNav && (
+          <aside
+            className="hidden md:flex fixed top-0 bottom-0 right-0 z-20 flex-col bg-white w-[76px] lg:w-[248px] py-5 px-2 lg:px-4"
+            style={{ borderLeft: '1px solid rgba(230,236,246,0.9)', fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
+          >
+            {/* الشعار + اسم المستخدم */}
+            <div className="flex items-center justify-center lg:justify-start gap-2.5 mb-8 px-1">
+              <div className="w-10 h-10 rounded-xl bg-tw-blue text-white flex items-center justify-center font-extrabold text-sm flex-shrink-0">
+                TW
+              </div>
+              <div className="hidden lg:block min-w-0">
+                <p className="text-sm font-extrabold text-tw-navy leading-tight">Toia &amp; Wardana</p>
+                <p className="text-[11px] text-tw-muted truncate">
+                  {user?.displayName || user?.username || 'المدير'}
+                </p>
+              </div>
+            </div>
+            {/* التبويبات */}
+            <div className="flex flex-col gap-1 flex-1">
+              {[
+                { key: 'home',     icon: Home,          label: 'الرئيسية' },
+                { key: 'monthly',  icon: List,          label: 'الكشف الشامل' },
+                { key: 'whatsapp', icon: MessageCircle, label: 'عملاء واتساب' },
+                { key: 'kpis',     icon: Activity,      label: 'المؤشرات' },
+                { key: 'settings', icon: Settings,      label: 'الإعدادات' },
+              ].map((tab) => {
+                const Icon = tab.icon;
+                const active = adminTab === tab.key;
+                return (
+                  <button
+                    key={tab.key}
+                    onClick={() => setAdminTab(tab.key)}
+                    title={tab.label}
+                    type="button"
+                    className={`flex items-center justify-center lg:justify-start gap-3 rounded-xl px-3 py-3 transition-colors ${
+                      active ? 'bg-tw-blue text-white shadow-sm' : 'text-[#8A96AA] hover:bg-tw-soft hover:text-tw-navy'
+                    }`}
+                  >
+                    <Icon size={20} strokeWidth={active ? 2.4 : 2} className="flex-shrink-0" />
+                    <span className="hidden lg:block text-[13px] font-bold whitespace-nowrap">{tab.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+            {/* تسجيل الخروج */}
+            <button
+              onClick={() => setShowLogoutConfirm(true)}
+              title="تسجيل الخروج"
+              type="button"
+              className="flex items-center justify-center lg:justify-start gap-3 rounded-xl px-3 py-3 text-tw-red/80 hover:bg-red-50 transition-colors"
+            >
+              <LogOut size={20} className="flex-shrink-0" />
+              <span className="hidden lg:block text-[13px] font-bold">تسجيل الخروج</span>
+            </button>
+          </aside>
         )}
 
         {/* Batch 5: مركز الإشعارات (overlay) */}

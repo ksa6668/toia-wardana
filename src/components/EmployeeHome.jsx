@@ -86,7 +86,7 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
 
   return (
     <div
-      className="relative min-h-full flex flex-col px-5 pt-3 pb-8"
+      className="relative min-h-full flex flex-col px-5 pt-3 pb-8 md:max-w-2xl md:mx-auto"
       style={{
         background: 'transparent',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',

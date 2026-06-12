@@ -110,7 +110,7 @@ export default function WhatsappFormV2({
 
   return (
     <>
-      <div className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
+      <div className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft md:max-w-[560px] md:mx-auto"
         style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
       >
         <p className="text-center text-tw-muted text-xs mb-3">

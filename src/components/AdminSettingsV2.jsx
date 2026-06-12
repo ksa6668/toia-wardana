@@ -166,7 +166,7 @@ export default function AdminSettingsV2({
 
   return (
     <div
-      className="min-h-full px-4 pt-4 pb-8 page-bg-soft"
+      className="min-h-full px-4 pt-4 pb-8 page-bg-soft md:max-w-2xl md:mx-auto"
       style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
       <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">

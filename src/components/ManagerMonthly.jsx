@@ -586,6 +586,9 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         )}
       </div>
 
+      {/* Batch 59: على المكتب — عمودان: الكروت والرؤى يميناً، الجدول يساراً */}
+      <div className="lg:grid lg:grid-cols-5 lg:gap-4 lg:items-start">
+      <div className="lg:col-span-2">
       {/* Batch 44: 6 كروت (3 إجماليات + 3 متوسطات) - Batch 53: قابلة للضغط لعرض التفصيل الشهري */}
       {/* Batch 58: سهم مقارنة مع الشهر السابق (نفس الأيام) على كروت الإجماليات */}
       <div className="grid grid-cols-3 gap-2 mb-2">
@@ -781,6 +784,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         </button>
       </div>
 
+      </div>{/* نهاية العمود الأول */}
+      <div className="lg:col-span-3">
       {/* Batch 57: زر مستوى التجميع — يظهر فقط في "كل الأشهر" (يومي/شهري) */}
       {groupToggle && (
         <div className="flex bg-tw-soft p-1 rounded-xl mb-3">
@@ -991,6 +996,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           )}
         </div>
       )}
+      </div>{/* نهاية العمود الثاني */}
+      </div>{/* نهاية شبكة العمودين */}
 
       <BottomSheet
         open={!!sheet}

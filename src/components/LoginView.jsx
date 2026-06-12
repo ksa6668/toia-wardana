@@ -51,7 +51,7 @@ export default function LoginView({ onLoginSuccess, lang, setLang }) {
 
   return (
     <div
-      className="relative min-h-full flex flex-col px-6 pt-8 pb-10 overflow-hidden"
+      className="relative min-h-full flex flex-col px-6 pt-8 pb-10 overflow-hidden md:min-h-0 md:max-w-[460px] md:mx-auto md:my-10 md:rounded-[2rem] md:shadow-xl"
       style={{
         // Batch 37: التدرج يبدأ من أعلى الشاشة ويمتد ليصل لقعر شاشة الجوال
         // عملياً status-bar (إن كان شفافاً) سيظهر فوق نفس التدرج الناعم

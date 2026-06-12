@@ -417,6 +417,8 @@ export default function ManagerHome({ lang }) {
       )}
 
       {/* قائمة الفروع الديناميكية من Firestore */}
+      {/* Batch 59: على التابلت/المكتب — الفرعان جنباً إلى جنب */}
+      <div className="md:grid md:grid-cols-2 md:gap-4 md:items-start">
       {!loading && !error && branches.map((b) => {
         const k = branchKpis[b.id] || { budgetPct: 0, reviewsPct: 0, hasGoal: false, reviewsTarget: 0, reviewsAchieved: 0 };
         const branchDisplayName = lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`);
@@ -441,6 +443,7 @@ export default function ManagerHome({ lang }) {
           />
         );
       })}
+      </div>{/* نهاية شبكة الفروع */}
 
       {/* القائمة المنبثقة */}
       <BottomSheet

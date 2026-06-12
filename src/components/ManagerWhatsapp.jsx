@@ -231,7 +231,7 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
       )}
 
       {/* 4 كروت إحصائية - صفّين، كل صف كرتين */}
-      <div className="grid grid-cols-2 gap-3 mb-4">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
         <div className="bg-white p-4 rounded-2xl border border-tw-line text-center">
           <Users size={18} className="mx-auto text-tw-blue mb-2" />
           <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'Total customers' : 'إجمالي عملاء واتساب'}</p>

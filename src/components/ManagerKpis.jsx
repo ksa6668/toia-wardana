@@ -434,7 +434,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
               <PeriodCard label={periodCards[0].label} amount={periodCards[0].amount} pct={periodCards[0].pct} wide />
             </div>
           ) : (
-            <div className="grid grid-cols-2 gap-3 mb-5">
+            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 mb-5">
               {periodCards.map((c, i) => (
                 <PeriodCard key={i} label={c.label} amount={c.amount} pct={c.pct} />
               ))}
