@@ -96,7 +96,7 @@ function KpiRow({ icon: Icon, label, pct }) {
   // لون الدائرة: أحمر إذا سالب، أزرق إذا موجب
   const strokeColor = isNegative ? '#EF4444' : '#005BFF';
   return (
-    <div className="flex items-center justify-between py-3 border-b border-tw-line last:border-0">
+    <div className="flex items-center justify-between py-3">
       <div className="flex items-center gap-3">
         <div className="w-9 h-9 rounded-xl bg-tw-soft text-tw-blue flex items-center justify-center">
           <Icon size={16} />
@@ -434,7 +434,7 @@ export default function ManagerKpis({ lang = 'ar' }) {
               <PeriodCard label={periodCards[0].label} amount={periodCards[0].amount} pct={periodCards[0].pct} wide />
             </div>
           ) : (
-            <div className="grid grid-cols-2 xl:grid-cols-3 gap-3 mb-5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
               {periodCards.map((c, i) => (
                 <PeriodCard key={i} label={c.label} amount={c.amount} pct={c.pct} />
               ))}
@@ -442,9 +442,14 @@ export default function ManagerKpis({ lang = 'ar' }) {
           )}
 
           {/* قائمة المؤشرات الجديدة */}
-          <div className="bg-white rounded-2xl border border-tw-line shadow-sm px-4 py-2">
+          {/* Batch 59.1: جوال = قائمة داخل بطاقة | md+ = كروت متجاورة */}
+          <div className="bg-white rounded-2xl border border-tw-line shadow-sm px-4 py-2
+                          md:bg-transparent md:border-0 md:shadow-none md:p-0
+                          md:grid md:grid-cols-2 xl:grid-cols-3 md:gap-3">
             {kpiRows.map((row, i) => (
-              <KpiRow key={i} icon={row.icon} label={row.label} pct={row.pct} />
+              <div key={i} className="border-b border-tw-line last:border-b-0 md:last:border-b md:bg-white md:rounded-2xl md:border md:shadow-sm md:px-4 md:py-1">
+                <KpiRow icon={row.icon} label={row.label} pct={row.pct} />
+              </div>
             ))}
           </div>
         </>
