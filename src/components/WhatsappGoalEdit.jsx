@@ -12,6 +12,7 @@ import { getMonthlyGoal, setMonthlyGoal } from '../firebase';
 import { useScreenHeader } from '../context/ScreenCtx';
 import BottomSheet from './BottomSheet';
 import { formatMonthLabel, getMonthsFrom } from '../utils/periodHelpers';
+import { monthStr } from '../utils/dateHelpers';
 
 export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 'ar' }) {
   const title = lang === 'en'
@@ -19,10 +20,7 @@ export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 
     : `هدف الواتساب - ${branchName}`;
   useScreenHeader(title, onBack);
 
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState(() => monthStr());
   const [target, setTarget] = useState('');
   const [targetType, setTargetType] = useState('pct'); // 'pct' | 'amount'
   const [loading, setLoading] = useState(true);
