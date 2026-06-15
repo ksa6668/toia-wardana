@@ -20,6 +20,7 @@ import { usePersistedState } from '../hooks/usePersistedState';
 import {
   formatMonthLabel,
   monthRange,
+  getMonthsFrom,
 } from '../utils/periodHelpers';
 import { addNotification } from './NotificationsCenter';
 
@@ -325,27 +326,10 @@ export default function ManagerHome({ lang }) {
     return () => { cancelled = true; };
   }, [selectedMonth, refreshCounter]);
 
-  // Batch 46.5: قائمة الأشهر تبدأ من مايو 2026 وما بعد فقط
-  const availableMonths = () => {
-    const months = [];
-    const now = new Date();
-    const startYear = 2026;
-    const startMonth = 5; // مايو
-    const endYear = now.getFullYear();
-    const endMonth = now.getMonth() + 1;
-    let y = startYear, m = startMonth;
-    while (y < endYear || (y === endYear && m <= endMonth)) {
-      months.push(`${y}-${String(m).padStart(2, '0')}`);
-      m++;
-      if (m > 12) { m = 1; y++; }
-    }
-    return months.reverse(); // أحدث شهر أولاً
-  };
-
   const openPicker = () => {
     setSheet({
       title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-      options: availableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+      options: getMonthsFrom().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
       current: selectedMonth,
       onPick: (v) => { setSelectedMonth(v); setSheet(null); },
     });

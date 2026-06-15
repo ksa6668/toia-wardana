@@ -22,28 +22,7 @@ import SarSymbol from './SarSymbol';
 import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
 import { useScreenHeader } from '../context/ScreenCtx';
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function dateLabelFor(dateStr, lang) {
-  if (!dateStr) return '—';
-  const T = todayStr();
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-  const t2 = new Date(); t2.setDate(t2.getDate() - 2);
-  const t2Str = `${t2.getFullYear()}-${String(t2.getMonth() + 1).padStart(2, '0')}-${String(t2.getDate()).padStart(2, '0')}`;
-  if (dateStr === T) return lang === 'en' ? 'Today' : 'اليوم';
-  if (dateStr === yStr) return lang === 'en' ? 'Yesterday' : 'أمس';
-  if (dateStr === t2Str) return lang === 'en' ? '2 days ago' : 'قبل يومين';
-  // تنسيق التاريخ المخصص
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
-}
+import { todayLocal, dateLabelFor } from '../utils/dateHelpers';
 
 export default function SalesFormV2({
   setView,
@@ -65,7 +44,7 @@ export default function SalesFormV2({
     : t(lang, 'sales.title');
   useScreenHeader(screenTitle, onBack || (() => setView && setView('employeeHome')));
 
-  const [date, setDate] = useState(existingRecord?.date || todayStr());
+  const [date, setDate] = useState(existingRecord?.date || todayLocal());
   const [cash, setCash] = useState(existingRecord?.cash != null ? String(existingRecord.cash) : '');
   const [mada, setMada] = useState(existingRecord?.mada != null ? String(existingRecord.mada) : '');
   const [transfer, setTransfer] = useState(existingRecord?.transfer != null ? String(existingRecord.transfer) : '');
