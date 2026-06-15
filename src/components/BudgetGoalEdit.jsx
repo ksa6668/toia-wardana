@@ -10,6 +10,7 @@ import { useScreenHeader } from '../context/ScreenCtx';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import { formatMonthLabel, getMonthsFrom } from '../utils/periodHelpers';
+import { monthStr } from '../utils/dateHelpers';
 
 export default function BudgetGoalEdit({ onBack, branchId, branchName, lang = 'ar' }) {
   const title = lang === 'en'
@@ -17,10 +18,7 @@ export default function BudgetGoalEdit({ onBack, branchId, branchName, lang = 'a
     : `هدف الميزانية - ${branchName}`;
   useScreenHeader(title, onBack);
 
-  const [selectedMonth, setSelectedMonth] = useState(() => {
-    const d = new Date();
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-  });
+  const [selectedMonth, setSelectedMonth] = useState(() => monthStr());
   const [budget, setBudget] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
