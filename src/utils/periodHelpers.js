@@ -78,6 +78,25 @@ export function getAvailableMonths() {
 }
 
 /**
+ * قائمة الأشهر من شهر بداية ثابت حتى الشهر الحالي، الأحدث أولاً (YYYY-MM).
+ * موحّد من شاشات الأهداف (Budget/Reviews/Whatsapp GoalEdit) و ManagerHome.
+ * الافتراضي: مايو 2026 (نفس بداية تلك الشاشات).
+ */
+export function getMonthsFrom(startYear = 2026, startMonth = 5) {
+  const months = [];
+  const now = new Date();
+  const endYear = now.getFullYear();
+  const endMonth = now.getMonth() + 1;
+  let y = startYear, m = startMonth;
+  while (y < endYear || (y === endYear && m <= endMonth)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months.reverse();
+}
+
+/**
  * قائمة السنوات: من 2024 إلى السنة الحالية، الأحدث أولاً.
  * Batch 34: السنة الافتتاحية صارت 2024.
  */

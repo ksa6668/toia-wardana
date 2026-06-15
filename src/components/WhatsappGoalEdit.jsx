@@ -11,23 +11,7 @@ import { Calendar, ChevronDown, Loader2, MessageCircle, Percent, Hash } from 'lu
 import { getMonthlyGoal, setMonthlyGoal } from '../firebase';
 import { useScreenHeader } from '../context/ScreenCtx';
 import BottomSheet from './BottomSheet';
-import { formatMonthLabel } from '../utils/periodHelpers';
-
-function availableMonths() {
-  const months = [];
-  const now = new Date();
-  const startYear = 2026;
-  const startMonth = 5;
-  const endYear = now.getFullYear();
-  const endMonth = now.getMonth() + 1;
-  let y = startYear, m = startMonth;
-  while (y < endYear || (y === endYear && m <= endMonth)) {
-    months.push(`${y}-${String(m).padStart(2, '0')}`);
-    m++;
-    if (m > 12) { m = 1; y++; }
-  }
-  return months.reverse();
-}
+import { formatMonthLabel, getMonthsFrom } from '../utils/periodHelpers';
 
 export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 'ar' }) {
   const title = lang === 'en'
@@ -101,7 +85,7 @@ export default function WhatsappGoalEdit({ onBack, branchId, branchName, lang = 
   const openMonthPicker = () => {
     setSheet({
       title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-      options: availableMonths().map((m) => ({
+      options: getMonthsFrom().map((m) => ({
         value: m,
         label: formatMonthLabel(m, lang),
       })),

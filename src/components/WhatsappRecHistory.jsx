@@ -7,22 +7,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Loader2, Edit2, Trash2, Users, UserPlus, ShoppingBag } from 'lucide-react';
 import { getWhatsappEntries } from '../firebase';
-import { localDate } from '../utils/dateHelpers';
-
-function formatDayHeader(dateStr, lang) {
-  if (!dateStr) return '—';
-  // Batch 46.10: utils/dateHelpers الموحّدة
-  const today = new Date();
-  const todayKey = localDate(today);
-  const yest = new Date(today); yest.setDate(today.getDate() - 1);
-  const yestKey = localDate(yest);
-  if (dateStr === todayKey) return lang === 'en' ? 'Today' : 'اليوم';
-  if (dateStr === yestKey) return lang === 'en' ? 'Yesterday' : 'أمس';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
-    weekday: 'long', day: 'numeric', month: 'short',
-  });
-}
+import { localDate, formatDayHeader } from '../utils/dateHelpers';
 
 export default function WhatsappRecHistory({
   branchId = 'all',
