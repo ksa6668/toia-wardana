@@ -362,11 +362,6 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
     updatedAt: serverTimestamp(),
   });
 
-  // Batch 40: إشعار Telegram
-  notifyTelegramSaleUpdated({
-    date, branchId, cash: cashN, mada: madaN, transfer: transferN, total,
-  });
-
   // Batch 45: مسح cache
   _invalidateCachePrefix('sales');
 
@@ -374,22 +369,8 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
 }
 
 export async function deleteDailySales(id) {
-  // Batch 40: نقرأ البيانات قبل الحذف لإرسالها في الإشعار
-  let snapshot = null;
-  try {
-    const snap = await getDoc(doc(db, "dailySales", id));
-    if (snap.exists()) snapshot = snap.data();
-  } catch { /* ignore */ }
-
   const result = await deleteDoc(doc(db, "dailySales", id));
 
-  if (snapshot) {
-    notifyTelegramSaleDeleted({
-      date: snapshot.date,
-      branchId: snapshot.branchId,
-      total: snapshot.total || 0,
-    });
-  }
   // Batch 45: مسح cache
   _invalidateCachePrefix('sales');
   return result;
@@ -427,11 +408,6 @@ export async function updateExpense(id, {
 
   const result = await updateDoc(doc(db, "expenses", id), payload);
 
-  // Batch 40: إشعار Telegram
-  notifyTelegramExpenseUpdated({
-    date, branchId, categoryName: catName, amount: amountN, paymentMethodId,
-  });
-
   // Batch 45: مسح cache
   _invalidateCachePrefix('expenses');
 
@@ -439,23 +415,8 @@ export async function updateExpense(id, {
 }
 
 export async function deleteExpense(id) {
-  // Batch 40: نقرأ البيانات قبل الحذف
-  let snapshot = null;
-  try {
-    const snap = await getDoc(doc(db, "expenses", id));
-    if (snap.exists()) snapshot = snap.data();
-  } catch { /* ignore */ }
-
   const result = await deleteDoc(doc(db, "expenses", id));
 
-  if (snapshot) {
-    notifyTelegramExpenseDeleted({
-      date: snapshot.date,
-      branchId: snapshot.branchId,
-      categoryName: snapshot.categoryName,
-      amount: snapshot.amount || 0,
-    });
-  }
   // Batch 45: مسح cache
   _invalidateCachePrefix('expenses');
   return result;
@@ -1541,13 +1502,6 @@ export async function notifyTelegramExpenseAdded({ date, branchId, categoryName,
   }
   return sendTelegram(msg);
 }
-
-// Batch 40: دوال التعديل/الحذف لم تعد تُستخدم (الإشعارات للموظفين عند الإضافة فقط)
-// تركناها كـ no-op لتفادي كسر أي مكان يستدعيها.
-export async function notifyTelegramSaleUpdated() { /* disabled */ }
-export async function notifyTelegramSaleDeleted() { /* disabled */ }
-export async function notifyTelegramExpenseUpdated() { /* disabled */ }
-export async function notifyTelegramExpenseDeleted() { /* disabled */ }
 
 // ====================================================================
 // Batch 47: إشعار Telegram لـ عملاء واتساب
