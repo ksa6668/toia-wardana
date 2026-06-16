@@ -634,7 +634,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           )}
         </button>
       </div>
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-2">
         <button
           onClick={() => setBreakdownMetric('avgSales')}
           className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
@@ -668,7 +668,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       </div>
 
       {/* Batch 51: كروت طرق الدفع - الكاش + مدى + التحويل (مبلغ ونسبة) - Batch 53: قابلة للضغط */}
-      <div className="grid grid-cols-3 gap-2 mb-4">
+      <div className="grid grid-cols-3 gap-2 mb-2">
         <button
           onClick={() => setBreakdownMetric('cash')}
           className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
@@ -706,12 +706,12 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
 
       {/* ===== Batch 58: توقّع نهاية الشهر — كرت بعرض كامل أسفل كروت الدفع ===== */}
       {insights && (
-        <div className="bg-white p-3 rounded-xl border border-tw-line mb-4">
-          <div className="flex items-center gap-1.5 mb-1">
+        <div className="bg-white p-3 rounded-xl border border-tw-line mb-2 text-center">
+          <div className="flex items-center justify-center gap-1.5 mb-1">
             <TrendingUp size={13} className="text-tw-blue" />
             <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
           </div>
-          <p className="text-sm font-bold text-tw-navy flex items-center gap-1">
+          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
             {insights.projectedSales.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
           <p className={`text-[10px] font-bold mt-0.5 ${
