@@ -154,7 +154,7 @@ export default function App() {
          dir={pageDir}
          style={{
            fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
-           background: '#F2F6FC', // Batch 21: نفس لون التطبيق — يغطي notch/status bar
+           background: 'var(--color-page-background)', // Batch 21: نفس لون التطبيق — يغطي notch/status bar
            minHeight: '100dvh',
            height: '100dvh',
            overflow: 'hidden',
@@ -168,7 +168,7 @@ export default function App() {
           /* Batch 59: أُزيل إطار الجوال الوهمي — تخطيط متجاوب حقيقي للتابلت والمكتب */
           height: '100dvh',
           /* Batch 21: خلفية موحّدة — نفس لون status bar فوق + bottom safe area تحت */
-          background: '#F2F6FC',
+          background: 'var(--color-page-background)',
         }}
       >
 

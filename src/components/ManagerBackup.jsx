@@ -234,10 +234,6 @@ export default function ManagerBackup({ onBack, lang = 'ar' }) {
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      <div
-        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-      />
 
       {/* وصف */}
       <div className="relative z-10 px-4 pt-4 pb-2">

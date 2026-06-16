@@ -249,10 +249,6 @@ export default function ExpenseFormV2({
 
   return (
     <div className="tw-page-bg">
-      <div
-        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-      />
 
       {/* Batch 38: تم حذف الـ inline header — العنوان وزر العودة في AppHeader الموحّد */}
 
