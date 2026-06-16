@@ -154,7 +154,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
     <div
       className="min-h-full relative overflow-hidden pb-20"
       style={{
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        background: 'var(--color-page-background)',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >

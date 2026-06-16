@@ -53,22 +53,11 @@ export default function LoginView({ onLoginSuccess, lang, setLang }) {
     <div
       className="relative min-h-full flex flex-col px-6 pt-8 pb-10 overflow-hidden md:min-h-0 md:max-w-[460px] md:mx-auto md:my-10 md:rounded-[2rem] md:shadow-xl"
       style={{
-        // Batch 37: التدرج يبدأ من أعلى الشاشة ويمتد ليصل لقعر شاشة الجوال
-        // عملياً status-bar (إن كان شفافاً) سيظهر فوق نفس التدرج الناعم
-        background: 'radial-gradient(ellipse at top, #DCEBFF 0%, #F2F8FF 40%, #FFFFFF 100%)',
+        // خلفية رمادية فاتحة صلبة موحّدة من الأعلى للأسفل (بدون تدرج أو هالات)
+        background: 'var(--color-page-background)',
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* خلفية زخرفية ناعمة */}
-      <div
-        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-30 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-      />
-      <div
-        className="absolute -bottom-20 -left-20 w-72 h-72 rounded-full opacity-20 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(0,91,255,0.25), transparent 70%)' }}
-      />
-
       {/* زر اللغة في الزاوية */}
       <div className={`relative z-10 flex ${lang === 'en' ? 'justify-end' : 'justify-start'} mb-3`}>
         <button
