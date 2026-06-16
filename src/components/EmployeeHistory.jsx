@@ -6,7 +6,7 @@
 // يقرأ من Firestore عبر firebase.js (getSales, getExpenses)
 // محدود بفرع الموظف فقط.
 // ----------------------------------------------------------
-import { useState, useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import {
   ChevronRight, TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar,
 } from 'lucide-react';
@@ -15,43 +15,40 @@ import { translateCategory } from '../i18n';
 import SarSymbol from './SarSymbol';
 import { formatDayShort } from '../utils/periodHelpers';
 import { localDate } from '../utils/dateHelpers';
+import { useCachedQuery } from '../hooks/useCachedQuery';
 
 export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-  const [sales, setSales] = useState([]);
-  const [expenses, setExpenses] = useState([]);
+  // آخر 7 أيام (نطاق محلي)
+  const today = new Date();
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 7);
+  // Batch 46.10: utils/dateHelpers الموحّدة (التاريخ المحلي)
+  const from = localDate(sevenDaysAgo);
+  const to = localDate(today);
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        // آخر 7 أيام
-        const today = new Date();
-        const sevenDaysAgo = new Date(today);
-        sevenDaysAgo.setDate(today.getDate() - 7);
-        // Batch 46.10: utils/dateHelpers الموحّدة (التاريخ المحلي)
-        const from = localDate(sevenDaysAgo);
-        const to = localDate(today);
-        // Batch 41: تمرير branchId لـ getSales/getExpenses لتجنّب مشكلة Firestore Rules
-        // (نفس إصلاح Batch 39 لكن لشاشة "السجل")
-        const [s, e] = await Promise.all([getSales(from, to, branchId), getExpenses(from, to, branchId)]);
-        if (!cancelled) {
-          // البيانات مفلترة في Firestore، لكن نتأكد مرة أخرى للأمان
-          setSales(s);
-          setExpenses(e);
-        }
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
-  }, [branchId]);
+  // P5: تخزين مؤقت (SWR) لتقليل استعلامات Firestore المتكررة عند العودة للشاشة.
+  // المفتاح يبدأ بـ 'sales'/'expenses' ليتطابق مع إبطال الكاش في firebase.js
+  // (_invalidateCachePrefix('sales'/'expenses') عند أي إضافة/تعديل/حذف).
+  // ttl قصير (30 ثانية) + الإبطال عند الكتابة ⇒ لا تظهر بيانات قديمة.
+  // Batch 41: تمرير branchId لـ getSales/getExpenses لتجنّب مشكلة Firestore Rules.
+  const CACHE_TTL = 30 * 1000;
+  const {
+    data: sales = [], loading: salesLoading, error: salesError,
+  } = useCachedQuery(
+    ['sales', branchId, from, to],
+    () => getSales(from, to, branchId),
+    { ttl: CACHE_TTL, defaultData: [] }
+  );
+  const {
+    data: expenses = [], loading: expLoading, error: expError,
+  } = useCachedQuery(
+    ['expenses', branchId, from, to],
+    () => getExpenses(from, to, branchId),
+    { ttl: CACHE_TTL, defaultData: [] }
+  );
+
+  const loading = salesLoading || expLoading;
+  const error = salesError || expError;
 
   // الإجماليات
   const totals = useMemo(() => {

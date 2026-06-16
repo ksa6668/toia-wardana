@@ -20,6 +20,7 @@ import { usePersistedState } from '../hooks/usePersistedState';
 import {
   formatMonthLabel,
   monthRange,
+  getMonthsFrom,
 } from '../utils/periodHelpers';
 import { addNotification } from './NotificationsCenter';
 
@@ -246,10 +247,23 @@ export default function ManagerHome({ lang }) {
         if (cancelled) return;
 
         // 4) حساب KPIs لكل فرع
+        // P3: تجميع المبيعات/الواتساب حسب الفرع بمرور واحد بدل filter لكل فرع.
+        // النتيجة مطابقة تماماً لـ allSales.filter(...) — نفس العناصر ونفس الترتيب
+        // (push يحافظ على ترتيب المصفوفة الأصلية مثل filter).
+        const salesByBranch = {};
+        for (const s of allSales) {
+          if (!salesByBranch[s.branchId]) salesByBranch[s.branchId] = [];
+          salesByBranch[s.branchId].push(s);
+        }
+        const whatsappByBranch = {};
+        for (const w of allWhatsapp) {
+          if (!whatsappByBranch[w.branchId]) whatsappByBranch[w.branchId] = [];
+          whatsappByBranch[w.branchId].push(w);
+        }
         const kpisMap = {};
         for (const b of brs) {
           const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0, whatsappTargetType: 'pct' };
-          const branchSales = allSales.filter((s) => s.branchId === b.id);
+          const branchSales = salesByBranch[b.id] || [];
           const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
           const budgetPct = goal.budget > 0
             ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
@@ -260,7 +274,7 @@ export default function ManagerHome({ lang }) {
             : 0;
           // Batch 49: نسبة تحقيق واتساب - تعتمد على whatsappTarget من goal
           // لو ما حُدّد هدف للشهر → noTarget = true (يعرض "لم يُحدّد هدف")
-          const branchWa = allWhatsapp.filter((w) => w.branchId === b.id);
+          const branchWa = whatsappByBranch[b.id] || [];
           const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
           const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
           const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
@@ -325,27 +339,10 @@ export default function ManagerHome({ lang }) {
     return () => { cancelled = true; };
   }, [selectedMonth, refreshCounter]);
 
-  // Batch 46.5: قائمة الأشهر تبدأ من مايو 2026 وما بعد فقط
-  const availableMonths = () => {
-    const months = [];
-    const now = new Date();
-    const startYear = 2026;
-    const startMonth = 5; // مايو
-    const endYear = now.getFullYear();
-    const endMonth = now.getMonth() + 1;
-    let y = startYear, m = startMonth;
-    while (y < endYear || (y === endYear && m <= endMonth)) {
-      months.push(`${y}-${String(m).padStart(2, '0')}`);
-      m++;
-      if (m > 12) { m = 1; y++; }
-    }
-    return months.reverse(); // أحدث شهر أولاً
-  };
-
   const openPicker = () => {
     setSheet({
       title: lang === 'en' ? 'Pick month' : 'اختر الشهر',
-      options: availableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
+      options: getMonthsFrom().map((m) => ({ value: m, label: formatMonthLabel(m, lang) })),
       current: selectedMonth,
       onPick: (v) => { setSelectedMonth(v); setSheet(null); },
     });

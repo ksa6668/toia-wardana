@@ -78,6 +78,25 @@ export function getAvailableMonths() {
 }
 
 /**
+ * قائمة الأشهر من شهر بداية ثابت حتى الشهر الحالي، الأحدث أولاً (YYYY-MM).
+ * موحّد من شاشات الأهداف (Budget/Reviews/Whatsapp GoalEdit) و ManagerHome.
+ * الافتراضي: مايو 2026 (نفس بداية تلك الشاشات).
+ */
+export function getMonthsFrom(startYear = 2026, startMonth = 5) {
+  const months = [];
+  const now = new Date();
+  const endYear = now.getFullYear();
+  const endMonth = now.getMonth() + 1;
+  let y = startYear, m = startMonth;
+  while (y < endYear || (y === endYear && m <= endMonth)) {
+    months.push(`${y}-${String(m).padStart(2, '0')}`);
+    m++;
+    if (m > 12) { m = 1; y++; }
+  }
+  return months.reverse();
+}
+
+/**
  * قائمة السنوات: من 2024 إلى السنة الحالية، الأحدث أولاً.
  * Batch 34: السنة الافتتاحية صارت 2024.
  */
@@ -87,23 +106,6 @@ export function getAvailableYears() {
   const end = Math.max(now, START);
   const list = [];
   for (let y = end; y >= START; y--) list.push(y);
-  return list;
-}
-
-/**
- * Batch 18: يرجع 3 أشهر قادمة بدءاً من الشهر الحالي بصيغة YYYY-MM.
- * يستخدم لشاشة الأهداف الشهرية (التاريخ دائماً للأشهر الـ3 القادمة).
- */
-export function getNext3Months() {
-  const now = new Date();
-  let y = now.getFullYear();
-  let m = now.getMonth() + 1; // 1-12
-  const list = [];
-  for (let i = 0; i < 3; i++) {
-    list.push(`${y}-${String(m).padStart(2, '0')}`);
-    m++;
-    if (m > 12) { m = 1; y++; }
-  }
   return list;
 }
 

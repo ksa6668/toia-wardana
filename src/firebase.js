@@ -18,9 +18,6 @@ import {
   createUserWithEmailAndPassword,
   signOut,
   onAuthStateChanged,
-  updatePassword,
-  reauthenticateWithCredential,
-  EmailAuthProvider,
 } from "firebase/auth";
 import {
   getFirestore,
@@ -39,7 +36,11 @@ import {
   writeBatch,
 } from "firebase/firestore";
 
-// S1: الفروع/طرق الدفع/التصنيفات نُقلت إلى firebaseCatalog.js (نقل فقط).
+// S1 (المرحلة 1): مُساعد إبطال الـ cache نُقل إلى firebaseCache.js (نقل فقط — نفس المنطق).
+// نُبقي الاسم المحلي _invalidateCachePrefix عبر alias حتى تبقى كل مواضع الاستدعاء كما هي.
+import { invalidateCachePrefix as _invalidateCachePrefix } from './firebaseCache';
+
+// S1 (المرحلة 4): الفروع/طرق الدفع/التصنيفات نُقلت إلى firebaseCatalog.js (نقل فقط).
 // نستوردها هنا للاستخدام الداخلي (getAllGoalsForMonth يستدعي getBranches)
 // ونُعيد تصديرها أدناه حتى تبقى استيرادات المكوّنات `from '../firebase'` كما هي.
 import {
@@ -48,31 +49,6 @@ import {
   getCategories, setCategoryRequiresImage, addCategory, deleteCategory,
   setCategoryOrder, reorderCategories,
 } from './firebaseCatalog';
-
-// ============================================================
-// Batch 45: Cache Invalidation Helper
-// يُستدعى من دوال CRUD لمسح cache الاستعلامات المتأثرة.
-// يعمل عبر sessionStorage (نفس آلية useCachedQuery).
-// ============================================================
-const CACHE_PREFIX = 'tw_cache_';
-const VERSION_PREFIX = 'tw_cache_v_';
-
-function _invalidateCachePrefix(prefix) {
-  try {
-    if (typeof sessionStorage === 'undefined') return;
-    const fullPrefix = CACHE_PREFIX + prefix;
-    const keysToRemove = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const k = sessionStorage.key(i);
-      if (k && k.startsWith(fullPrefix)) keysToRemove.push(k);
-    }
-    keysToRemove.forEach((k) => sessionStorage.removeItem(k));
-    // version token: يجبر useCachedQuery على re-fetch حتى لو cache لا يزال موجوداً في الذاكرة
-    const versionKey = VERSION_PREFIX + prefix;
-    const currentV = Number(sessionStorage.getItem(versionKey) || '0');
-    sessionStorage.setItem(versionKey, String(currentV + 1));
-  } catch { /* ignore */ }
-}
 
 // ============================================================
 
@@ -132,7 +108,8 @@ function usernameToEmail(username) {
 }
 
 // يحوّل الرمز (4 أرقام) إلى كلمة مرور صالحة (6+ أحرف)
-function pinToPassword(pin) {
+// S1: مُصدّرة ليستخدمها firebaseUsers.js (changeMyPin) — نفس المنطق.
+export function pinToPassword(pin) {
   return `${String(pin).trim()}${PIN_SUFFIX}`;
 }
 
@@ -243,6 +220,17 @@ export function salesNet(sale) {
   const fees = +(madaN * MADA_FEE_RATE).toFixed(2);
   return +(cashN + (madaN - fees) + transferN).toFixed(2);
 }
+
+// D5: مصدر واحد لـ "صافي مدى لكل سجل" (مكوّن مدى فقط، بعد الرسوم).
+// كان مكرّراً حرفياً في ManagerKpis / ManagerMonthly / MonthlyBreakdownSheet.
+// السلوك مطابق تماماً للكود السابق: لو madaNet مخزّن نستخدمه، وإلا نحسبه
+// من mada بنفس المعادلة والتقريب (MADA_FEE_RATE = 0.0092 = نفس الـ literal السابق).
+export function madaNetOf(sale) {
+  if (typeof sale?.madaNet === 'number') return sale.madaNet;
+  const m = Number(sale?.mada) || 0;
+  return +(m * (1 - MADA_FEE_RATE)).toFixed(2);
+}
+
 
 // تسجيل مبيعات يومية (القسم 6 من المنطق)
 // ملاحظة: المبلغ المدخل لـ mada هو الإجمالي قبل الرسوم.
@@ -372,11 +360,6 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
     updatedAt: serverTimestamp(),
   });
 
-  // Batch 40: إشعار Telegram
-  notifyTelegramSaleUpdated({
-    date, branchId, cash: cashN, mada: madaN, transfer: transferN, total,
-  });
-
   // Batch 45: مسح cache
   _invalidateCachePrefix('sales');
 
@@ -384,22 +367,8 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
 }
 
 export async function deleteDailySales(id) {
-  // Batch 40: نقرأ البيانات قبل الحذف لإرسالها في الإشعار
-  let snapshot = null;
-  try {
-    const snap = await getDoc(doc(db, "dailySales", id));
-    if (snap.exists()) snapshot = snap.data();
-  } catch { /* ignore */ }
-
   const result = await deleteDoc(doc(db, "dailySales", id));
 
-  if (snapshot) {
-    notifyTelegramSaleDeleted({
-      date: snapshot.date,
-      branchId: snapshot.branchId,
-      total: snapshot.total || 0,
-    });
-  }
   // Batch 45: مسح cache
   _invalidateCachePrefix('sales');
   return result;
@@ -437,11 +406,6 @@ export async function updateExpense(id, {
 
   const result = await updateDoc(doc(db, "expenses", id), payload);
 
-  // Batch 40: إشعار Telegram
-  notifyTelegramExpenseUpdated({
-    date, branchId, categoryName: catName, amount: amountN, paymentMethodId,
-  });
-
   // Batch 45: مسح cache
   _invalidateCachePrefix('expenses');
 
@@ -449,23 +413,8 @@ export async function updateExpense(id, {
 }
 
 export async function deleteExpense(id) {
-  // Batch 40: نقرأ البيانات قبل الحذف
-  let snapshot = null;
-  try {
-    const snap = await getDoc(doc(db, "expenses", id));
-    if (snap.exists()) snapshot = snap.data();
-  } catch { /* ignore */ }
-
   const result = await deleteDoc(doc(db, "expenses", id));
 
-  if (snapshot) {
-    notifyTelegramExpenseDeleted({
-      date: snapshot.date,
-      branchId: snapshot.branchId,
-      categoryName: snapshot.categoryName,
-      amount: snapshot.amount || 0,
-    });
-  }
   // Batch 45: مسح cache
   _invalidateCachePrefix('expenses');
   return result;
@@ -658,11 +607,7 @@ export async function getWhatsappBaseline(branchId = null) {
 }
 
 
-// قائمة كل المستخدمين (للمدير — شاشة إدارة المستخدمين)
-export async function getUsers() {
-  const snap = await getDocs(collection(db, "users"));
-  return snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
-}
+// S1: getUsers وبقية دوال المستخدمين نُقلت إلى firebaseUsers.js (re-export أدناه).
 
 // ========== الفروع + طرق الدفع + التصنيفات (§S1) ==========
 // نُقلت إلى firebaseCatalog.js (نقل فقط، مع حالة _branchesCache كنسخة واحدة هناك).
@@ -674,86 +619,18 @@ export {
   setCategoryOrder, reorderCategories,
 };
 
-// ========== إدارة المستخدمين (الرموز والتعطيل) ==========
-
-// ========== تفضيل اللغة للموظف (طلب اللغتين) ==========
-// language: "ar" | "en"
-export async function saveUserLanguage(uid, language) {
-  if (!uid || !['ar', 'en'].includes(language)) return;
-  await updateDoc(doc(db, "users", uid), { language });
-}
-
-// تغيير رمز المستخدم الحالي (لنفسه) — يحتاج الرمز الحالي
-export async function changeMyPin(currentPin, newPin) {
-  if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
-  if (!/^\d{4}$/.test(String(currentPin || "").trim())) {
-    throw new Error("الرمز الحالي يجب أن يكون 4 أرقام");
-  }
-  if (!/^\d{4}$/.test(String(newPin || "").trim())) {
-    throw new Error("الرمز الجديد يجب أن يكون 4 أرقام");
-  }
-  // إعادة مصادقة بالرمز الحالي
-  const credOld = EmailAuthProvider.credential(
-    auth.currentUser.email,
-    pinToPassword(currentPin)
-  );
-  await reauthenticateWithCredential(auth.currentUser, credOld);
-  await updatePassword(auth.currentUser, pinToPassword(newPin));
-}
-
-// تعطيل/تفعيل مستخدم (soft) — لا يحذف من Auth، يضع active=false
-export async function setUserActive(uid, active) {
-  await updateDoc(doc(db, "users", uid), { active: !!active });
-}
-
-// تحديث ملف مستخدم (الاسم/الدور/الفرع) — لا يلمس Auth، فقط Firestore.
-// كلمة المرور تحدّث عبر adminChangeUserPin منفصلاً.
-export async function adminUpdateUserProfile(uid, { displayName, role, branchId } = {}) {
-  const patch = {};
-  if (typeof displayName === 'string') patch.displayName = displayName.trim();
-  if (role === 'admin' || role === 'employee') patch.role = role;
-  if (typeof branchId === 'string') patch.branchId = branchId; // 'toia' | 'wardana' | 'all'
-  if (Object.keys(patch).length === 0) return;
-  await updateDoc(doc(db, "users", uid), patch);
-}
-
-// طلب من Admin API: تغيير رمز مستخدم آخر (للمدير فقط)
-export async function adminChangeUserPin(targetUid, newPin) {
-  if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
-  const token = await auth.currentUser.getIdToken();
-  const res = await fetch("/api/admin", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ action: "changePassword", targetUid, newPin }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "تعذّر تغيير الرمز");
-  }
-  return res.json();
-}
-
-// حذف نهائي لمستخدم (Auth + Firestore) — للمدير فقط
-export async function adminDeleteUser(targetUid) {
-  if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
-  const token = await auth.currentUser.getIdToken();
-  const res = await fetch("/api/admin", {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ action: "deleteUser", targetUid }),
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(err.error || "تعذّر الحذف");
-  }
-  return res.json();
-}
+// ========== إدارة المستخدمين (§S1) ==========
+// نُقلت كل دوال المستخدمين إلى firebaseUsers.js (نقل فقط).
+// نُعيد تصديرها هنا حتى تبقى استيرادات المكوّنات `from '../firebase'` كما هي.
+export {
+  getUsers,
+  saveUserLanguage,
+  changeMyPin,
+  setUserActive,
+  adminUpdateUserProfile,
+  adminChangeUserPin,
+  adminDeleteUser,
+} from './firebaseUsers';
 
 // ========== رفع صورة الفاتورة إلى R2 عبر /api/upload ==========
 // يحوّل الملف إلى base64، يرسله للـ API مع توكن المستخدم،
@@ -868,45 +745,10 @@ export async function getAllGoalsForMonth(monthStr) {
 // (مُعاد تصديرهما مع بقية دوال الفروع أعلاه).
 
 // ========================================================
-// App Settings (§Batch 3) — الإعدادات العامة للتطبيق
-// المسار: appSettings/main  →  { businessName, contactPhone, defaultLang, currency, dateSystem }
+// App Settings (§Batch 3) — نُقلت إلى firebaseSettings.js (نقل فقط).
+// نُعيد تصديرها هنا حتى تبقى استيرادات المكوّنات `from '../firebase'` كما هي.
 // ========================================================
-
-/**
- * جلب الإعدادات العامة. لو ما فيه، يرجع defaults.
- */
-export async function getAppSettings() {
-  const ref = doc(db, "appSettings", "main");
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    return {
-      businessName: "Toia & Wardana",
-      contactPhone: "",
-      defaultLang: "ar",
-      currency: "SAR",
-      dateSystem: "gregorian",
-      notifInApp: true,
-      notifSystem: false,
-      exists: false,
-    };
-  }
-  return { ...snap.data(), exists: true };
-}
-
-/**
- * حفظ الإعدادات العامة.
- */
-export async function setAppSettings(data) {
-  const ref = doc(db, "appSettings", "main");
-  await setDoc(
-    ref,
-    {
-      ...data,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-}
+export { getAppSettings, setAppSettings } from './firebaseSettings';
 
 // ========================================================
 // Backup helpers (§Batch 3)
@@ -1327,13 +1169,6 @@ export async function notifyTelegramExpenseAdded({ date, branchId, categoryName,
   }
   return sendTelegram(msg);
 }
-
-// Batch 40: دوال التعديل/الحذف لم تعد تُستخدم (الإشعارات للموظفين عند الإضافة فقط)
-// تركناها كـ no-op لتفادي كسر أي مكان يستدعيها.
-export async function notifyTelegramSaleUpdated() { /* disabled */ }
-export async function notifyTelegramSaleDeleted() { /* disabled */ }
-export async function notifyTelegramExpenseUpdated() { /* disabled */ }
-export async function notifyTelegramExpenseDeleted() { /* disabled */ }
 
 // ====================================================================
 // Batch 47: إشعار Telegram لـ عملاء واتساب

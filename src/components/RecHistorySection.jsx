@@ -7,23 +7,8 @@ import {
 } from 'lucide-react';
 import { getSales, getExpenses } from '../firebase';
 import { translateCategory } from '../i18n';
-import { localDate } from '../utils/dateHelpers';
+import { localDate, formatDayHeader } from '../utils/dateHelpers';
 import SarSymbol from './SarSymbol';
-
-function formatDayHeader(dateStr, lang) {
-  if (!dateStr) return '—';
-  // Batch 46.10: استخدام utils/dateHelpers الموحّدة
-  const today = new Date();
-  const todayKey = localDate(today);
-  const yest = new Date(today); yest.setDate(today.getDate() - 1);
-  const yestKey = localDate(yest);
-  if (dateStr === todayKey) return lang === 'en' ? 'Today' : 'اليوم';
-  if (dateStr === yestKey) return lang === 'en' ? 'Yesterday' : 'أمس';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
-    weekday: 'long', day: 'numeric', month: 'short',
-  });
-}
 
 export default function RecHistorySection({
   branchId,
