@@ -12,7 +12,7 @@
 // ----------------------------------------------------------
 import { useState, useMemo, useEffect } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp, Scale } from 'lucide-react';
-import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, getBranches, getMonthlyGoal } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf, getBranches, getMonthlyGoal } from '../firebase';
 import BottomSheet from './BottomSheet';
 import DayRecordsSheet from './DayRecordsSheet';
 import MonthlyBreakdownSheet from './MonthlyBreakdownSheet';
@@ -229,11 +229,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
     const profit = totalSales - totalExp;
     // Batch 51: تفصيل طرق الدفع
     const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
-    const totalMadaNet = filteredSales.reduce((s, x) => {
-      if (typeof x.madaNet === 'number') return s + x.madaNet;
-      const m = Number(x.mada) || 0;
-      return s + +(m * (1 - 0.0092)).toFixed(2);
-    }, 0);
+    const totalMadaNet = filteredSales.reduce((s, x) => s + madaNetOf(x), 0);
     const totalTransfer = filteredSales.reduce((s, x) => s + (Number(x.transfer) || 0), 0);
     const salesBase = totalSales || 1;
     // عدد الأيام الفريدة لحساب المتوسطات

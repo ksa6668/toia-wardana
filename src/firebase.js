@@ -234,6 +234,17 @@ export function salesNet(sale) {
   return +(cashN + (madaN - fees) + transferN).toFixed(2);
 }
 
+// D5: مصدر واحد لـ "صافي مدى لكل سجل" (مكوّن مدى فقط، بعد الرسوم).
+// كان مكرّراً حرفياً في ManagerKpis / ManagerMonthly / MonthlyBreakdownSheet.
+// السلوك مطابق تماماً للكود السابق: لو madaNet مخزّن نستخدمه، وإلا نحسبه
+// من mada بنفس المعادلة والتقريب (MADA_FEE_RATE = 0.0092 = نفس الـ literal السابق).
+export function madaNetOf(sale) {
+  if (typeof sale?.madaNet === 'number') return sale.madaNet;
+  const m = Number(sale?.mada) || 0;
+  return +(m * (1 - MADA_FEE_RATE)).toFixed(2);
+}
+
+
 // تسجيل مبيعات يومية (القسم 6 من المنطق)
 // ملاحظة: المبلغ المدخل لـ mada هو الإجمالي قبل الرسوم.
 // نحفظ كذلك madaFees و madaNet لأغراض التقارير.
