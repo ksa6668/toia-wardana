@@ -66,6 +66,16 @@ export {
   setWhatsappBaseline, getWhatsappBaseline,
 } from './firebaseWhatsapp';
 
+// S1 (المرحلة 7): الأهداف الشهرية نُقلت إلى firebaseGoals.js (نقل فقط).
+// نستوردها هنا للاستخدام الداخلي (notifyTelegramWhatsappAdded يستدعي getMonthlyGoal)
+// ونُعيد تصديرها حتى تبقى استيرادات المكوّنات `from '../firebase'` كما هي.
+import {
+  getMonthlyGoal, setMonthlyGoal, setReviewsAchieved, getAllGoalsForMonth,
+} from './firebaseGoals';
+export {
+  getMonthlyGoal, setMonthlyGoal, setReviewsAchieved, getAllGoalsForMonth,
+};
+
 // ============================================================
 
 // 🔻 الصق هنا كائن firebaseConfig من Firebase Console
@@ -459,67 +469,9 @@ export async function uploadInvoiceImage(file) {
 //   goals/toia_2026-05  →  { budget: 45000, reviewsTarget: 30 }
 // ========================================================
 
-/**
- * يجلب هدف فرع لشهر معين. لو الـ doc غير موجود يرجع defaults.
- */
-export async function getMonthlyGoal(branchId, monthStr) {
-  const goalId = `${branchId}_${monthStr}`;
-  const ref = doc(db, "goals", goalId);
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    return { budget: 0, reviewsTarget: 0, whatsappTarget: 0, whatsappTargetType: 'pct', exists: false };
-  }
-  // Batch 55: توافق رجعي — أي هدف قديم بدون نوع يُعامَل كـ "نسبة"
-  const data = snap.data();
-  return { ...data, whatsappTargetType: data.whatsappTargetType || 'pct', exists: true };
-}
-
-/**
- * يحفظ هدف فرع لشهر معين.
- * الـ data: { budget, reviewsTarget, reviewsAchieved?, whatsappTarget? }
- * Batch 16: يدعم تحديث reviewsAchieved (التقييمات المُحقّقة) باستقلال.
- * Batch 49: يدعم whatsappTarget (نسبة هدف الواتساب لهذا الشهر).
- * Batch 55: يدعم whatsappTargetType ('pct' | 'amount') — نوع هدف الواتساب.
- */
-export async function setMonthlyGoal(branchId, monthStr, data) {
-  const goalId = `${branchId}_${monthStr}`;
-  const ref = doc(db, "goals", goalId);
-  const payload = {
-    branchId,
-    month: monthStr,
-    updatedAt: serverTimestamp(),
-  };
-  if (data.budget !== undefined) payload.budget = Number(data.budget) || 0;
-  if (data.reviewsTarget !== undefined) payload.reviewsTarget = Number(data.reviewsTarget) || 0;
-  if (data.reviewsAchieved !== undefined) payload.reviewsAchieved = Number(data.reviewsAchieved) || 0;
-  if (data.whatsappTarget !== undefined) payload.whatsappTarget = Number(data.whatsappTarget) || 0;
-  // Batch 55: نوع هدف الواتساب — نقبل فقط 'pct' أو 'amount'
-  if (data.whatsappTargetType !== undefined) {
-    payload.whatsappTargetType = data.whatsappTargetType === 'amount' ? 'amount' : 'pct';
-  }
-  await setDoc(ref, payload, { merge: true });
-  // Batch 45: مسح cache
-  _invalidateCachePrefix('goals');
-}
-
-/**
- * Batch 16: تحديث عدد التقييمات المُحقّقة فقط (للنقر المزدوج على كرت التقييمات)
- */
-export async function setReviewsAchieved(branchId, monthStr, achieved) {
-  return setMonthlyGoal(branchId, monthStr, { reviewsAchieved: achieved });
-}
-
-/**
- * يجلب أهداف كل الفروع لشهر معين دفعة واحدة (أكفأ من استدعاءات متعددة).
- * يستخدمه ManagerHome لعرض KPIs.
- */
-export async function getAllGoalsForMonth(monthStr) {
-  const branches = await getBranches();
-  const promises = branches.map((b) =>
-    getMonthlyGoal(b.id, monthStr).then((g) => ({ branchId: b.id, ...g }))
-  );
-  return Promise.all(promises);
-}
+// S1 (المرحلة 7): دوال الأهداف نُقلت إلى firebaseGoals.js (نقل فقط).
+// مُستوردة أعلى الملف (notifyTelegramWhatsappAdded يستدعي getMonthlyGoal داخلياً)
+// ونُعيد تصديرها أعلى الملف أيضاً حتى تبقى استيرادات المكوّنات كما هي.
 
 // ملاحظة (§S1): addBranch و deleteBranch نُقلتا إلى firebaseCatalog.js
 // (مُعاد تصديرهما مع بقية دوال الفروع أعلاه).
