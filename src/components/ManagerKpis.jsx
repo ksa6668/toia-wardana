@@ -13,7 +13,7 @@
 // ----------------------------------------------------------
 import { useState, useMemo } from 'react';
 import { ChevronDown, MapPin, Globe, Flower2, Truck, Receipt, TrendingUp, Loader2 } from 'lucide-react';
-import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import { usePersistedState } from '../hooks/usePersistedState';
@@ -233,12 +233,8 @@ export default function ManagerKpis({ lang = 'ar' }) {
   const kpiRows = useMemo(() => {
     // Batch 29: نستخدم madaNet (بعد رسوم مدى) ليطابق netTotal — مبالغ الحساب البنكي الفعلية
     const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
-    const totalMadaNet = filteredSales.reduce((s, x) => {
-      // لو madaNet مخزّن في السجل نستخدمه، وإلا نحسبه
-      if (typeof x.madaNet === 'number') return s + x.madaNet;
-      const m = Number(x.mada) || 0;
-      return s + +(m * (1 - 0.0092)).toFixed(2);
-    }, 0);
+    // D5: مصدر واحد madaNetOf — سلوك مطابق للكود السابق
+    const totalMadaNet = filteredSales.reduce((s, x) => s + madaNetOf(x), 0);
     const totalTransfer = filteredSales.reduce((s, x) => s + (Number(x.transfer) || 0), 0);
     // Batch 52: إجمالي المبيعات الحقيقي (يطابق salesNet)
     const totalSales = totalCash + totalMadaNet + totalTransfer;

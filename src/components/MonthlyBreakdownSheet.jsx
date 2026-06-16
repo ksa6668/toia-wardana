@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { X, Loader2 } from 'lucide-react';
 import SarSymbol from './SarSymbol';
 import SheetPortal from './SheetPortal';
-import { getSales, getExpenses, getFixedExpensesRange, salesNet } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, salesNet, madaNetOf } from '../firebase';
 import { localMonth } from '../utils/dateHelpers';
 import { formatMonthLabel } from '../utils/periodHelpers';
 
@@ -101,9 +101,8 @@ export default function MonthlyBreakdownSheet({
       const row = ensure(m);
       row.sales += salesNet(s);
       row.cash += Number(s.cash) || 0;
-      // mada net
-      if (typeof s.madaNet === 'number') row.mada += s.madaNet;
-      else row.mada += +((Number(s.mada) || 0) * (1 - 0.0092)).toFixed(2);
+      // mada net (D5: مصدر واحد madaNetOf — سلوك مطابق)
+      row.mada += madaNetOf(s);
       row.transfer += Number(s.transfer) || 0;
       row.daysWithSales.add(s.date);
       row.daysWithAny.add(s.date);
