@@ -13,7 +13,8 @@ import {
   reauthenticateWithCredential,
   EmailAuthProvider,
 } from "firebase/auth";
-import { auth, db, pinToPassword } from "./firebase";
+import { auth, db } from "./firebaseCore";
+import { pinToPassword } from "./firebaseAuth";
 
 // قائمة كل المستخدمين (للمدير — شاشة إدارة المستخدمين)
 export async function getUsers() {

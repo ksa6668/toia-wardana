@@ -25,7 +25,8 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache";
-import { db, auth, notifyTelegramWhatsappAdded } from "./firebase";
+import { db, auth } from "./firebaseCore";
+import { notifyTelegramWhatsappAdded } from "./firebaseTelegram";
 
 export async function addWhatsappEntry({ date, branchId, customers, newCustomers, buyers }) {
   if (!auth.currentUser) throw new Error("Not logged in");
