@@ -1,67 +1,112 @@
 // scripts/test-madaNetOf.mjs
-// اختبار تكافؤ D5: يتأكد أن madaNetOf الجديد يُرجع نفس قيمة الكود القديم
-// (المكرّر حرفياً في ManagerKpis / ManagerMonthly / MonthlyBreakdownSheet)
-// لكل المدخلات الممكنة — بايت-ببايت (Object.is).
+// ====================================================================
+// اختبار تكافؤ عددي للمرحلة 9 (استخراج sales/MADA).
+// يستورد الدوال المالية الفعلية الجديدة من src/madaMath.js
+// (المصدر الحقيقي بعد الاستخراج؛ firebaseSales.js و firebase.js يُعيدان تصديرها)
+// ويقارن مخرجاتها مع نسخة مرجعية من المنطق الأصلي على آلاف الحالات.
 //
 // التشغيل: node scripts/test-madaNetOf.mjs
+// النجاح المطلوب: 0 فروقات. أي فرق ⇒ خروج برمز 1.
+// ====================================================================
+import {
+  MADA_FEE_RATE as NEW_RATE,
+  madaFees as newMadaFees,
+  madaNet as newMadaNet,
+  salesNet as newSalesNet,
+  madaNetOf as newMadaNetOf,
+} from "../src/madaMath.js";
 
-// ---- النسبة كما في firebase.js ----
-const MADA_FEE_RATE = 0.0092;
-
-// ---- المنطق القديم (نسخة طبق الأصل من الأسطر المكرّرة، تستخدم literal 0.0092) ----
-function oldMadaNet(x) {
-  if (typeof x.madaNet === 'number') return x.madaNet;
-  const m = Number(x.mada) || 0;
-  return +(m * (1 - 0.0092)).toFixed(2);
+// ---------- المرجع: نسخة طبق الأصل من المنطق الأصلي في firebase.js ----------
+const REF_RATE = 0.0092;
+function refMadaFees(grossMada) {
+  const g = Number(grossMada) || 0;
+  return +(g * REF_RATE).toFixed(2);
 }
-
-// ---- المنطق الجديد (مطابق لـ madaNetOf في firebase.js) ----
-function newMadaNet(sale) {
+function refMadaNet(grossMada) {
+  const g = Number(grossMada) || 0;
+  return +(g * (1 - REF_RATE)).toFixed(2);
+}
+function refSalesNet(sale) {
+  if (!sale) return 0;
+  if (typeof sale.netTotal === 'number' && !Number.isNaN(sale.netTotal)) {
+    return sale.netTotal;
+  }
+  const cashN = Number(sale.cash) || 0;
+  const madaN = Number(sale.mada) || 0;
+  const transferN = Number(sale.transfer) || 0;
+  const fees = +(madaN * REF_RATE).toFixed(2);
+  return +(cashN + (madaN - fees) + transferN).toFixed(2);
+}
+function refMadaNetOf(sale) {
   if (typeof sale?.madaNet === 'number') return sale.madaNet;
   const m = Number(sale?.mada) || 0;
-  return +(m * (1 - MADA_FEE_RATE)).toFixed(2);
+  return +(m * (1 - REF_RATE)).toFixed(2);
 }
 
-// تأكيد أن الثابت يساوي الـ literal القديم تماماً
-if (MADA_FEE_RATE !== 0.0092) {
-  console.error('FAIL: MADA_FEE_RATE != 0.0092');
-  process.exit(1);
-}
-
-let cases = [];
-
-// 1) قيم mada بدون madaNet مخزّن (مسار الحساب/الـ fallback)
-for (let m = 0; m <= 10000; m += 0.25) cases.push({ mada: m });
-// 2) كسور دقيقة لاختبار التقريب
-for (const m of [0.01, 0.99, 1.005, 33.33, 33.335, 99.995, 12345.678, 7.125, 2.675]) cases.push({ mada: m });
-// 3) سجلات فيها madaNet مخزّن (يجب أن يُعاد كما هو)
-for (const v of [0, 1, 99.99, 1234.56, -5, 0.001, NaN]) cases.push({ mada: 500, madaNet: v });
-// 4) حالات حافة للمدخلات
-cases.push({});                         // لا mada ولا madaNet
-cases.push({ mada: null });
-cases.push({ mada: undefined });
-cases.push({ mada: '123.45' });         // نص رقمي
-cases.push({ mada: 'abc' });            // نص غير رقمي
-cases.push({ mada: -100 });             // سالب
-cases.push({ mada: 0, madaNet: 0 });
-
+// ---------- تأكيد الثابت ----------
+let total = 0;
 let mismatches = 0;
-let firstFew = [];
-for (const c of cases) {
-  const a = oldMadaNet(c);
-  const b = newMadaNet(c);
-  // Object.is يميّز NaN و -0 — أقصى صرامة
+const samples = [];
+function check(label, a, b, ctx) {
+  total++;
   if (!Object.is(a, b)) {
     mismatches++;
-    if (firstFew.length < 10) firstFew.push({ input: c, old: a, new: b });
+    if (samples.length < 12) samples.push({ label, ctx, ref: a, neu: b });
   }
 }
 
-console.log(`عدد الحالات المختبَرة: ${cases.length}`);
-console.log(`عدد الاختلافات (يجب أن يكون 0): ${mismatches}`);
+check('MADA_FEE_RATE', REF_RATE, NEW_RATE, 'const');
+
+// ---------- توليد قيم مدى: 0 → 100000 بخطوة 0.25 + كسور هللات دقيقة + حواف ----------
+const madaValues = [];
+for (let v = 0; v <= 100000; v += 0.25) madaValues.push(v);
+for (const x of [0.01, 0.02, 0.03, 0.07, 0.99, 1.005, 1.015, 2.675, 33.33, 33.335,
+                 99.995, 100.005, 12345.678, 7.125, 0.001, 0.005, 54.545, 76.765]) madaValues.push(x);
+for (const x of [-0.01, -1, -100, -9999.99]) madaValues.push(x);     // سالبة (حافة)
+for (const x of [1e6, 5e6, 99999999.99]) madaValues.push(x);          // ضخمة
+for (const x of [null, undefined, '', 'abc', '123.45', NaN]) madaValues.push(x); // غير رقمية
+
+// 1) madaFees / madaNet على كل قيمة
+for (const m of madaValues) {
+  check('madaFees', refMadaFees(m), newMadaFees(m), m);
+  check('madaNet', refMadaNet(m), newMadaNet(m), m);
+}
+
+// 2) madaNetOf: سجلات بـ mada (fallback) + سجلات بـ madaNet مخزّن + حواف
+for (const m of madaValues) {
+  check('madaNetOf(mada)', refMadaNetOf({ mada: m }), newMadaNetOf({ mada: m }), m);
+}
+for (const stored of [0, 0.01, 1, 99.99, 1234.56, -5, 0.001, NaN, 100000]) {
+  check('madaNetOf(stored)', refMadaNetOf({ mada: 500, madaNet: stored }),
+        newMadaNetOf({ mada: 500, madaNet: stored }), `stored=${stored}`);
+}
+for (const s of [{}, null, undefined, { mada: null }, { mada: '50.5' }]) {
+  check('madaNetOf(edge)', refMadaNetOf(s), newMadaNetOf(s), JSON.stringify(s));
+}
+
+// 3) salesNet: تركيبات cash/mada/transfer + netTotal مخزّن + سجلات قديمة (fallback)
+const comps = [0, 0.01, 0.5, 1, 33.33, 100, 250.75, 1000, 99999.99];
+for (const cash of comps) {
+  for (const mada of comps) {
+    for (const transfer of [0, 0.5, 100, 5000.25]) {
+      check('salesNet(old)', refSalesNet({ cash, mada, transfer }),
+            newSalesNet({ cash, mada, transfer }), `${cash}/${mada}/${transfer}`);
+    }
+  }
+}
+for (const nt of [0, 0.01, 1234.56, 99999.99, NaN, -10]) {
+  check('salesNet(netTotal)', refSalesNet({ netTotal: nt, cash: 9, mada: 9, transfer: 9 }),
+        newSalesNet({ netTotal: nt, cash: 9, mada: 9, transfer: 9 }), `nt=${nt}`);
+}
+for (const s of [null, undefined, {}, { cash: '50', mada: '100.55', transfer: '5' }]) {
+  check('salesNet(edge)', refSalesNet(s), newSalesNet(s), JSON.stringify(s));
+}
+
+console.log(`عدد الحالات المختبَرة: ${total}`);
+console.log(`عدد الفروقات (يجب أن يكون 0): ${mismatches}`);
 if (mismatches > 0) {
-  console.log('أمثلة على الاختلافات:');
-  console.log(JSON.stringify(firstFew, null, 2));
+  console.log('أمثلة على الفروقات:');
+  console.log(JSON.stringify(samples, null, 2));
   process.exit(1);
 }
-console.log('✅ PASS — madaNetOf الجديد مطابق للقديم بايت-ببايت في كل الحالات.');
+console.log('✅ PASS — الدوال المالية الجديدة (madaMath) مطابقة للمرجع الأصلي بايت-ببايت في كل الحالات.');

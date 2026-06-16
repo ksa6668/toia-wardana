@@ -77,14 +77,21 @@ export {
 };
 
 // S1 (المرحلة 8): إشعارات Telegram + helpers نُقلت إلى firebaseTelegram.js (نقل فقط).
-// نستورد ما يُستخدم داخلياً (addDailySales → notifyTelegramSaleAdded، logout →
-// clearUserNameCache) ونُعيد تصدير كل الدوال المُصدّرة حتى تبقى استيرادات بقية
-// الوحدات/المكوّنات (`from '../firebase'`) كما هي.
-import { notifyTelegramSaleAdded, clearUserNameCache } from './firebaseTelegram';
+// نستورد ما يُستخدم داخلياً (logout → clearUserNameCache) ونُعيد تصدير كل الدوال
+// المُصدّرة حتى تبقى استيرادات بقية الوحدات/المكوّنات (`from '../firebase'`) كما هي.
+import { clearUserNameCache } from './firebaseTelegram';
 export {
   notifyTelegramSaleAdded, notifyTelegramExpenseAdded,
   notifyTelegramWhatsappAdded, clearUserNameCache,
 } from './firebaseTelegram';
+
+// S1 (المرحلة 9): حسابات مدى + المبيعات اليومية نُقلت إلى firebaseSales.js (نقل حرفي).
+// لا مُستدعٍ داخلي لها في firebase.js ⇒ إعادة تصدير فقط حتى تبقى استيرادات المكوّنات
+// والوحدات (firebaseTelegram يستورد getSales من هنا) كما هي.
+export {
+  MADA_FEE_RATE, madaFees, madaNet, salesNet, madaNetOf,
+  addDailySales, updateDailySales, deleteDailySales, getSales,
+} from './firebaseSales';
 
 // ============================================================
 
@@ -229,82 +236,9 @@ export async function createStaffUser({ username, pin, role, branchId, displayNa
 // ========== حسبة رسوم مدى (طلب المالك) ==========
 // كل 100 ريال => 0.80 هلله رسوم أساسية + 15% ضريبة قيمة مضافة على الرسوم
 // = 0.80 + 0.12 = 0.92 هلله (≈ 0.92 ريال لكل 100 ريال)
-// نسبة الرسوم الإجمالية على المبلغ = 0.92 / 100 = 0.92%
-// النسبة تطبّق على أي مبلغ (ريال واحد أو 10,000)
-export const MADA_FEE_RATE = 0.0092;
-export function madaFees(grossMada) {
-  const g = Number(grossMada) || 0;
-  return +(g * MADA_FEE_RATE).toFixed(2);
-}
-export function madaNet(grossMada) {
-  const g = Number(grossMada) || 0;
-  return +(g * (1 - MADA_FEE_RATE)).toFixed(2);
-}
-
-// Batch 29: helper موحّد لقراءة "صافي المبيعات بعد رسوم مدى" من سجل واحد
-// يدعم السجلات القديمة (التي لا تحتوي netTotal) عبر الحساب من cash/mada/transfer
-export function salesNet(sale) {
-  if (!sale) return 0;
-  // لو الحقل موجود (السجلات الجديدة) نستخدمه مباشرة
-  if (typeof sale.netTotal === 'number' && !Number.isNaN(sale.netTotal)) {
-    return sale.netTotal;
-  }
-  // fallback للسجلات القديمة: نحسبه من المكوّنات
-  const cashN = Number(sale.cash) || 0;
-  const madaN = Number(sale.mada) || 0;
-  const transferN = Number(sale.transfer) || 0;
-  const fees = +(madaN * MADA_FEE_RATE).toFixed(2);
-  return +(cashN + (madaN - fees) + transferN).toFixed(2);
-}
-
-// D5: مصدر واحد لـ "صافي مدى لكل سجل" (مكوّن مدى فقط، بعد الرسوم).
-// كان مكرّراً حرفياً في ManagerKpis / ManagerMonthly / MonthlyBreakdownSheet.
-// السلوك مطابق تماماً للكود السابق: لو madaNet مخزّن نستخدمه، وإلا نحسبه
-// من mada بنفس المعادلة والتقريب (MADA_FEE_RATE = 0.0092 = نفس الـ literal السابق).
-export function madaNetOf(sale) {
-  if (typeof sale?.madaNet === 'number') return sale.madaNet;
-  const m = Number(sale?.mada) || 0;
-  return +(m * (1 - MADA_FEE_RATE)).toFixed(2);
-}
-
-
-// تسجيل مبيعات يومية (القسم 6 من المنطق)
-// ملاحظة: المبلغ المدخل لـ mada هو الإجمالي قبل الرسوم.
-// نحفظ كذلك madaFees و madaNet لأغراض التقارير.
-export async function addDailySales({ date, branchId, cash, mada, transfer }) {
-  // Batch 58: قصّ القيم السالبة (حماية من إدخال خاطئ يفسد التقارير)
-  const cashN = Math.max(0, Number(cash) || 0);
-  const madaN = Math.max(0, Number(mada) || 0);
-  const transferN = Math.max(0, Number(transfer) || 0);
-  const total = cashN + madaN + transferN;
-  const madaFeesAmt = +(madaN * MADA_FEE_RATE).toFixed(2);
-  const madaNetAmt = +(madaN - madaFeesAmt).toFixed(2);
-  const netTotal = +(cashN + madaNetAmt + transferN).toFixed(2);
-
-  const ref = await addDoc(collection(db, "dailySales"), {
-    date,
-    branchId,
-    cash: cashN,
-    mada: madaN,
-    madaFees: madaFeesAmt,
-    madaNet: madaNetAmt,
-    transfer: transferN,
-    total,        // الإجمالي قبل خصم رسوم مدى
-    netTotal,     // الإجمالي بعد خصم رسوم مدى
-    createdBy: auth.currentUser.uid,
-    createdAt: serverTimestamp(),
-  });
-
-  // Batch 40: إشعار Telegram (fire-and-forget، لا يعطّل الحفظ)
-  notifyTelegramSaleAdded({
-    date, branchId, cash: cashN, mada: madaN, transfer: transferN, total,
-  });
-
-  // Batch 45: مسح cache الاستعلامات المتأثرة
-  _invalidateCachePrefix('sales');
-
-  return ref;
-}
+// S1 (المرحلة 9): حسابات مدى + المبيعات اليومية نُقلت إلى firebaseSales.js
+// (نقل حرفي). re-export أعلى الملف. (firebaseTelegram يستورد getSales عبر
+// إعادة التصدير من هذا الملف — استدعاء وقت-تشغيل فقط.)
 
 // تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
 export function classifyExpense(categoryId) {
@@ -328,67 +262,12 @@ export function classifyExpense(categoryId) {
 
 // تسجيل مصروف متغير (§S1): نُقل addExpense إلى firebaseExpenses.js (re-export أدناه).
 
-// ========== Batch 12: تعديل/حذف المبيعات والمصاريف (للمدير فقط) ==========
+// ========== Batch 12: تعديل/حذف المصاريف (للمدير فقط) ==========
 // التحقق من صلاحيات المدير يتم على مستوى الـ UI + Firestore Security Rules.
-
-// تحديث مبيعة يومية — يعيد حساب total/madaFees/madaNet/netTotal تلقائياً
-// Batch 58: قصّ القيم السالبة
-export async function updateDailySales(id, { date, branchId, cash, mada, transfer }) {
-  const cashN = Math.max(0, Number(cash) || 0);
-  const madaN = Math.max(0, Number(mada) || 0);
-  const transferN = Math.max(0, Number(transfer) || 0);
-  const total = cashN + madaN + transferN;
-  const madaFeesAmt = +(madaN * MADA_FEE_RATE).toFixed(2);
-  const madaNetAmt = +(madaN - madaFeesAmt).toFixed(2);
-  const netTotal = +(cashN + madaNetAmt + transferN).toFixed(2);
-
-  const result = await updateDoc(doc(db, "dailySales", id), {
-    date,
-    branchId,
-    cash: cashN,
-    mada: madaN,
-    madaFees: madaFeesAmt,
-    madaNet: madaNetAmt,
-    transfer: transferN,
-    total,
-    netTotal,
-    updatedBy: auth.currentUser.uid,
-    updatedAt: serverTimestamp(),
-  });
-
-  // Batch 45: مسح cache
-  _invalidateCachePrefix('sales');
-
-  return result;
-}
-
-export async function deleteDailySales(id) {
-  const result = await deleteDoc(doc(db, "dailySales", id));
-
-  // Batch 45: مسح cache
-  _invalidateCachePrefix('sales');
-  return result;
-}
+// (تعديل/حذف المبيعات نُقلت إلى firebaseSales.js — §S1 المرحلة 9.)
 
 // §S1: نُقل updateExpense و deleteExpense إلى firebaseExpenses.js (re-export أدناه).
-
-// ========== قراءة البيانات (للوحة المدير) ==========
-
-// المبيعات بين تاريخين (date محفوظ كنص YYYY-MM-DD)
-export async function getSales(fromDate, toDate, branchId = null) {
-  // Batch 39: اختيارياً يفلتر بفرع معين — مهم للموظف لأن Firestore Rules
-  // تمنع قراءة سجلات فرع آخر، وبدون where(branchId) يرفض الاستعلام كاملاً.
-  const constraints = [
-    where("date", ">=", fromDate),
-    where("date", "<=", toDate),
-  ];
-  if (branchId) {
-    constraints.push(where("branchId", "==", branchId));
-  }
-  const q = query(collection(db, "dailySales"), ...constraints);
-  const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
-}
+// §S1 (المرحلة 9): نُقل getSales إلى firebaseSales.js (re-export أعلى الملف).
 
 // §S1: نُقل getExpenses + المصاريف الثابتة (getFixedExpenses/getFixedExpensesRange/
 // dateRangeToMonthRange/setFixedExpense) إلى firebaseExpenses.js (re-export أدناه).
