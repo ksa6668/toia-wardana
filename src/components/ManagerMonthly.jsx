@@ -11,7 +11,7 @@
 // تستهلك Firestore عبر firebase.js الموجود فعلاً (getSales, getExpenses)
 // ----------------------------------------------------------
 import { useState, useMemo, useEffect } from 'react';
-import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp, Scale } from 'lucide-react';
+import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf, getBranches, getMonthlyGoal } from '../firebase';
 import BottomSheet from './BottomSheet';
 import DayRecordsSheet from './DayRecordsSheet';
@@ -667,82 +667,6 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         </button>
       </div>
 
-      {/* ===== Batch 58: نقطة التعادل اليومية + توقّع نهاية الشهر ===== */}
-      {insights && (
-        <div className="grid grid-cols-2 gap-2 mb-4">
-          <div className="bg-white p-3 rounded-xl border border-tw-line">
-            <div className="flex items-center gap-1.5 mb-1">
-              <Scale size={13} className="text-tw-blue" />
-              <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Daily break-even' : 'نقطة التعادل اليومية'}</p>
-            </div>
-            <p className="text-sm font-bold text-tw-navy flex items-center gap-1">
-              {insights.breakEvenDaily.toLocaleString()} <SarSymbol className="text-xs" />
-              <span className="text-[10px] text-tw-muted font-normal">/{lang === 'en' ? 'day' : 'يوم'}</span>
-            </p>
-            <p className={`text-[10px] font-bold mt-0.5 ${insights.avgDailySales >= insights.breakEvenDaily ? 'text-tw-green' : 'text-tw-red'}`}>
-              {insights.avgDailySales >= insights.breakEvenDaily
-                ? (lang === 'en' ? `Above by ${(insights.avgDailySales - insights.breakEvenDaily).toLocaleString()}` : `متوسطك أعلى بـ ${(insights.avgDailySales - insights.breakEvenDaily).toLocaleString()} ﷼`)
-                : (lang === 'en' ? `Below by ${(insights.breakEvenDaily - insights.avgDailySales).toLocaleString()}` : `متوسطك أقل بـ ${(insights.breakEvenDaily - insights.avgDailySales).toLocaleString()} ﷼`)}
-            </p>
-          </div>
-          <div className="bg-white p-3 rounded-xl border border-tw-line">
-            <div className="flex items-center gap-1.5 mb-1">
-              <TrendingUp size={13} className="text-tw-blue" />
-              <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
-            </div>
-            <p className="text-sm font-bold text-tw-navy flex items-center gap-1">
-              {insights.projectedSales.toLocaleString()} <SarSymbol className="text-xs" />
-            </p>
-            <p className={`text-[10px] font-bold mt-0.5 ${
-              insights.budgetDiffPct == null ? 'text-tw-muted'
-              : insights.budgetDiffPct >= 0 ? 'text-tw-green' : 'text-tw-red'
-            }`}>
-              {insights.budgetDiffPct == null
-                ? (lang === 'en' ? `Profit ≈ ${insights.projectedProfit.toLocaleString()}` : `ربح متوقع ≈ ${insights.projectedProfit.toLocaleString()} ﷼`)
-                : insights.budgetDiffPct >= 0
-                  ? (lang === 'en' ? `${insights.budgetDiffPct}% above target` : `فوق الهدف بـ ${insights.budgetDiffPct}%`)
-                  : (lang === 'en' ? `${Math.abs(insights.budgetDiffPct)}% below target` : `تحت الهدف بـ ${Math.abs(insights.budgetDiffPct)}%`)}
-            </p>
-          </div>
-        </div>
-      )}
-
-      {/* ===== Batch 58: رسم شريطي مصغّر — مبيعات آخر 14 يوماً ===== */}
-      {isSpecificMonth && salesByGroup.length >= 2 && (() => {
-        const last14 = [...salesByGroup].slice(0, 14).reverse(); // الأقدم → الأحدث
-        const maxV = Math.max(...last14.map((r) => r.total), 1);
-        const bw = 100 / last14.length;
-        return (
-          <div className="bg-white rounded-2xl border border-tw-line p-3 mb-4">
-            <p className="text-[10px] text-tw-muted font-bold mb-2">
-              {lang === 'en' ? `Sales — last ${last14.length} days` : `المبيعات — آخر ${last14.length} يوم`}
-            </p>
-            <svg viewBox="0 0 100 34" className="w-full" style={{ height: 64 }} preserveAspectRatio="none">
-              {last14.map((r, i) => {
-                const h = Math.max(1.5, (r.total / maxV) * 28);
-                const isMax = r.total === maxV;
-                return (
-                  <rect
-                    key={r.key}
-                    x={i * bw + bw * 0.18}
-                    y={30 - h}
-                    width={bw * 0.64}
-                    height={h}
-                    rx="1"
-                    fill={isMax ? 'var(--color-tw-green, #16a34a)' : 'var(--color-tw-blue, #2563eb)'}
-                    opacity={isMax ? 1 : 0.75}
-                  />
-                );
-              })}
-            </svg>
-            <div className="flex justify-between text-[9px] text-tw-muted mt-1" dir="ltr">
-              <span>{formatDayShort(last14[0].key, lang)}</span>
-              <span>{formatDayShort(last14[last14.length - 1].key, lang)}</span>
-            </div>
-          </div>
-        );
-      })()}
-
       {/* Batch 51: كروت طرق الدفع - الكاش + مدى + التحويل (مبلغ ونسبة) - Batch 53: قابلة للضغط */}
       <div className="grid grid-cols-3 gap-2 mb-4">
         <button
@@ -779,6 +703,29 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.transferPct}%</p>
         </button>
       </div>
+
+      {/* ===== Batch 58: توقّع نهاية الشهر — كرت بعرض كامل أسفل كروت الدفع ===== */}
+      {insights && (
+        <div className="bg-white p-3 rounded-xl border border-tw-line mb-4">
+          <div className="flex items-center gap-1.5 mb-1">
+            <TrendingUp size={13} className="text-tw-blue" />
+            <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
+          </div>
+          <p className="text-sm font-bold text-tw-navy flex items-center gap-1">
+            {insights.projectedSales.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+          <p className={`text-[10px] font-bold mt-0.5 ${
+            insights.budgetDiffPct == null ? 'text-tw-muted'
+            : insights.budgetDiffPct >= 0 ? 'text-tw-green' : 'text-tw-red'
+          }`}>
+            {insights.budgetDiffPct == null
+              ? (lang === 'en' ? `Profit ≈ ${insights.projectedProfit.toLocaleString()}` : `ربح متوقع ≈ ${insights.projectedProfit.toLocaleString()} ﷼`)
+              : insights.budgetDiffPct >= 0
+                ? (lang === 'en' ? `${insights.budgetDiffPct}% above target` : `فوق الهدف بـ ${insights.budgetDiffPct}%`)
+                : (lang === 'en' ? `${Math.abs(insights.budgetDiffPct)}% below target` : `تحت الهدف بـ ${Math.abs(insights.budgetDiffPct)}%`)}
+          </p>
+        </div>
+      )}
 
       </div>{/* نهاية العمود الأول */}
       <div className="lg:col-span-3">
