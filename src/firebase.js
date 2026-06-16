@@ -39,30 +39,10 @@ import {
   writeBatch,
 } from "firebase/firestore";
 
-// ============================================================
-// Batch 45: Cache Invalidation Helper
-// يُستدعى من دوال CRUD لمسح cache الاستعلامات المتأثرة.
-// يعمل عبر sessionStorage (نفس آلية useCachedQuery).
-// ============================================================
-const CACHE_PREFIX = 'tw_cache_';
-const VERSION_PREFIX = 'tw_cache_v_';
-
-function _invalidateCachePrefix(prefix) {
-  try {
-    if (typeof sessionStorage === 'undefined') return;
-    const fullPrefix = CACHE_PREFIX + prefix;
-    const keysToRemove = [];
-    for (let i = 0; i < sessionStorage.length; i++) {
-      const k = sessionStorage.key(i);
-      if (k && k.startsWith(fullPrefix)) keysToRemove.push(k);
-    }
-    keysToRemove.forEach((k) => sessionStorage.removeItem(k));
-    // version token: يجبر useCachedQuery على re-fetch حتى لو cache لا يزال موجوداً في الذاكرة
-    const versionKey = VERSION_PREFIX + prefix;
-    const currentV = Number(sessionStorage.getItem(versionKey) || '0');
-    sessionStorage.setItem(versionKey, String(currentV + 1));
-  } catch { /* ignore */ }
-}
+// S1: مُساعد إبطال الـ cache نُقل إلى firebaseCache.js (نقل فقط — نفس المنطق).
+// نُبقي الاسم المحلي _invalidateCachePrefix عبر alias حتى تبقى كل مواضع
+// الاستدعاء (13 موضعاً) دون أي تغيير.
+import { invalidateCachePrefix as _invalidateCachePrefix } from './firebaseCache';
 
 // ============================================================
 
