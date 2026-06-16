@@ -24,7 +24,7 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache";
-import { db, auth } from "./firebase";
+import { db, auth } from "./firebaseCore";
 import { notifyTelegramSaleAdded } from "./firebaseTelegram";
 // الدوال النقية لرسوم مدى مفصولة في madaMath.js (بلا تبعيات — قابلة للاختبار في Node).
 // نُعيد تصديرها من هنا فتبقى استيرادات `from '../firebase'` كما هي.

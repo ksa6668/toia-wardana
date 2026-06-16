@@ -5,13 +5,14 @@
 // يشمل: addExpense / updateExpense / deleteExpense / getExpenses
 //        getFixedExpenses / getFixedExpensesRange / dateRangeToMonthRange / setFixedExpense
 //
-// التبعيات:
-//   - _invalidateCachePrefix من firebaseCache.js (المصدر المباشر — لا دورة)
-//   - db / auth / classifyExpense / notifyTelegramExpenseAdded من firebase.js
-//     (تُستخدم داخل أجسام الدوال فقط ⇒ لا مشكلة دورة وقت التحميل)
+// التبعيات (§S1 المرحلة 10 — barrel نظيف): مصادر حقيقية لا الـ barrel.
+//   - _invalidateCachePrefix من firebaseCache.js
+//   - db / auth من firebaseCore.js (الورقة)
+//   - notifyTelegramExpenseAdded من firebaseTelegram.js
+//   كلها استخدام وقت-تشغيل داخل الأجسام ⇒ لا مشكلة دورة وقت التحميل.
 //
-// classifyExpense تبقى في firebase.js (تخص مجال المصاريف لكن يستخدمها أيضاً
-// firebaseCatalog.getCategories عبر إعادة التصدير) — نستوردها هنا.
+// classifyExpense تخص مجال المصاريف فنُعرّفها هنا (مصدرها الحقيقي).
+// يستوردها firebaseCatalog.getCategories من هنا، والمكوّنات عبر barrel firebase.js.
 // ========================================================
 import {
   collection,
@@ -26,7 +27,28 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache";
-import { db, auth, classifyExpense, notifyTelegramExpenseAdded } from "./firebase";
+import { db, auth } from "./firebaseCore";
+import { notifyTelegramExpenseAdded } from "./firebaseTelegram";
+
+// تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
+export function classifyExpense(categoryId) {
+  if (!categoryId) return "general";
+  // normalize: lowercase + strip whitespace + remove "ال" prefix for matching
+  const k = String(categoryId).trim();
+  // التصنيفات الأربعة الأساسية — مظللة باللون الأزرق المميّز في الـ UI
+  if (k === "ورد" || k === "flower" || k === "الورد") return "flower";
+  if (k === "توصيل" || k === "delivery" || k === "التوصيل") return "delivery";
+  if (
+    k === "طلبات العملاء" || k === "طلبات عملاء" || k === "customer_orders" || k === "customerOrders"
+  ) return "customerOrders";
+  if (
+    k === "مستلزمات وبضائع" || k === "مستلزمات" || k === "بضائع" || k === "supplies" ||
+    k === "المستلزمات" || k === "المستلزمات والبضائع"
+  ) return "supplies";
+  // التصنيفات الثانوية
+  if (k === "تسويق" || k === "marketing" || k === "التسويق") return "marketing";
+  return "general";
+}
 
 // تسجيل مصروف متغير (القسم 7 من المنطق)
 export async function addExpense({

@@ -12,7 +12,8 @@
 // لا يُنقل أي منطق مبيعات/أهداف هنا — فقط استدعاؤها.
 // ====================================================================
 import { doc, getDoc } from "firebase/firestore";
-import { db, auth, getSales } from "./firebase";
+import { db, auth } from "./firebaseCore";
+import { getSales } from "./firebaseSales";
 import { getMonthlyGoal } from "./firebaseGoals";
 
 const TELEGRAM_TOKEN = import.meta.env.VITE_TELEGRAM_BOT_TOKEN;

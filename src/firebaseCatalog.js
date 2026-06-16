@@ -23,7 +23,8 @@ import {
   writeBatch,
   serverTimestamp,
 } from "firebase/firestore";
-import { db, classifyExpense } from "./firebase";
+import { db } from "./firebaseCore";
+import { classifyExpense } from "./firebaseExpenses";
 
 // ========== الفروع (§12 من المنطق) ==========
 

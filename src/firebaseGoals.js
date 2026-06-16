@@ -13,7 +13,7 @@
 // ========================================================
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache";
-import { db } from "./firebase";
+import { db } from "./firebaseCore";
 import { getBranches } from "./firebaseCatalog";
 
 /**

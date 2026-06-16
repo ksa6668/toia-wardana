@@ -7,7 +7,7 @@
 // لا استخدام لـ db على مستوى الوحدة (فقط داخل الدوال) ⇒ لا مشكلة دورة وقت التحميل.
 // ========================================================
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
-import { db } from "./firebase";
+import { db } from "./firebaseCore";
 
 /**
  * جلب الإعدادات العامة. لو ما فيه، يرجع defaults.
