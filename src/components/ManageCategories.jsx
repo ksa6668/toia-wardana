@@ -106,11 +106,6 @@ export default function ManageCategories({ onBack }) {
         fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif',
       }}
     >
-      {/* خلفية زخرفية */}
-      <div
-        className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-      />
 
       <div className="relative z-10 p-4 space-y-3">
         {/* زر إضافة تصنيف — gradient navy */}

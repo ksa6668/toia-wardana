@@ -114,10 +114,6 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
     return (
       <>
         <div className="flex flex-col h-full tw-page-bg">
-          <div
-            className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-25 pointer-events-none"
-            style={{ background: 'radial-gradient(circle, rgba(40,223,255,0.3), transparent 70%)' }}
-          />
 
           <div className="relative z-10 flex-1 overflow-y-auto p-4 pb-24">
             {/* Batch 41: pill اختيار الفرع لتصفية سجل آخر 7 أيام */}

@@ -34,10 +34,10 @@ html, body, #root {
   height: 100%;
   overflow: hidden; /* Batch 20: لا scroll على body — كل scroll داخل phone-frame */
   /* Batch 21: لون موحّد فوق الشاشة (status bar / notch) */
-  background: #F2F6FC !important;
+  background: var(--color-page-background) !important;
 }
 body {
-  background: #F2F6FC; /* لون موحّد مع التطبيق */
+  background: var(--color-page-background); /* لون موحّد مع التطبيق */
   overscroll-behavior: none; /* لا bounce على iOS */
   /* Batch 23: لا نضع safe-area هنا — phone-frame يأخذ ارتفاع 100dvh كامل،
      والـ Header + Nav هما اللذان يطبّقان safe-area داخلياً */
@@ -64,6 +64,8 @@ body {
   --color-tw-card: #FFFFFF;
   --color-tw-soft: #EEF5FF;
   --color-tw-bg: #F7FAFF;
+  /* خلفية الصفحة الموحّدة لكل الشاشات (مرجع: شاشة "الأهداف") */
+  --color-page-background: #F2F6FC;
   --font-arabic: 'IBM Plex Sans Arabic', system-ui, sans-serif;
 }
 
@@ -971,7 +973,7 @@ body {
   color: #fff;
 }
 .page-bg-soft {
-  background: transparent;
+  background: var(--color-page-background);
 }
 .card-base { background: #fff; border: 1px solid var(--tw-line); border-radius: 16px; box-shadow: 0 6px 16px rgba(6,23,66,.05); }
 
@@ -1292,7 +1294,7 @@ body {
 
 /* ---- Page background (sales/expense/recordOps screens) ---- */
 .tw-page-bg {
-  background: transparent;
+  background: var(--color-page-background);
   min-height: 100%;
   position: relative;
 }
