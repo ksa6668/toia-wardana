@@ -1082,45 +1082,10 @@ export async function deleteBranch(id) {
 }
 
 // ========================================================
-// App Settings (§Batch 3) — الإعدادات العامة للتطبيق
-// المسار: appSettings/main  →  { businessName, contactPhone, defaultLang, currency, dateSystem }
+// App Settings (§Batch 3) — نُقلت إلى firebaseSettings.js (نقل فقط).
+// نُعيد تصديرها هنا حتى تبقى استيرادات المكوّنات `from '../firebase'` كما هي.
 // ========================================================
-
-/**
- * جلب الإعدادات العامة. لو ما فيه، يرجع defaults.
- */
-export async function getAppSettings() {
-  const ref = doc(db, "appSettings", "main");
-  const snap = await getDoc(ref);
-  if (!snap.exists()) {
-    return {
-      businessName: "Toia & Wardana",
-      contactPhone: "",
-      defaultLang: "ar",
-      currency: "SAR",
-      dateSystem: "gregorian",
-      notifInApp: true,
-      notifSystem: false,
-      exists: false,
-    };
-  }
-  return { ...snap.data(), exists: true };
-}
-
-/**
- * حفظ الإعدادات العامة.
- */
-export async function setAppSettings(data) {
-  const ref = doc(db, "appSettings", "main");
-  await setDoc(
-    ref,
-    {
-      ...data,
-      updatedAt: serverTimestamp(),
-    },
-    { merge: true }
-  );
-}
+export { getAppSettings, setAppSettings } from './firebaseSettings';
 
 // ========================================================
 // Backup helpers (§Batch 3)
