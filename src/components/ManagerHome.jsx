@@ -23,6 +23,7 @@ import {
   getMonthsFrom,
 } from '../utils/periodHelpers';
 import { addNotification } from './NotificationsCenter';
+import ImportantDatesReminders from './ImportantDatesReminders';
 
 const NAVY_GRADIENT = {
   background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
@@ -181,7 +182,7 @@ function BranchSection({
   );
 }
 
-export default function ManagerHome({ lang }) {
+export default function ManagerHome({ lang, userName }) {
   // Batch 46.5: لا توجد تبويبات - شهري فقط
   const [selectedMonth, setSelectedMonth] = usePersistedState('home.month', () => {
     const d = new Date();
@@ -441,6 +442,11 @@ export default function ManagerHome({ lang }) {
         );
       })}
       </div>{/* نهاية شبكة الفروع */}
+
+      {/* تذكيرات "تواريخ مهمة" — أسفل كروت الفروع (كل الفروع للمدير) */}
+      {!loading && !error && (
+        <ImportantDatesReminders branchId={null} lang={lang} userName={userName} />
+      )}
 
       {/* القائمة المنبثقة */}
       <BottomSheet

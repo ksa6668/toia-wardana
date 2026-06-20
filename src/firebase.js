@@ -37,3 +37,4 @@ export * from './firebaseUsers';
 export * from './firebaseSettings';
 export * from './firebaseStorage';
 export * from './firebaseBackup';
+export * from './firebaseImportantDates';
