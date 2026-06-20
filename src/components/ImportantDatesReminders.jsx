@@ -7,19 +7,23 @@
 // الكرت لا يختفي إلا بالضغط على "تم الإنجاز" (ينقل الموعد للدورة القادمة).
 // ----------------------------------------------------------
 import { useState, useEffect, useCallback } from 'react';
-import { CalendarClock, CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
+import { CheckCircle2, Loader2, AlertTriangle } from 'lucide-react';
 import {
   getBranches, getImportantDates, completeImportantDate, RECURRENCE_LABELS,
 } from '../firebase';
 import { importantDateStatus, shouldRemind } from '../utils/importantDateStatus';
 import EditSheet from './EditSheet';
 
+// أسماء الأشهر الميلادية — نبني التاريخ يدوياً لضمان التقويم الميلادي
+// (toLocaleDateString('ar-SA') يستخدم التقويم الهجري افتراضياً).
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+
 function fmtDate(dateStr, lang) {
   if (!dateStr) return '—';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
-    day: 'numeric', month: 'long', year: 'numeric',
-  });
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const months = lang === 'en' ? MONTHS_EN : MONTHS_AR;
+  return `${d} ${months[m - 1]} ${y}`;
 }
 
 function branchLabel(b, lang) {
@@ -72,12 +76,7 @@ export default function ImportantDatesReminders({ branchId = null, lang = 'ar', 
   if (!loaded || tasks.length === 0) return null;
 
   return (
-    <div className="relative z-10 mt-1">
-      <h3 className="text-sm font-extrabold text-tw-navy mb-2 flex items-center gap-1.5">
-        <CalendarClock size={16} className="text-tw-blue" />
-        {lang === 'en' ? 'Reminders' : 'تذكيرات مهمة'}
-      </h3>
-
+    <div className="relative z-10 mt-2">
       <div className="space-y-2.5">
         {tasks.map((task) => {
           const st = importantDateStatus(task.dueDate);
