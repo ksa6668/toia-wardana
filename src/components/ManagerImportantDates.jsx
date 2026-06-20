@@ -27,10 +27,14 @@ function todayStr() {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 }
 
+// أسماء الأشهر الميلادية — نبني التاريخ يدوياً لضمان التقويم الميلادي
+// (toLocaleDateString('ar-SA') يستخدم التقويم الهجري افتراضياً).
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+
 function fmtDate(dateStr) {
   if (!dateStr) return '—';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString('ar-SA', { day: 'numeric', month: 'long', year: 'numeric' });
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${d} ${MONTHS_AR[m - 1]} ${y}`;
 }
 
 function branchName(b) {

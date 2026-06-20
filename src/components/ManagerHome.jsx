@@ -49,7 +49,7 @@ function KpiCard({ label, percent, showStars, onClick, subtext }) {
       }}
     >
       <div className="absolute inset-0 opacity-30 pointer-events-none" style={SHINE_OVERLAY} />
-      <div className="relative flex flex-col items-center text-center gap-2 min-h-[130px] justify-between">
+      <div className="relative flex flex-col items-center text-center gap-1.5 min-h-[100px] justify-between">
         <p className="text-xs font-bold opacity-95">{label}</p>
         <p className="text-3xl font-extrabold leading-none">{pct}%</p>
         {showStars && (
@@ -146,7 +146,7 @@ function BranchSection({
   lang
 }) {
   return (
-    <div className="mb-4">
+    <div className="mb-3">
       {/* فاصل اسم الفرع */}
       <div className="tw-branch-divider">
         <span className="line" />
@@ -386,11 +386,6 @@ export default function ManagerHome({ lang, userName }) {
       className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
       style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
-      {/* Batch 46.5: عنوان "الأهداف" بدل تبويبات شهري/سنوي */}
-      <h2 className="text-center text-tw-navy font-extrabold text-lg mb-3 relative z-10">
-        {lang === 'en' ? 'Goals' : 'الأهداف'}
-      </h2>
-
       {/* منتقي الشهر */}
       <div onClick={openPicker} className="tw-period-picker relative z-10">
         <svg viewBox="0 0 24 24">
