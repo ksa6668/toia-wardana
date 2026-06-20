@@ -10,8 +10,9 @@ import { getSales, salesNet, getMonthlyGoal, getWhatsappEntries } from '../fireb
 import { t } from '../i18n';
 import { formatMonthLabel } from '../utils/periodHelpers';
 import EmployeeWhatsappTable from './EmployeeWhatsappTable';
+import ImportantDatesReminders from './ImportantDatesReminders';
 
-export default function EmployeeHome({ setView, branch, branchId, lang }) {
+export default function EmployeeHome({ setView, branch, branchId, lang, userName }) {
   const align = lang === 'en' ? 'text-left' : 'text-right';
 
   // اسم الشهر الحالي — Batch 39: نستخدم نفس formatMonthLabel الذي يستخدمه المدير
@@ -230,6 +231,9 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
             </div>
           </div>
         </div>
+
+        {/* تذكيرات "تواريخ مهمة" — أسفل الكروت الرئيسية (لفرع الموظف فقط) */}
+        <ImportantDatesReminders branchId={branchId} lang={lang} userName={userName} />
 
         {/* كارت تسجيل المبيعات — موحّد بنفس تصميم تسجيل المصروفات (أبيض ناعم) */}
         <button

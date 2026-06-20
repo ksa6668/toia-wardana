@@ -243,7 +243,7 @@ export default function App() {
             <LoginView onLoginSuccess={handleLoginSuccess} lang={lang} setLang={changeLang} />
           )}
           {!authLoading && currentView === 'employeeHome' && (
-            <EmployeeHome setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
+            <EmployeeHome setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} userName={user?.displayName || user?.username || ''} />
           )}
           {!authLoading && currentView === 'salesForm' && (
             <SalesFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
@@ -264,7 +264,7 @@ export default function App() {
             <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
           )}
           {/* ====== شاشات المدير ====== */}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" userName={user?.displayName || user?.username || ''} />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && (
             <ManagerMonthly
               lang="ar"

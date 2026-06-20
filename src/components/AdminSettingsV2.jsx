@@ -8,7 +8,7 @@
 import { useState, useEffect } from 'react';
 import {
   ChevronRight, Wallet, Receipt, Cloud, Bell, Users, Store, Settings as Gear,
-  PieChart, GripVertical, MessageCircle,
+  PieChart, GripVertical, MessageCircle, CalendarClock,
 } from 'lucide-react';
 import { useDragSort } from '../hooks/useDragSort';
 import ManagerBranches from './ManagerBranches';
@@ -17,6 +17,7 @@ import ManagerNotifications from './ManagerNotifications';
 import ManagerBackup from './ManagerBackup';
 import ManagerReceipts from './ManagerReceipts';
 import ManageWhatsappBaseline from './ManageWhatsappBaseline';
+import ManagerImportantDates from './ManagerImportantDates';
 
 const ITEMS = [
   {
@@ -45,6 +46,13 @@ const ITEMS = [
     icon: Receipt, color: 'blue',
     label: { ar: 'الإيصالات والفواتير', en: 'Receipts & Invoices' },
     desc: { ar: 'سجل المصاريف مع الصور وكامل التفاصيل', en: 'Expense log with photos and full details' },
+    enabled: true,
+  },
+  {
+    key: 'importantDates',
+    icon: CalendarClock, color: 'blue',
+    label: { ar: 'تواريخ مهمة', en: 'Important Dates' },
+    desc: { ar: 'مهام وتواريخ متكررة لكل فرع مع تذكير قبل الموعد', en: 'Recurring tasks and dates per branch with reminders' },
     enabled: true,
   },
   {
@@ -119,10 +127,20 @@ export default function AdminSettingsV2({
       if (saved) {
         const savedKeys = JSON.parse(saved);
         const map = new Map(ITEMS.map((it) => [it.key, it]));
-        const ordered = [];
-        for (const k of savedKeys) if (map.has(k)) { ordered.push(map.get(k)); map.delete(k); }
-        for (const it of map.values()) ordered.push(it);
-        return ordered;
+        // ابدأ بالترتيب المحفوظ (للمفاتيح الموجودة فقط)
+        const resultKeys = savedKeys.filter((k) => map.has(k));
+        // أدرج أي عنصر جديد (غير محفوظ) في موضعه الطبيعي من ITEMS
+        // — قبل العنصر الذي يليه في ITEMS — حتى يظهر مثلاً "تواريخ مهمة" فوق "النسخ الاحتياطي".
+        ITEMS.forEach((it, idxInItems) => {
+          if (resultKeys.includes(it.key)) return;
+          let insertAt = resultKeys.length;
+          for (let j = idxInItems + 1; j < ITEMS.length; j++) {
+            const pos = resultKeys.indexOf(ITEMS[j].key);
+            if (pos !== -1) { insertAt = pos; break; }
+          }
+          resultKeys.splice(insertAt, 0, it.key);
+        });
+        return resultKeys.map((k) => map.get(k));
       }
     } catch { /* ignore */ }
     return ITEMS;
@@ -147,6 +165,7 @@ export default function AdminSettingsV2({
   if (screen === 'branches') return <ManagerBranches onBack={goBack} lang={lang} />;
   if (screen === 'general') return <ManagerGeneralSettings onBack={goBack} lang={lang} />;
   if (screen === 'notif') return <ManagerNotifications onBack={goBack} lang={lang} />;
+  if (screen === 'importantDates') return <ManagerImportantDates onBack={goBack} lang={lang} />;
   if (screen === 'backup') return <ManagerBackup onBack={goBack} lang={lang} />;
   if (screen === 'receipts') {
     if (showCategoriesFromReceipts && ManageCategoriesComponent) {
