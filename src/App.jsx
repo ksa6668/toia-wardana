@@ -243,7 +243,7 @@ export default function App() {
             <LoginView onLoginSuccess={handleLoginSuccess} lang={lang} setLang={changeLang} />
           )}
           {!authLoading && currentView === 'employeeHome' && (
-            <EmployeeHome setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} userName={user?.displayName || user?.username || ''} />
+            <EmployeeHome setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
           )}
           {!authLoading && currentView === 'salesForm' && (
             <SalesFormV2 setView={setCurrentView} branch={branch} branchId={branchId} lang={lang} />
