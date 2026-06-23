@@ -94,10 +94,14 @@ export default function WhatsappFormV2({
       <div className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft md:max-w-[560px] md:mx-auto"
         style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
       >
-        <p className="text-center text-tw-muted text-xs mb-3">
+        <p className="text-center text-tw-muted text-xs mb-1">
           {lang === 'en'
             ? "Record today's WhatsApp customers and buyers"
             : 'تسجيل عملاء واتساب والمشترين لليوم'}
+        </p>
+        {/* علامة بناء مؤقتة للتأكد من وصول النسخة الجديدة — تُزال لاحقاً */}
+        <p className="text-center text-xs font-bold mb-3" style={{ color: '#16a34a' }}>
+          ✅ نسخة محدّثة B62 · 2026-06-23
         </p>
 
         <div className="flex gap-2 mb-3">
