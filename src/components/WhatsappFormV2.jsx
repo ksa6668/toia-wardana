@@ -60,7 +60,8 @@ export default function WhatsappFormV2({
       setError(lang === 'en' ? 'Please enter at least one value' : 'يرجى إدخال قيمة واحدة على الأقل');
       return;
     }
-    if (bN > cN) {
+    // نتحقق فقط عند إدخال عدد العملاء — يسمح بتسجيل عدد المشترين وحده (للأشهر السابقة)
+    if (cN > 0 && bN > cN) {
       setError(lang === 'en' ? 'Buyers cannot exceed customers' : 'عدد المشترين لا يمكن أن يتجاوز عدد العملاء');
       return;
     }

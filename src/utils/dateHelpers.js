@@ -58,8 +58,9 @@ export function dateLabelFor(dateStr, lang = 'ar') {
   if (dateStr === daysAgoLocal(1)) return lang === 'en' ? 'Yesterday' : 'أمس';
   if (dateStr === daysAgoLocal(2)) return lang === 'en' ? '2 days ago' : 'قبل يومين';
   // تنسيق التاريخ المخصص
+  // ملاحظة: ar-SA يستخدم التقويم الهجري افتراضياً، لذا نفرض الميلادي عبر -u-ca-gregory
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA-u-ca-gregory', {
     day: 'numeric', month: 'short', year: 'numeric',
   });
 }
@@ -73,8 +74,9 @@ export function formatDayHeader(dateStr, lang = 'ar') {
   if (!dateStr) return '—';
   if (dateStr === todayLocal()) return lang === 'en' ? 'Today' : 'اليوم';
   if (dateStr === daysAgoLocal(1)) return lang === 'en' ? 'Yesterday' : 'أمس';
+  // نفرض التقويم الميلادي (ar-SA يستخدم الهجري افتراضياً)
   const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
+  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA-u-ca-gregory', {
     weekday: 'long', day: 'numeric', month: 'short',
   });
 }
