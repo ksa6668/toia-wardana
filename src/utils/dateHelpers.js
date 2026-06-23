@@ -48,6 +48,16 @@ export function monthStr(d = new Date()) {
   return localMonth(d);
 }
 
+// أسماء الأشهر الميلادية — نبنيها يدوياً لضمان التقويم الميلادي.
+// السبب: toLocaleDateString('ar-SA') يستخدم الهجري افتراضياً، وامتداد
+// -u-ca-gregory غير موثوق على بعض الأجهزة (iOS يتجاهله عند طلب السنة).
+// نفس النمط المعتمد في ImportantDatesReminders.jsx.
+const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const MONTHS_EN = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+// أسماء أيام الأسبوع — اليوم لا يتأثر بالتقويم (هجري/ميلادي نفس اليوم).
+const WEEKDAYS_AR = ['الأحد', 'الإثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة', 'السبت'];
+const WEEKDAYS_EN = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+
 /**
  * يحوّل تاريخ YYYY-MM-DD إلى وسم مختصر: اليوم/أمس/قبل يومين، وإلا تاريخ مُنسّق.
  * موحّد من نماذج الإدخال (SalesFormV2 / ExpenseFormV2 / WhatsappFormV2).
@@ -57,12 +67,10 @@ export function dateLabelFor(dateStr, lang = 'ar') {
   if (dateStr === todayLocal()) return lang === 'en' ? 'Today' : 'اليوم';
   if (dateStr === daysAgoLocal(1)) return lang === 'en' ? 'Yesterday' : 'أمس';
   if (dateStr === daysAgoLocal(2)) return lang === 'en' ? '2 days ago' : 'قبل يومين';
-  // تنسيق التاريخ المخصص
-  // ملاحظة: ar-SA يستخدم التقويم الهجري افتراضياً، لذا نفرض الميلادي عبر -u-ca-gregory
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA-u-ca-gregory', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
+  // تنسيق التاريخ المخصص — ميلادي بأسماء عربية مبنية يدوياً
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const months = lang === 'en' ? MONTHS_EN : MONTHS_AR;
+  return `${d} ${months[m - 1]} ${y}`;
 }
 
 /**
@@ -74,11 +82,12 @@ export function formatDayHeader(dateStr, lang = 'ar') {
   if (!dateStr) return '—';
   if (dateStr === todayLocal()) return lang === 'en' ? 'Today' : 'اليوم';
   if (dateStr === daysAgoLocal(1)) return lang === 'en' ? 'Yesterday' : 'أمس';
-  // نفرض التقويم الميلادي (ar-SA يستخدم الهجري افتراضياً)
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA-u-ca-gregory', {
-    weekday: 'long', day: 'numeric', month: 'short',
-  });
+  // ميلادي بأسماء عربية مبنية يدوياً (اسم اليوم + اليوم + الشهر)
+  const [y, m, d] = dateStr.split('-').map(Number);
+  const weekdayIdx = new Date(y, m - 1, d).getDay();
+  const weekdays = lang === 'en' ? WEEKDAYS_EN : WEEKDAYS_AR;
+  const months = lang === 'en' ? MONTHS_EN : MONTHS_AR;
+  return `${weekdays[weekdayIdx]}، ${d} ${months[m - 1]}`;
 }
 
 /**
