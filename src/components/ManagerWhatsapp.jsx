@@ -20,7 +20,7 @@ import {
   formatDayShort,
 } from '../utils/periodHelpers';
 
-export default function ManagerWhatsapp({ lang = 'ar' }) {
+export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
   // Batch 45/46: حفظ اختيارات المستخدم
   const [period, setPeriod] = usePersistedState('whatsapp.period', 'month');
   const [selectedMonth, setSelectedMonth] = usePersistedState('whatsapp.month', () => {
@@ -242,11 +242,19 @@ export default function ManagerWhatsapp({ lang = 'ar' }) {
           <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'New customers' : 'العملاء الجدد'}</p>
           <p className="text-lg font-extrabold text-tw-navy">{totals.totalNew.toLocaleString()}</p>
         </div>
-        <div className="bg-white p-4 rounded-2xl border border-tw-line text-center">
+        {/* Batch 64: كرت المشترين قابل للضغط → صفحة إحصائيات المشترين الشهرية
+            (نمرّر الفرع المختار والسنة الحالية). نفس شكل الكرت تماماً — فقط
+            سلوك ضغط ومؤشر بصري خفيف، بلا تغيير ألوان أو أبعاد. */}
+        <button
+          type="button"
+          onClick={() => onOpenBuyersMonthly && onOpenBuyersMonthly(branchFilter, new Date().getFullYear())}
+          className="bg-white p-4 rounded-2xl border border-tw-line text-center cursor-pointer transition-transform active:scale-[0.98] focus:outline-none"
+          aria-label={lang === 'en' ? 'Open monthly buyers stats' : 'فتح إحصائيات المشترين الشهرية'}
+        >
           <ShoppingBag size={18} className="mx-auto text-tw-blue mb-2" />
           <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'Buyers' : 'عدد المشترين'}</p>
           <p className="text-lg font-extrabold text-tw-navy">{totals.totalBuyers.toLocaleString()}</p>
-        </div>
+        </button>
         <div className="bg-white p-4 rounded-2xl border border-tw-line text-center">
           <Percent size={18} className="mx-auto text-tw-green mb-2" />
           <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'Buyers ratio' : 'نسبة المشترين'}</p>

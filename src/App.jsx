@@ -25,6 +25,7 @@ import EmployeeHistory from './components/EmployeeHistory';
 import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
 import ManagerWhatsapp from './components/ManagerWhatsapp';
+import WhatsappBuyersMonthly from './components/WhatsappBuyersMonthly';
 import ManagerKpis from './components/ManagerKpis';
 import AdminSettingsV2 from './components/AdminSettingsV2';
 import ManageUsers from './components/ManageUsers';
@@ -47,6 +48,8 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [authLoading, setAuthLoading] = useState(true);
   const [adminTab, setAdminTab] = useState('home');
+  // Batch 64: وسائط صفحة إحصائيات المشترين الشهرية (الفرع + السنة) عند فتحها من كرت المشترين
+  const [buyersMonthlyArgs, setBuyersMonthlyArgs] = useState(null);
   // ✨ اللغة — تخص شاشات الموظف فقط، لكن نقرأها للجميع لاتساق شاشة الدخول
   const [lang, setLang] = useState(readSavedLang());
   // Batch 5: حالات الإشعارات + تأكيد الخروج + الإيصالات
@@ -275,7 +278,23 @@ export default function App() {
               }}
             />
           )}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'whatsapp' && <ManagerWhatsapp lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'whatsapp' && (
+            <ManagerWhatsapp
+              lang="ar"
+              onOpenBuyersMonthly={(branchId, year) => {
+                setBuyersMonthlyArgs({ branchId, year });
+                setCurrentView('whatsappBuyersMonthly');
+              }}
+            />
+          )}
+          {!authLoading && currentView === 'whatsappBuyersMonthly' && (
+            <WhatsappBuyersMonthly
+              lang="ar"
+              branchId={buyersMonthlyArgs?.branchId || 'all'}
+              year={buyersMonthlyArgs?.year || new Date().getFullYear()}
+              onBack={() => setCurrentView('adminHome')}
+            />
+          )}
           {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
             <AdminSettingsV2
