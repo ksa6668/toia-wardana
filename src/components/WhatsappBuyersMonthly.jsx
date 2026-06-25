@@ -2,13 +2,14 @@
 // ----------------------------------------------------------
 // Batch 64: صفحة "إحصائيات المشترين الشهرية"
 // تُفتح من كرت "عدد المشترين" في تبويب واتساب (ManagerWhatsapp).
-// تعرض إجمالي عدد المشترين لكل شهر من السنة الحالية (يناير → ديسمبر)
-// للفرع المختار، مع كرت علوي بالإجمالي السنوي.
+// Batch 65: مقارنة الفرعين معاً — لكل شهر من السنة المختارة (يناير → ديسمبر)
+// أعمدة: الشهر | تويا | وردانة | الإجمالي (تويا + وردانة)، مع كرت علوي بالإجمالي
+// السنوي لكل الفروع مجتمعة. لا محدد فرع — تُعرض المقارنة دائماً.
 // نقرأ من نفس مصدر البيانات (getWhatsappEntries / مجموعة whatsapp، حقل buyers)
-// ونجمّع شهرياً فقط — بدون أي تفصيل يومي أو عملاء أو نسبة.
+// ونجمّع حسب (الشهر × الفرع) فقط — بدون أي تفصيل يومي أو عملاء أو نسبة.
 // ----------------------------------------------------------
 import { useMemo } from 'react';
-import { Loader2, ShoppingBag, MapPin } from 'lucide-react';
+import { Loader2, ShoppingBag } from 'lucide-react';
 import { getWhatsappEntries } from '../firebase';
 import { useCachedQuery } from '../hooks/useCachedQuery';
 import { useScreenHeader } from '../context/ScreenCtx';
@@ -20,7 +21,6 @@ const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'ما
 const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
 export default function WhatsappBuyersMonthly({
-  branchId = 'all',
   year = new Date().getFullYear(),
   lang = 'ar',
   onBack,
@@ -38,27 +38,23 @@ export default function WhatsappBuyersMonthly({
     { ttl, defaultData: [] }
   );
 
-  // تجميع عدد المشترين شهرياً للفرع المختار (يناير → ديسمبر)
-  const { months, yearTotal } = useMemo(() => {
-    const filtered = branchId === 'all'
-      ? entries
-      : entries.filter((e) => e.branchId === branchId);
-    // 12 خانة مبدئياً بصفر — لضمان عرض 0 للأشهر بلا بيانات
-    const sums = new Array(12).fill(0);
-    for (const e of filtered) {
+  // تجميع المشترين حسب (الشهر × الفرع) للسنة المختارة (يناير → ديسمبر)
+  // toia[12] / wardana[12] / totals[12]=toia+wardana — كلها تبدأ بصفر لضمان عرض 0.
+  const { toia, wardana, totals, yearTotal } = useMemo(() => {
+    const t = new Array(12).fill(0);
+    const w = new Array(12).fill(0);
+    for (const e of entries) {
       if (!e.date) continue;
       const m = Number(e.date.slice(5, 7)); // YYYY-MM-DD → الشهر
-      if (m >= 1 && m <= 12) sums[m - 1] += e.buyers || 0;
+      if (m < 1 || m > 12) continue;
+      const b = e.buyers || 0;
+      if (e.branchId === 'toia') t[m - 1] += b;
+      else if (e.branchId === 'wardana') w[m - 1] += b;
     }
-    const total = sums.reduce((s, v) => s + v, 0);
-    return { months: sums, yearTotal: total };
-  }, [entries, branchId]);
-
-  const branchLabel = {
-    all: lang === 'en' ? 'All branches' : 'كل الفروع',
-    toia: lang === 'en' ? 'Toia' : 'تويا',
-    wardana: lang === 'en' ? 'Wardana' : 'وردانة',
-  }[branchId] || (lang === 'en' ? 'All branches' : 'كل الفروع');
+    const tot = t.map((v, i) => v + w[i]);
+    const yt = tot.reduce((s, v) => s + v, 0);
+    return { toia: t, wardana: w, totals: tot, yearTotal: yt };
+  }, [entries]);
 
   const monthNames = lang === 'en' ? MONTHS_EN : MONTHS_AR;
 
@@ -76,15 +72,9 @@ export default function WhatsappBuyersMonthly({
       dir={lang === 'en' ? 'ltr' : 'rtl'}
       style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
-      {/* الفرع المختار + السنة */}
-      <div className="flex items-center justify-center gap-2 mb-3">
-        <div className="flex items-center gap-1.5 bg-white border border-tw-line rounded-xl py-2 px-3 shadow-sm">
-          <MapPin size={14} className="text-tw-blue" />
-          <span className="font-bold text-xs text-tw-navy">
-            {lang === 'en' ? `Branch: ${branchLabel}` : `الفرع: ${branchLabel}`}
-          </span>
-        </div>
-        <div className="flex items-center bg-white border border-tw-line rounded-xl py-2 px-3 shadow-sm">
+      {/* السنة فقط — لا محدد فرع (الصفحة تعرض مقارنة الفرعين دائماً) */}
+      <div className="flex items-center justify-center mb-3">
+        <div className="flex items-center bg-white border border-tw-line rounded-xl py-2 px-4 shadow-sm">
           <span className="font-bold text-xs text-tw-navy">{year}</span>
         </div>
       </div>
@@ -104,19 +94,24 @@ export default function WhatsappBuyersMonthly({
         <p className="text-2xl font-extrabold text-tw-navy">{yearTotal.toLocaleString()}</p>
       </div>
 
-      {/* قائمة الأشهر — صف واحد لكل شهر: اسم الشهر | إجمالي المشترين */}
+      {/* جدول مقارنة الفرعين — RTL: الشهر | تويا | وردانة | الإجمالي
+          (4 أعمدة → حشو أصغر قليلاً ليتسع الأرقام بدون كسر التخطيط) */}
       <div className="bg-white rounded-2xl border border-tw-line overflow-hidden">
-        <div className="grid grid-cols-2 px-4 py-2.5 border-b border-tw-line bg-tw-soft/40 text-[11px] font-bold text-tw-muted">
+        <div className="grid grid-cols-4 px-3 py-2.5 border-b border-tw-line bg-tw-soft/40 text-[11px] font-bold text-tw-muted">
           <div className="text-right">{lang === 'en' ? 'Month' : 'الشهر'}</div>
-          <div className="text-center">{lang === 'en' ? 'Buyers' : 'عدد المشترين'}</div>
+          <div className="text-center">{lang === 'en' ? 'Toia' : 'تويا'}</div>
+          <div className="text-center">{lang === 'en' ? 'Wardana' : 'وردانة'}</div>
+          <div className="text-center">{lang === 'en' ? 'Total' : 'الإجمالي'}</div>
         </div>
         {monthNames.map((name, i) => (
           <div
             key={name}
-            className="grid grid-cols-2 px-4 py-3 border-b border-tw-line/50 last:border-b-0 text-sm"
+            className="grid grid-cols-4 px-3 py-2.5 border-b border-tw-line/50 last:border-b-0 text-sm"
           >
             <div className="text-right font-bold text-tw-navy">{name}</div>
-            <div className="text-center font-extrabold text-tw-blue">{months[i].toLocaleString()}</div>
+            <div className="text-center font-bold text-tw-blue">{toia[i].toLocaleString()}</div>
+            <div className="text-center font-bold text-tw-blue">{wardana[i].toLocaleString()}</div>
+            <div className="text-center font-extrabold text-tw-navy">{totals[i].toLocaleString()}</div>
           </div>
         ))}
       </div>
