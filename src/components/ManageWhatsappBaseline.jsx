@@ -21,31 +21,16 @@ import DateSheet from './DateSheet';
 import DeleteConfirmSheet from './DeleteConfirmSheet';
 import WhatsappRecHistory from './WhatsappRecHistory';
 import { useScreenHeader } from '../context/ScreenCtx';
-
-function todayStr() {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
-
-function dateLabelFor(dateStr, lang) {
-  if (!dateStr) return '—';
-  const T = todayStr();
-  const y = new Date(); y.setDate(y.getDate() - 1);
-  const yStr = `${y.getFullYear()}-${String(y.getMonth() + 1).padStart(2, '0')}-${String(y.getDate()).padStart(2, '0')}`;
-  if (dateStr === T) return lang === 'en' ? 'Today' : 'اليوم';
-  if (dateStr === yStr) return lang === 'en' ? 'Yesterday' : 'أمس';
-  const d = new Date(dateStr + 'T00:00:00');
-  return d.toLocaleDateString(lang === 'en' ? 'en-US' : 'ar-SA', {
-    day: 'numeric', month: 'short', year: 'numeric',
-  });
-}
+// نستخدم دوال التاريخ المشتركة (ميلادية صراحةً) بدل toLocaleDateString('ar-SA')
+// التي تُظهر التقويم الهجري افتراضياً على شاشة عملاء الواتساب.
+import { todayLocal, dateLabelFor } from '../utils/dateHelpers';
 
 export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
   useScreenHeader(lang === 'en' ? 'WhatsApp Customers' : 'عملاء الواتساب', onBack);
 
   // الفرع المختار للتسجيل اليومي (افتراضي: تويا)
   const [chosenBranch, setChosenBranch] = useState('toia');
-  const [date, setDate] = useState(todayStr());
+  const [date, setDate] = useState(todayLocal());
   const [customers, setCustomers] = useState('');
   const [newCustomers, setNewCustomers] = useState('');
   const [buyers, setBuyers] = useState('');
@@ -64,6 +49,8 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
   const [doneEntry, setDoneEntry] = useState(false);
   const [doneBaseline, setDoneBaseline] = useState(false);
   const [error, setError] = useState('');
+  // تحذير غير مانع (لا يمنع الحفظ) — يُستخدم لمقارنة المشترين بالإجمالي التراكمي للفرع
+  const [warning, setWarning] = useState('');
   // Batch 46.3: تعديل وحذف السجلات
   const [editingId, setEditingId] = useState(null);
   const [deletingEntry, setDeletingEntry] = useState(null);
@@ -99,6 +86,7 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
   const handleSaveEntry = async () => {
     if (savingEntry) return;
     setError('');
+    setWarning('');
     const cN = Math.max(0, Math.floor(Number(customers) || 0));
     const nN = Math.max(0, Math.floor(Number(newCustomers) || 0));
     const bN = Math.max(0, Math.floor(Number(buyers) || 0));
@@ -106,9 +94,16 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
       setError(lang === 'en' ? 'Please enter at least one value' : 'يرجى إدخال قيمة واحدة على الأقل');
       return;
     }
-    if (bN > cN) {
-      setError(lang === 'en' ? 'Buyers cannot exceed customers' : 'عدد المشترين لا يمكن أن يتجاوز عدد العملاء');
-      return;
+    // المشترون يُقارَنون بالإجمالي التراكمي التاريخي لعملاء الفرع (stock) — وهو
+    // baseline الفرع — وليس بعملاء السجل اليومي المفرد (flow). هذا تحذير غير مانع
+    // فقط: يُسمح بحفظ المشترين حتى لو كان عدد عملاء اليوم = 0 (سجلات تاريخية/مشترين-فقط).
+    const branchStock = chosenBranch === 'toia'
+      ? Math.max(0, Math.floor(Number(toiaBaseline) || 0))
+      : Math.max(0, Math.floor(Number(wardanaBaseline) || 0));
+    if (branchStock > 0 && bN > branchStock) {
+      setWarning(lang === 'en'
+        ? 'Buyers exceed the branch historical total (saved anyway)'
+        : 'عدد المشترين يتجاوز الإجمالي التاريخي للفرع (تم الحفظ على أي حال)');
     }
     setSavingEntry(true);
     try {
@@ -136,7 +131,7 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
       setNewCustomers('');
       setBuyers('');
       setEditingId(null);
-      setDate(todayStr());
+      setDate(todayLocal());
       setRefreshKey((k) => k + 1);
       setTimeout(() => setDoneEntry(false), 1500);
     } catch (err) {
@@ -163,8 +158,9 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
     setCustomers('');
     setNewCustomers('');
     setBuyers('');
-    setDate(todayStr());
+    setDate(todayLocal());
     setError('');
+    setWarning('');
   };
 
   const handleDeleteRequest = (entry) => {
@@ -311,6 +307,12 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
                   : (lang === 'en' ? 'Save daily entry' : 'حفظ التسجيل اليومي')}
           </button>
         </div>
+
+        {warning && (
+          <p className="text-amber-700 text-xs font-bold bg-amber-50 border border-amber-100 rounded-lg p-3 text-center mt-3">
+            {warning}
+          </p>
+        )}
 
         {/* Batch 46.3: سجل آخر 7 أيام */}
         <div className="mt-5 mb-3">
