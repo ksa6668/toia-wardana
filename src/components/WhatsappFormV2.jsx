@@ -8,7 +8,7 @@ import {
   Calendar, MapPin, Users, UserPlus, ShoppingBag, Loader2, ChevronDown,
 } from 'lucide-react';
 import {
-  addWhatsappEntry, updateWhatsappEntry, getBranches,
+  addWhatsappEntry, updateWhatsappEntry, getBranches, getWhatsappEntries,
 } from '../firebase';
 import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
@@ -25,8 +25,16 @@ export default function WhatsappFormV2({
   existingRecord = null,
   onBack,
 }) {
-  const isEdit = !!existingRecord;
-  const screenTitle = isEdit
+  // تعديل مُمرَّر صراحةً عبر prop (مثلاً من شاشة المدير): التاريخ مقفول.
+  const propEdit = !!existingRecord;
+  // Batch 63: في وضع الموظف نجلب تلقائياً سجل (الفرع + التاريخ) المختار إن وُجد،
+  // فيصير الفورم العلوي قادراً على تعديل أي تاريخ سابق مباشرة.
+  const [loadedRecord, setLoadedRecord] = useState(null);
+  // السجل الفعلي الذي سيُحدَّث: prop edit له الأولوية، وإلا السجل المجلوب للتاريخ.
+  const editingRecord = existingRecord || loadedRecord;
+  const isUpdate = !!editingRecord;
+
+  const screenTitle = propEdit
     ? (lang === 'en' ? 'Edit WhatsApp Entry' : 'تعديل عملاء واتساب')
     : (lang === 'en' ? 'WhatsApp Customers' : 'عملاء واتساب');
   useScreenHeader(screenTitle, onBack || (() => setView && setView('employeeHome')));
@@ -38,6 +46,7 @@ export default function WhatsappFormV2({
   const [branches, setBranches] = useState([]);
   const [branchSheetOpen, setBranchSheetOpen] = useState(false);
   const [dateSheetOpen, setDateSheetOpen] = useState(false);
+  const [loadingRecord, setLoadingRecord] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
   const [error, setError] = useState('');
@@ -49,6 +58,34 @@ export default function WhatsappFormV2({
       .catch(() => { /* ignore */ });
     return () => { cancelled = true; };
   }, []);
+
+  // Batch 63: جلب سجل (الفرع + التاريخ) المختار وعرض قيمه الحقيقية.
+  // يعمل فقط في وضع الموظف (بدون existingRecord prop). يُعاد التنفيذ عند
+  // كل تغيير للتاريخ أو الفرع — استدعاء واحد لكل تغيير (DateSheet يختار قيمة
+  // مفردة، فلا حاجة لـ debounce)، مع flag إلغاء لتفادي تطبيق نتيجة قديمة.
+  useEffect(() => {
+    if (propEdit) return;        // تعديل مُمرَّر صراحةً: لا جلب تلقائي
+    if (!branchId) return;
+    let cancelled = false;
+    async function loadForDate() {
+      setLoadingRecord(true);
+      try {
+        const list = await getWhatsappEntries(date, date, branchId);
+        if (cancelled) return;
+        const rec = Array.isArray(list) && list.length ? list[0] : null;
+        setLoadedRecord(rec);
+        setCustomers(rec && rec.customers != null ? String(rec.customers) : '');
+        setNewCustomers(rec && rec.newCustomers != null ? String(rec.newCustomers) : '');
+        setBuyers(rec && rec.buyers != null ? String(rec.buyers) : '');
+      } catch {
+        if (!cancelled) setLoadedRecord(null);
+      } finally {
+        if (!cancelled) setLoadingRecord(false);
+      }
+    }
+    loadForDate();
+    return () => { cancelled = true; };
+  }, [date, branchId, propEdit]);
 
   const handleSave = async () => {
     if (saving) return;
@@ -66,8 +103,8 @@ export default function WhatsappFormV2({
     // (مثلاً عند تسجيل سجلات تاريخية أو مشترين-فقط لأشهر سابقة).
     setSaving(true);
     try {
-      if (isEdit) {
-        await updateWhatsappEntry(existingRecord.id, {
+      if (isUpdate) {
+        await updateWhatsappEntry(editingRecord.id, {
           date, branchId, customers: cN, newCustomers: nN, buyers: bN,
         });
       } else {
@@ -106,14 +143,16 @@ export default function WhatsappFormV2({
         <div className="flex gap-2 mb-3">
           <div
             className="tw-pill"
-            onClick={() => !isEdit && setDateSheetOpen(true)}
-            role={!isEdit ? 'button' : undefined}
-            tabIndex={!isEdit ? 0 : undefined}
-            style={{ cursor: !isEdit ? 'pointer' : 'default', flex: 1 }}
+            onClick={() => !propEdit && setDateSheetOpen(true)}
+            role={!propEdit ? 'button' : undefined}
+            tabIndex={!propEdit ? 0 : undefined}
+            style={{ cursor: !propEdit ? 'pointer' : 'default', flex: 1 }}
           >
             <Calendar size={14} />
             <span>{dateLabelFor(date, lang)}</span>
-            {!isEdit && <ChevronDown size={12} style={{ marginInlineStart: 'auto', opacity: 0.5 }} />}
+            {loadingRecord
+              ? <Loader2 size={12} className="animate-spin" style={{ marginInlineStart: 'auto', opacity: 0.6 }} />
+              : !propEdit && <ChevronDown size={12} style={{ marginInlineStart: 'auto', opacity: 0.5 }} />}
           </div>
 
           <div
@@ -174,7 +213,7 @@ export default function WhatsappFormV2({
             type="button"
             className="tw-btn"
             onClick={handleSave}
-            disabled={saving || done}
+            disabled={saving || done || loadingRecord}
             style={{ flex: 1 }}
           >
             {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
@@ -182,8 +221,8 @@ export default function WhatsappFormV2({
               ? (lang === 'en' ? 'Saved!' : 'تم الحفظ!')
               : saving
                 ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...')
-                : (isEdit
-                    ? (lang === 'en' ? 'Update' : 'تحديث التسجيل')
+                : (isUpdate
+                    ? (lang === 'en' ? 'Update entry' : 'تحديث التسجيل')
                     : (lang === 'en' ? 'Save daily entry' : 'حفظ التسجيل اليومي'))}
           </button>
         </div>
