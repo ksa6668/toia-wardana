@@ -28,7 +28,9 @@ const r2 = new S3Client({
 });
 
 export const config = {
-  api: { bodyParser: { sizeLimit: "8mb" } },
+  // 15mb: يعطي هامشاً فوق ملف 10MB بعد تضخيم base64 (~33%) حتى يكون
+  // التحقق الداخلي (10MB مع الرسالة العربية) هو من يرفض الملفات الكبيرة
+  api: { bodyParser: { sizeLimit: "15mb" } },
 };
 
 export default async function handler(req, res) {
@@ -68,8 +70,8 @@ export default async function handler(req, res) {
       : fileBase64;
     const buffer = Buffer.from(base64Data, "base64");
 
-    if (buffer.length > 7 * 1024 * 1024) {
-      return res.status(413).json({ error: "حجم الصورة أكبر من 7 ميجا" });
+    if (buffer.length > 10 * 1024 * 1024) {
+      return res.status(413).json({ error: "حجم الملف أكبر من 10 ميجا" });
     }
 
     // 3) مسار فريد داخل R2

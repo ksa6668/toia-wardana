@@ -62,6 +62,7 @@ export async function addExpense({
   notes = null,
   invoiceUrl = null,
   invoicePath = null,
+  attachmentType = null, // 'image' | 'pdf' — غيابه يُعامَل كـ 'image' (توافق خلفي)
 }) {
   const amountN = Math.max(0, Number(amount) || 0); // Batch 58: قصّ السالب
   const catName = categoryName || categoryId;
@@ -77,6 +78,8 @@ export async function addExpense({
     notes,
     invoiceUrl,
     invoicePath,
+    // نحفظ النوع فقط عند وجود مرفق، وإلا نتركه null
+    attachmentType: invoiceUrl ? (attachmentType || 'image') : null,
     createdBy: auth.currentUser.uid,
     createdAt: serverTimestamp(),
   });
@@ -103,6 +106,7 @@ export async function updateExpense(id, {
   notes = null,
   invoiceUrl,
   invoicePath,
+  attachmentType, // 'image' | 'pdf' | undefined
 }) {
   const amountN = Math.max(0, Number(amount) || 0); // Batch 58: قصّ السالب
   const catName = categoryName || categoryId;
@@ -121,6 +125,10 @@ export async function updateExpense(id, {
   };
   if (invoiceUrl !== undefined) payload.invoiceUrl = invoiceUrl;
   if (invoicePath !== undefined) payload.invoicePath = invoicePath;
+  // نوع المرفق: نخزّنه فقط عند وجود رابط؛ ومسح المرفق يمسح النوع
+  if (invoiceUrl !== undefined) {
+    payload.attachmentType = invoiceUrl ? (attachmentType || 'image') : null;
+  }
 
   const result = await updateDoc(doc(db, "expenses", id), payload);
 
