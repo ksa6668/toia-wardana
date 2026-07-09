@@ -156,38 +156,42 @@ export default function ExpenseFormV2({
   const pickFromGallery = () => { setPhotoOptionsOpen(false); galleryInputRef.current?.click(); };
   const pickFromFiles = () => { setPhotoOptionsOpen(false); fileInputRef.current?.click(); };
 
-  const onPhotoSelected = (e) => {
-    const f = e.target.files?.[0];
+  // منطق موحّد لقبول المرفق (صورة أو PDF) — مشترك بين الصندوق الرئيسي والزر المخصّص
+  // النتيجة واحدة أيًّا كان مصدر الملف: نوع المرفق يُشتق من نوع الملف (image/pdf)
+  const acceptAttachment = (f) => {
     if (!f) return;
-    if (!f.type.startsWith('image/')) { setError(t(lang, 'expense.err.imgType')); return; }
-    if (f.size > 10 * 1024 * 1024) { setError(t(lang, 'expense.err.imgSize')); return; }
+    const isPdf = f.type === 'application/pdf';
+    const isImage = f.type.startsWith('image/');
+    if (!isImage && !isPdf) { setError(t(lang, 'expense.err.fileType')); return; }
+    if (f.size > 10 * 1024 * 1024) {
+      setError(t(lang, isPdf ? 'expense.err.pdfSize' : 'expense.err.imgSize'));
+      return;
+    }
     setError('');
-    // مرفق واحد متبادل: اختيار صورة يمسح أي PDF مختار
-    setPdfFile(null);
-    setPdfPreview('');
-    if (pdfInputRef.current) pdfInputRef.current.value = '';
-    setImageFile(f);
-    setImagePreview(URL.createObjectURL(f));
+    // مرفق واحد متبادل: نمسح المدخلات الأخرى ونضبط الحالة حسب النوع
+    if (isPdf) {
+      setImageFile(null);
+      setImagePreview('');
+      if (cameraInputRef.current) cameraInputRef.current.value = '';
+      if (galleryInputRef.current) galleryInputRef.current.value = '';
+      if (fileInputRef.current) fileInputRef.current.value = '';
+      setPdfFile(f);
+      setPdfPreview(URL.createObjectURL(f));
+    } else {
+      setPdfFile(null);
+      setPdfPreview('');
+      if (pdfInputRef.current) pdfInputRef.current.value = '';
+      setImageFile(f);
+      setImagePreview(URL.createObjectURL(f));
+    }
   };
 
-  // إرفاق ملف PDF فقط (بديل عن الصورة)
+  // الصندوق الرئيسي (accept=image/*,application/pdf) — يقبل الصورة والـ PDF عبر الدالة الموحّدة
+  const onPhotoSelected = (e) => acceptAttachment(e.target.files?.[0]);
+
+  // إرفاق ملف PDF فقط (بديل عن الصورة) — يمرّ بنفس الدالة الموحّدة
   const triggerPdfPick = () => { pdfInputRef.current?.click(); };
-
-  const onPdfSelected = (e) => {
-    const f = e.target.files?.[0];
-    if (!f) return;
-    if (f.type !== 'application/pdf') { setError(t(lang, 'expense.err.pdfType')); return; }
-    if (f.size > 10 * 1024 * 1024) { setError(t(lang, 'expense.err.pdfSize')); return; }
-    setError('');
-    // مرفق واحد متبادل: اختيار PDF يمسح أي صورة مختارة
-    setImageFile(null);
-    setImagePreview('');
-    if (cameraInputRef.current) cameraInputRef.current.value = '';
-    if (galleryInputRef.current) galleryInputRef.current.value = '';
-    if (fileInputRef.current) fileInputRef.current.value = '';
-    setPdfFile(f);
-    setPdfPreview(URL.createObjectURL(f));
-  };
+  const onPdfSelected = (e) => acceptAttachment(e.target.files?.[0]);
 
   const removePhoto = () => {
     setImageFile(null);
@@ -525,7 +529,7 @@ export default function ExpenseFormV2({
                 <span>
                   {requiresImage
                     ? (lang === 'en' ? 'Tap to capture with camera' : 'اضغط لالتقاط الصورة بالكاميرا')
-                    : (lang === 'en' ? 'Tap to attach invoice photo' : 'اضغط لإرفاق صورة الفاتورة')}
+                    : (lang === 'en' ? 'Tap to attach an image or a PDF file' : 'اضغط لإرفاق صورة أو ملف PDF')}
                 </span>
               </div>
               {requiresImage ? (
@@ -542,8 +546,8 @@ export default function ExpenseFormV2({
                         ? '💡 You can capture, choose from library, or pick a file (image or PDF).'
                         : '💡 يمكنك التقاط صورة، الاختيار من المكتبة، أو اختيار ملف (صورة أو PDF).')
                     : (lang === 'en'
-                        ? '💡 Attach an invoice photo for better recordkeeping.'
-                        : '💡 يُفضّل إرفاق صورة الفاتورة للأرشفة.')}
+                        ? '💡 Attach an invoice photo or a PDF file for better recordkeeping.'
+                        : '💡 يُفضّل إرفاق صورة الفاتورة أو ملف PDF للأرشفة.')}
                 </p>
               )}
 
