@@ -85,6 +85,7 @@ const dict = {
   'expense.err.imgSize': { ar: 'حجم الملف أكبر من 10 ميجا',        en: 'File is larger than 10 MB' },
   'expense.err.pdfType': { ar: 'يجب أن يكون الملف بصيغة PDF',      en: 'File must be a PDF' },
   'expense.err.pdfSize': { ar: 'حجم الملف أكبر من 10 ميجا',        en: 'File is larger than 10 MB' },
+  'expense.err.fileType':{ ar: 'يجب أن يكون الملف صورة أو PDF',    en: 'File must be an image or PDF' },
   'expense.pdf.attach':  { ar: 'إرفاق ملف PDF',                  en: 'Attach a PDF file' },
   'expense.pdf.view':    { ar: 'عرض PDF',                        en: 'View PDF' },
   'expense.err.save':    { ar: 'تعذّر الحفظ',                    en: 'Save failed' },
