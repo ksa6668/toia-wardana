@@ -82,7 +82,11 @@ const dict = {
   'expense.err.amount':  { ar: 'أدخل مبلغاً صحيحاً',              en: 'Enter a valid amount' },
   'expense.err.img':     { ar: 'صورة الفاتورة مطلوبة لهذا التصنيف', en: 'Invoice image is required for this category' },
   'expense.err.imgType': { ar: 'يجب أن يكون الملف صورة',          en: 'File must be an image' },
-  'expense.err.imgSize': { ar: 'حجم الصورة أكبر من 7 ميجا',       en: 'Image is larger than 7 MB' },
+  'expense.err.imgSize': { ar: 'حجم الملف أكبر من 10 ميجا',        en: 'File is larger than 10 MB' },
+  'expense.err.pdfType': { ar: 'يجب أن يكون الملف بصيغة PDF',      en: 'File must be a PDF' },
+  'expense.err.pdfSize': { ar: 'حجم الملف أكبر من 10 ميجا',        en: 'File is larger than 10 MB' },
+  'expense.pdf.attach':  { ar: 'إرفاق ملف PDF',                  en: 'Attach a PDF file' },
+  'expense.pdf.view':    { ar: 'عرض PDF',                        en: 'View PDF' },
   'expense.err.save':    { ar: 'تعذّر الحفظ',                    en: 'Save failed' },
 
   // ===== أسماء طرق الدفع =====

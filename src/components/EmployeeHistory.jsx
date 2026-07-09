@@ -8,7 +8,7 @@
 // ----------------------------------------------------------
 import { useMemo } from 'react';
 import {
-  ChevronRight, TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar,
+  ChevronRight, TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar, FileText,
 } from 'lucide-react';
 import { getSales, getExpenses } from '../firebase';
 import { translateCategory } from '../i18n';
@@ -180,18 +180,26 @@ export default function EmployeeHistory({ setView, branchId, lang = 'ar' }) {
                       </p>
                     </div>
 
-                    {/* أيقونة الفاتورة لو موجودة */}
-                    {entry.invoiceUrl && (
-                      <a
-                        href={entry.invoiceUrl}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="p-1.5 text-tw-blue hover:bg-tw-soft rounded-lg"
-                        title={lang === 'en' ? 'View invoice' : 'عرض الفاتورة'}
-                      >
-                        <ImageIcon size={16} />
-                      </a>
-                    )}
+                    {/* أيقونة الفاتورة لو موجودة — أيقونة PDF أو صورة حسب نوع المرفق */}
+                    {entry.invoiceUrl && (() => {
+                      // توافق خلفي: غياب attachmentType = صورة
+                      const isPdf = entry.attachmentType
+                        ? entry.attachmentType === 'pdf'
+                        : /\.pdf($|\?)/i.test(entry.invoiceUrl);
+                      return (
+                        <a
+                          href={entry.invoiceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="p-1.5 text-tw-blue hover:bg-tw-soft rounded-lg"
+                          title={lang === 'en'
+                            ? (isPdf ? 'View PDF' : 'View invoice')
+                            : (isPdf ? 'عرض PDF' : 'عرض الفاتورة')}
+                        >
+                          {isPdf ? <FileText size={16} /> : <ImageIcon size={16} />}
+                        </a>
+                      );
+                    })()}
 
                     {/* المبلغ */}
                     <div className={`text-sm font-bold flex items-center gap-1 ${

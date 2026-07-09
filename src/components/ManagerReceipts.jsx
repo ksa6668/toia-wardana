@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, X, Settings } from 'lucide-react';
+import { Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, X, Settings, FileText, ExternalLink } from 'lucide-react';
 import { getExpenses } from '../firebase';
 import SarSymbol from './SarSymbol';
 import SheetPortal from './SheetPortal';
@@ -7,6 +7,13 @@ import { useScreenHeader } from '../context/ScreenCtx';
 
 // شاشة الإيصالات والفواتير — تعرض المصاريف اللي عليها صورة فاتورة
 // الفلاتر: الفترة (آخر 7 أيام / آخر 30 يوم / الكل) + الفرع (تويا / وردانة / الكل)
+
+// نوع المرفق: توافق خلفي — غياب attachmentType يُعامَل كصورة
+function isPdfAttachment(exp) {
+  const type = exp?.attachmentType;
+  if (type) return type === 'pdf';
+  return /\.pdf($|\?)/i.test(exp?.invoiceUrl || '');
+}
 
 const PERIOD_OPTIONS = [
   { id: '7days', label: 'آخر 7 أيام', days: 7 },
@@ -47,7 +54,7 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [selectedImage, setSelectedImage] = useState(null); // modal viewer
+  const [selectedReceipt, setSelectedReceipt] = useState(null); // modal viewer (صورة أو PDF)
 
   useEffect(() => {
     let cancelled = false;
@@ -168,7 +175,7 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
               <ReceiptCard
                 key={exp.id}
                 expense={exp}
-                onViewImage={() => setSelectedImage(exp.invoiceUrl)}
+                onViewImage={() => setSelectedReceipt(exp)}
               />
             ))}
           </div>
@@ -186,26 +193,50 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
         />
       )}
 
-      {/* Modal عرض الصورة */}
-      {selectedImage && (
+      {/* Modal عرض المرفق (صورة أو PDF) */}
+      {selectedReceipt && (
         <SheetPortal>
           <div
             className="absolute inset-0 bg-black/80 flex items-center justify-center p-4"
             style={{ zIndex: 70 }}
-            onClick={() => setSelectedImage(null)}
+            onClick={() => setSelectedReceipt(null)}
           >
             <button
-              onClick={() => setSelectedImage(null)}
+              onClick={() => setSelectedReceipt(null)}
               className="absolute top-4 left-4 p-2 bg-white/10 backdrop-blur rounded-full text-white hover:bg-white/20"
             >
               <X size={24} />
             </button>
-            <img
-              src={selectedImage}
-              alt="فاتورة"
-              className="max-w-full max-h-full rounded-xl shadow-2xl"
-              onClick={(e) => e.stopPropagation()}
-            />
+            {isPdfAttachment(selectedReceipt) ? (
+              /* PDF لا يُعرض كصورة — نعرض بطاقة برابط «عرض PDF» يفتح في تبويب جديد */
+              <div
+                className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full"
+                onClick={(e) => e.stopPropagation()}
+                dir="rtl"
+              >
+                <div className="w-16 h-16 rounded-2xl bg-tw-soft flex items-center justify-center text-tw-red">
+                  <FileText size={30} />
+                </div>
+                <p className="text-sm font-bold text-tw-navy text-center">ملف الفاتورة بصيغة PDF</p>
+                <a
+                  href={selectedReceipt.invoiceUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="tw-btn"
+                  style={{ display: 'inline-flex', alignItems: 'center', gap: 6, width: '100%', justifyContent: 'center' }}
+                >
+                  <ExternalLink size={16} />
+                  عرض PDF
+                </a>
+              </div>
+            ) : (
+              <img
+                src={selectedReceipt.invoiceUrl}
+                alt="فاتورة"
+                className="max-w-full max-h-full rounded-xl shadow-2xl"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
           </div>
         </SheetPortal>
       )}
@@ -215,15 +246,18 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
 
 function ReceiptCard({ expense, onViewImage }) {
   const branchLabel = expense.branchId === 'wardana' ? 'فرع وردانة' : expense.branchId === 'toia' ? 'فرع تويا' : '—';
+  const isPdf = isPdfAttachment(expense);
 
   return (
     <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 flex items-center gap-3">
-      {/* صورة الفاتورة (thumbnail) */}
+      {/* مرفق الفاتورة (thumbnail) — أيقونة PDF أو صورة مصغّرة */}
       <button
         onClick={onViewImage}
-        className="w-16 h-16 rounded-xl bg-tw-soft overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity"
+        className="w-16 h-16 rounded-xl bg-tw-soft overflow-hidden flex-shrink-0 hover:opacity-80 transition-opacity flex items-center justify-center"
       >
-        {expense.invoiceUrl ? (
+        {expense.invoiceUrl && isPdf ? (
+          <FileText size={22} className="text-tw-red" />
+        ) : expense.invoiceUrl ? (
           <img
             src={expense.invoiceUrl}
             alt="فاتورة"

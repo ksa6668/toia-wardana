@@ -9,6 +9,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   Calendar, MapPin, Camera, CheckCircle2, Loader2, ChevronDown, X, Image as ImageIcon,
+  FileText, ExternalLink,
 } from 'lucide-react';
 import {
   addExpense, updateExpense, getCategories, getPaymentMethods, getBranches, uploadInvoiceImage,
@@ -53,6 +54,9 @@ export default function ExpenseFormV2({
   const [existingImagePath, setExistingImagePath] = useState(existingRecord?.invoicePath || '');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  // PDF: مرفق بديل عن الصورة (حقل واحد متبادل) — النوع يُحدَّد بـ attachmentType
+  const [pdfFile, setPdfFile] = useState(null);
+  const [pdfPreview, setPdfPreview] = useState('');
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
   const [done, setDone] = useState(false);
@@ -60,6 +64,7 @@ export default function ExpenseFormV2({
   const cameraInputRef = useRef(null);
   const fileInputRef = useRef(null);
   const galleryInputRef = useRef(null); // Batch 36: استديو (بدون capture)
+  const pdfInputRef = useRef(null); // إرفاق ملف PDF
   // Batch 36: bottom sheet خيارات الصور للمدير
   const [photoOptionsOpen, setPhotoOptionsOpen] = useState(false);
 
@@ -116,7 +121,24 @@ export default function ExpenseFormV2({
 
   const selectedCategory = categories.find((c) => c.id === categoryId);
   const requiresImage = selectedCategory?.requiresImage || false;
-  const visibleImage = imagePreview || existingImageUrl;
+
+  // نوع المرفق القديم للسجل (توافق خلفي: غياب attachmentType = 'image')
+  const existingAttachmentType = existingRecord?.invoiceUrl
+    ? (existingRecord?.attachmentType || 'image')
+    : null;
+
+  // هل نعرض حالياً مرفق PDF؟ (ملف جديد مختار، أو سجل قديم مرفقه PDF)
+  const showingPdf = pdfFile
+    ? true
+    : (!imageFile && !imagePreview && !!existingImageUrl && existingAttachmentType === 'pdf');
+  // اسم/رابط الـ PDF المعروض
+  const pdfViewUrl = pdfPreview || existingImageUrl;
+  const pdfNameFromPath = (existingImagePath || existingImageUrl || '')
+    .split('/').pop() || 'ملف PDF';
+  const pdfName = pdfFile ? pdfFile.name : pdfNameFromPath;
+
+  // الصورة تُعرض فقط إن لم يكن المرفق PDF
+  const visibleImage = showingPdf ? '' : (imagePreview || existingImageUrl);
 
   const triggerPhotoCapture = () => {
     // Batch 36: المدير يحصل على bottom sheet بـ 3 خيارات
@@ -138,21 +160,48 @@ export default function ExpenseFormV2({
     const f = e.target.files?.[0];
     if (!f) return;
     if (!f.type.startsWith('image/')) { setError(t(lang, 'expense.err.imgType')); return; }
-    if (f.size > 7 * 1024 * 1024) { setError(t(lang, 'expense.err.imgSize')); return; }
+    if (f.size > 10 * 1024 * 1024) { setError(t(lang, 'expense.err.imgSize')); return; }
     setError('');
+    // مرفق واحد متبادل: اختيار صورة يمسح أي PDF مختار
+    setPdfFile(null);
+    setPdfPreview('');
+    if (pdfInputRef.current) pdfInputRef.current.value = '';
     setImageFile(f);
     setImagePreview(URL.createObjectURL(f));
+  };
+
+  // إرفاق ملف PDF فقط (بديل عن الصورة)
+  const triggerPdfPick = () => { pdfInputRef.current?.click(); };
+
+  const onPdfSelected = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    if (f.type !== 'application/pdf') { setError(t(lang, 'expense.err.pdfType')); return; }
+    if (f.size > 10 * 1024 * 1024) { setError(t(lang, 'expense.err.pdfSize')); return; }
+    setError('');
+    // مرفق واحد متبادل: اختيار PDF يمسح أي صورة مختارة
+    setImageFile(null);
+    setImagePreview('');
+    if (cameraInputRef.current) cameraInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    setPdfFile(f);
+    setPdfPreview(URL.createObjectURL(f));
   };
 
   const removePhoto = () => {
     setImageFile(null);
     setImagePreview('');
+    setPdfFile(null);
+    setPdfPreview('');
     if (isEdit) {
       setExistingImageUrl('');
       setExistingImagePath('');
     }
     if (cameraInputRef.current) cameraInputRef.current.value = '';
     if (fileInputRef.current) fileInputRef.current.value = '';
+    if (galleryInputRef.current) galleryInputRef.current.value = '';
+    if (pdfInputRef.current) pdfInputRef.current.value = '';
   };
 
   const handleSave = async () => {
@@ -168,12 +217,19 @@ export default function ExpenseFormV2({
     try {
       let invoiceUrl = existingImageUrl || null;
       let invoicePath = existingImagePath || null;
+      // نوع المرفق: يبدأ من السجل القديم، ويُحدَّث عند رفع ملف جديد
+      let attachmentType = existingImageUrl ? existingAttachmentType : null;
 
-      if (imageFile) {
+      // مرفق واحد متبادل: نرفع الملف الجديد (PDF أو صورة) عبر نفس آلية الرفع
+      const uploadFile = pdfFile || imageFile;
+      if (uploadFile) {
         setUploading(true);
-        const up = await uploadInvoiceImage(imageFile);
+        // uploadInvoiceImage يرسل contentType من الملف؛ لملف PDF يكون
+        // 'application/pdf' فيُفتح inline في المتصفح لا كتنزيل قسري
+        const up = await uploadInvoiceImage(uploadFile);
         invoiceUrl = up.invoiceUrl;
         invoicePath = up.invoicePath;
+        attachmentType = pdfFile ? 'pdf' : 'image';
         setUploading(false);
       }
 
@@ -188,6 +244,7 @@ export default function ExpenseFormV2({
         notes: notes.trim() || null,
         invoiceUrl,
         invoicePath,
+        attachmentType,
       };
 
       if (isEdit) {
@@ -368,7 +425,7 @@ export default function ExpenseFormV2({
           </div>
 
           <label style={{ marginTop: 10 }}>
-            {lang === 'en' ? 'Invoice photo' : 'صورة الفاتورة'}
+            {lang === 'en' ? 'Invoice attachment' : 'مرفق الفاتورة'}
             {requiresImage && <span style={{ color: 'var(--tw-red)', marginInlineStart: 4 }}>*</span>}
           </label>
 
@@ -390,8 +447,56 @@ export default function ExpenseFormV2({
             onChange={onPhotoSelected}
             style={{ display: 'none' }}
           />
+          <input
+            ref={pdfInputRef}
+            type="file" accept="application/pdf"
+            onChange={onPdfSelected}
+            style={{ display: 'none' }}
+          />
 
-          {visibleImage ? (
+          {showingPdf ? (
+            /* معاينة PDF: أيقونة + اسم الملف + رابط «عرض PDF» + زر إزالة */
+            <div className="tw-form-card" style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 4 }}>
+              <div
+                style={{
+                  width: 44, height: 44, borderRadius: 12, flexShrink: 0,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  background: 'var(--tw-soft, #eef2ff)', color: 'var(--tw-red, #dc2626)',
+                }}
+              >
+                <FileText size={22} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div
+                  style={{ fontSize: 13, fontWeight: 700, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+                  title={pdfName}
+                >
+                  {pdfName}
+                </div>
+                {pdfViewUrl && (
+                  <a
+                    href={pdfViewUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-tw-blue"
+                    style={{ fontSize: 12, fontWeight: 700, display: 'inline-flex', alignItems: 'center', gap: 4, marginTop: 2 }}
+                  >
+                    <ExternalLink size={13} />
+                    {t(lang, 'expense.pdf.view')}
+                  </a>
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={removePhoto}
+                className="tw-photo-remove"
+                aria-label={lang === 'en' ? 'Remove file' : 'إزالة الملف'}
+                style={{ position: 'static', flexShrink: 0 }}
+              >
+                <X size={14} />
+              </button>
+            </div>
+          ) : visibleImage ? (
             <div className="tw-photo-preview-wrap">
               <img src={visibleImage} alt="preview" />
               <button type="button" onClick={removePhoto} className="tw-photo-remove" aria-label="Remove photo">
@@ -440,6 +545,19 @@ export default function ExpenseFormV2({
                         ? '💡 Attach an invoice photo for better recordkeeping.'
                         : '💡 يُفضّل إرفاق صورة الفاتورة للأرشفة.')}
                 </p>
+              )}
+
+              {/* خيار إرفاق PDF بجانب خيار التصوير — للتصنيفات غير الإجبارية للكاميرا */}
+              {!requiresImage && (
+                <button
+                  type="button"
+                  onClick={triggerPdfPick}
+                  className="tw-btn secondary"
+                  style={{ marginTop: 8, width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, fontSize: 13 }}
+                >
+                  <FileText size={16} />
+                  {t(lang, 'expense.pdf.attach')}
+                </button>
               )}
             </>
           )}

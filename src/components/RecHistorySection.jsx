@@ -3,7 +3,7 @@
 // editable=true → يظهر زر ✎ + 🗑 على كل سطر (للمدير)
 import { useState, useEffect, useMemo } from 'react';
 import {
-  TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar, Pencil, Trash2,
+  TrendingUp, Receipt, Loader2, Image as ImageIcon, Calendar, Pencil, Trash2, FileText,
 } from 'lucide-react';
 import { getSales, getExpenses } from '../firebase';
 import { translateCategory } from '../i18n';
@@ -122,9 +122,15 @@ export default function RecHistorySection({
             const title = isSale
               ? (lang === 'en' ? 'Daily sales' : 'مبيعات اليوم')
               : translateCategory(lang, entry.categoryName || entry.category || '—');
+            // نوع المرفق (توافق خلفي: غياب attachmentType = صورة)
+            const isPdfAttach = entry.invoiceUrl
+              ? (entry.attachmentType ? entry.attachmentType === 'pdf' : /\.pdf($|\?)/i.test(entry.invoiceUrl))
+              : false;
             const sub = [
               entry.notes,
-              entry.invoiceUrl && (lang === 'en' ? 'with photo' : 'مع صورة'),
+              entry.invoiceUrl && (isPdfAttach
+                ? (lang === 'en' ? 'with PDF' : 'مع PDF')
+                : (lang === 'en' ? 'with photo' : 'مع صورة')),
             ].filter(Boolean).join(' • ');
             const amt = isSale
               ? Math.round(entry.total || 0)
@@ -146,10 +152,12 @@ export default function RecHistorySection({
                     target="_blank"
                     rel="noopener noreferrer"
                     className="tw-rec-action-btn"
-                    title={lang === 'en' ? 'View invoice' : 'عرض الفاتورة'}
+                    title={lang === 'en'
+                      ? (isPdfAttach ? 'View PDF' : 'View invoice')
+                      : (isPdfAttach ? 'عرض PDF' : 'عرض الفاتورة')}
                     onClick={(e) => e.stopPropagation()}
                   >
-                    <ImageIcon size={14} />
+                    {isPdfAttach ? <FileText size={14} /> : <ImageIcon size={14} />}
                   </a>
                 )}
 
