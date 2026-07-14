@@ -39,6 +39,24 @@ const MONTHS_DIVISOR_MODE = 'elapsed';
 // (نفس نطاق "كل الأشهر" في الشاشة ⇒ مفاتيح cache مشتركة، لا استعلامات مكررة)
 const HISTORY_FROM = '2024-01-01';
 
+// ===== Batch 71: كروت مصاريف الفئات (ورد/توصيل/مستلزمات وبضائع) =====
+// قيم التصنيف لكل كرت في ثابت واحد ليسهل تعديلها لاحقاً — القيم من مسار الكتابة:
+// expenseType من classifyExpense + معرّفات/أسماء التصنيفات المزروعة في firebaseCatalog.
+const EXPENSE_CATEGORY_CARDS = [
+  { key: 'flower',   labelAr: 'مصاريف الورد',    labelEn: 'Flower expenses',
+    values: ['flower', 'ورد', 'الورد'] },
+  { key: 'delivery', labelAr: 'مصاريف التوصيل',  labelEn: 'Delivery expenses',
+    values: ['delivery', 'توصيل', 'التوصيل'] },
+  { key: 'supplies', labelAr: 'مستلزمات وبضائع', labelEn: 'Supplies & goods',
+    values: ['supplies', 'مستلزمات وبضائع', 'المستلزمات والبضائع', 'مستلزمات', 'المستلزمات', 'بضائع'] },
+];
+
+// مطابقة آمنة: تفحص expenseType + categoryId + categoryName + category (القديم) بعد trim —
+// تغطي الصيغ المتعددة والسجلات المستوردة المحفوظة بـ expenseType='general' رغم أن اسمها "ورد".
+const expenseMatchesValues = (e, values) =>
+  [e.expenseType, e.categoryId, e.categoryName, e.category]
+    .some((f) => f != null && values.includes(String(f).trim()));
+
 export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   // Batch 45: حفظ اختيارات المستخدم عبر التنقل (sessionStorage)
   const [period, setPeriod] = usePersistedState('monthly.period', 'month');
@@ -314,6 +332,25 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       transferPct: Math.round((totalTransfer / salesBase) * 100),
     };
   }, [filteredSales, filteredExpenses, filteredFixed]);
+
+  // Batch 71: مجاميع كروت الفئات ونسبتها من إجمالي المبيعات
+  // فلتر الفرع فقط (بدون فلتر تصنيف جدول المصاريف حتى لا تتصفّر الكروت عند اختياره)
+  const categoryCards = useMemo(() => {
+    const branchExpenses = branchFilter === 'all'
+      ? expenses
+      : expenses.filter((e) => e.branchId === branchFilter);
+    return EXPENSE_CATEGORY_CARDS.map((c) => {
+      const amount = branchExpenses
+        .filter((e) => expenseMatchesValues(e, c.values))
+        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
+      return {
+        ...c,
+        amount: Math.round(amount),
+        // مبيعات = 0 ⇒ null (تُعرض '—') — لا NaN ولا Infinity
+        pct: totals.sales > 0 ? Math.round((amount / totals.sales) * 100) : null,
+      };
+    });
+  }, [expenses, branchFilter, totals.sales]);
 
   // ===== Batch 58: الرؤى — نقطة التعادل اليومية + توقّع نهاية الشهر + مقارنة الشهر السابق =====
   const insights = useMemo(() => {
@@ -766,6 +803,31 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           </p>
           <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.transferPct}%</p>
         </button>
+      </div>
+
+      {/* ===== Batch 71: كروت مصاريف الفئات (ورد/توصيل/مستلزمات) ونسبتها من المبيعات =====
+          الترتيب في RTL: الورد يميناً ثم التوصيل ثم مستلزمات وبضائع */}
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        {categoryCards.map((c) => (
+          <div key={c.key} className="bg-white p-3 rounded-xl border border-tw-line text-center">
+            <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? c.labelEn : c.labelAr}</p>
+            {loading ? (
+              <div className="animate-pulse space-y-1.5 py-0.5" aria-hidden="true">
+                <div className="h-4 w-14 mx-auto rounded bg-tw-soft" />
+                <div className="h-3 w-8 mx-auto rounded bg-tw-soft" />
+              </div>
+            ) : (
+              <>
+                <p className="text-sm font-bold text-tw-red flex items-center justify-center gap-1">
+                  {c.amount.toLocaleString()} <SarSymbol className="text-xs" />
+                </p>
+                <p className="text-[10px] text-tw-blue font-bold mt-0.5">
+                  {c.pct == null ? '—' : `${c.pct}%`}
+                </p>
+              </>
+            )}
+          </div>
+        ))}
       </div>
 
       {/* ===== Batch 58: توقّع نهاية الشهر + Batch 70: متوسط الربح الشهري — شبكة عمودين ===== */}
