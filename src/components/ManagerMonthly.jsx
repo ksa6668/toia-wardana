@@ -11,8 +11,9 @@
 // تستهلك Firestore عبر firebase.js الموجود فعلاً (getSales, getExpenses)
 // ----------------------------------------------------------
 import { useState, useMemo, useEffect } from 'react';
-import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp } from 'lucide-react';
+import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp, BarChart3 } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf, getBranches, getMonthlyGoal } from '../firebase';
+import { computePeriodTotals } from '../utils/profitHelpers';
 import BottomSheet from './BottomSheet';
 import DayRecordsSheet from './DayRecordsSheet';
 import MonthlyBreakdownSheet from './MonthlyBreakdownSheet';
@@ -27,6 +28,16 @@ import {
   formatMonthLabel,
   formatDayShort,
 } from '../utils/periodHelpers';
+
+// ===== Batch 70: كرت متوسط الربح الشهري (سنوي) =====
+const MONTHS_DIVISOR_MODE = 'elapsed';
+// 'elapsed' = للسنة الحالية يُقسم على عدد الأشهر المنقضية حتى الشهر الحالي (شاملاً)
+//             وللسنوات السابقة يُقسم على 12
+// 'twelve'  = يُقسم دائماً على 12
+
+// نطاق تاريخي كامل لاشتقاق السنوات المتوفرة فعلياً في البيانات
+// (نفس نطاق "كل الأشهر" في الشاشة ⇒ مفاتيح cache مشتركة، لا استعلامات مكررة)
+const HISTORY_FROM = '2024-01-01';
 
 export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   // Batch 45: حفظ اختيارات المستخدم عبر التنقل (sessionStorage)
@@ -146,6 +157,67 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   const loading = salesLoading || expLoading || fixedLoading;
   const error = salesError || expError;
 
+  // ===== Batch 70: بيانات كرت متوسط الربح الشهري (سنوي) =====
+  // useState عادي (وليس usePersistedState) ⇒ يعود للسنة الحالية عند إعادة فتح الشاشة
+  const [avgYear, setAvgYear] = useState(() => new Date().getFullYear());
+  const historyTo = `${new Date().getFullYear()}-12-31`;
+  const { data: histSales = [], loading: histSalesLoading } = useCachedQuery(
+    ['sales', HISTORY_FROM, historyTo],
+    () => getSales(HISTORY_FROM, historyTo),
+    { ttl: 5 * 60 * 1000, defaultData: [] }
+  );
+  const { data: histExpenses = [], loading: histExpLoading } = useCachedQuery(
+    ['expenses', HISTORY_FROM, historyTo],
+    () => getExpenses(HISTORY_FROM, historyTo),
+    { ttl: 5 * 60 * 1000, defaultData: [] }
+  );
+  const { data: histFixed = [], loading: histFixedLoading } = useCachedQuery(
+    ['fixedExpenses', HISTORY_FROM.slice(0, 7), historyTo.slice(0, 7)],
+    () => getFixedExpensesRange(HISTORY_FROM.slice(0, 7), historyTo.slice(0, 7)),
+    { ttl: 5 * 60 * 1000, defaultData: [] }
+  );
+  const avgCardLoading = histSalesLoading || histExpLoading || histFixedLoading;
+
+  // السنوات المتوفرة فعلياً في البيانات (لا قائمة ثابتة)
+  const avgAvailableYears = useMemo(() => {
+    const ys = new Set();
+    histSales.forEach((s) => { if (s.date) ys.add(Number(s.date.slice(0, 4))); });
+    histExpenses.forEach((e) => { if (e.date) ys.add(Number(e.date.slice(0, 4))); });
+    return Array.from(ys).sort((a, b) => b - a);
+  }, [histSales, histExpenses]);
+
+  // متوسط الربح الشهري للسنة المختارة — نفس فلتر الفرع + نفس helper الحساب
+  const avgProfitCard = useMemo(() => {
+    const yPrefix = `${avgYear}-`;
+    let s = histSales.filter((x) => (x.date || '').startsWith(yPrefix));
+    let e = histExpenses.filter((x) => (x.date || '').startsWith(yPrefix));
+    let f = histFixed.filter((x) => (x.month || '').startsWith(yPrefix));
+    if (branchFilter !== 'all') {
+      s = s.filter((x) => x.branchId === branchFilter);
+      e = e.filter((x) => x.branchId === branchFilter);
+      f = f.filter((x) => x.branchId === branchFilter);
+    }
+    // لا مبيعات ولا مصاريف للسنة ⇒ حالة فارغة (لا صفر مضلل ولا NaN)
+    if (s.length === 0 && e.length === 0) return { empty: true };
+    const { profit } = computePeriodTotals(s, e, f);
+    const now = new Date();
+    const divisor = MONTHS_DIVISOR_MODE === 'twelve'
+      ? 12
+      : (avgYear === now.getFullYear() ? now.getMonth() + 1 : 12);
+    return { empty: false, value: Math.round(profit / divisor) };
+  }, [histSales, histExpenses, histFixed, avgYear, branchFilter]);
+
+  // منتقي سنة الكرت — يغيّر الكرت فقط، لا يمس فلاتر الشاشة
+  const openAvgYearPicker = () => {
+    const years = avgAvailableYears.length ? avgAvailableYears : [new Date().getFullYear()];
+    setSheet({
+      title: lang === 'en' ? 'Pick year' : 'اختر السنة',
+      options: years.map((y) => ({ value: y, label: String(y) })),
+      current: avgYear,
+      onPick: (v) => { setAvgYear(v); setSheet(null); },
+    });
+  };
+
   // فلترة البيانات حسب الفرع
   const filteredSales = useMemo(() => {
     return branchFilter === 'all' ? sales : sales.filter((s) => s.branchId === branchFilter);
@@ -216,17 +288,9 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   // Batch 57: المصاريف الثابتة تُوزّع نسبة وتناسب على الأيام المسجّلة
   //           (نفس منطق الجدول اليومي) → الكرت = مجموع الجدول، ويختفي تضخّم الشهر الجاري.
   const totals = useMemo(() => {
-    const totalSales = filteredSales.reduce((sum, s) => sum + salesNet(s), 0);
-    const totalVarExp = filteredExpenses.reduce((sum, e) => sum + (e.amount || 0), 0);
-    // الأيام المسجّلة = أي يوم فيه مبيعات أو مصروف متغيّر
-    const loggedDays = new Set([
-      ...filteredSales.map((s) => s.date),
-      ...filteredExpenses.map((e) => e.date),
-    ].filter(Boolean));
-    let proratedFixed = 0;
-    loggedDays.forEach((d) => { proratedFixed += dailyFixedShare(d); });
-    const totalExp = totalVarExp + proratedFixed;
-    const profit = totalSales - totalExp;
+    // Batch 70: الحساب الأساسي (مبيعات/مصاريف/ربح) عبر helper مشترك — نفس المنطق حرفياً
+    const { sales: totalSales, expenses: totalExp, profit, loggedDays } =
+      computePeriodTotals(filteredSales, filteredExpenses, filteredFixed);
     // Batch 51: تفصيل طرق الدفع
     const totalCash = filteredSales.reduce((s, x) => s + (Number(x.cash) || 0), 0);
     const totalMadaNet = filteredSales.reduce((s, x) => s + madaNetOf(x), 0);
@@ -249,7 +313,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       transfer: Math.round(totalTransfer),
       transferPct: Math.round((totalTransfer / salesBase) * 100),
     };
-  }, [filteredSales, filteredExpenses, fixedByMonth]);
+  }, [filteredSales, filteredExpenses, filteredFixed]);
 
   // ===== Batch 58: الرؤى — نقطة التعادل اليومية + توقّع نهاية الشهر + مقارنة الشهر السابق =====
   const insights = useMemo(() => {
@@ -704,9 +768,10 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         </button>
       </div>
 
-      {/* ===== Batch 58: توقّع نهاية الشهر — كرت بعرض كامل أسفل كروت الدفع ===== */}
+      {/* ===== Batch 58: توقّع نهاية الشهر + Batch 70: متوسط الربح الشهري — شبكة عمودين ===== */}
+      <div className="grid grid-cols-2 gap-2 mb-2">
       {insights && (
-        <div className="bg-white p-3 rounded-xl border border-tw-line mb-2 text-center">
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <TrendingUp size={13} className="text-tw-blue" />
             <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
@@ -726,6 +791,41 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           </p>
         </div>
       )}
+
+      {/* Batch 70: متوسط الربح الشهري (سنوي) — قابل للضغط لاختيار السنة
+          يمتد بعرض كامل عندما يختفي كرت التوقّع (كل الأشهر / التبويب السنوي) */}
+      <button
+        onClick={openAvgYearPicker}
+        className={`bg-white p-3 rounded-xl border border-tw-line text-center min-h-[44px] active:scale-95 transition-transform ${insights ? '' : 'col-span-2'}`}
+        type="button"
+      >
+        <div className="flex items-center justify-center gap-1.5 mb-1">
+          <BarChart3 size={13} className="text-tw-green" />
+          <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Avg monthly profit' : 'متوسط الربح الشهري'}</p>
+        </div>
+        {avgCardLoading ? (
+          <div className="animate-pulse space-y-1.5 py-0.5" aria-hidden="true">
+            <div className="h-4 w-20 mx-auto rounded bg-tw-soft" />
+            <div className="h-3 w-10 mx-auto rounded bg-tw-soft" />
+          </div>
+        ) : (
+          <>
+            {avgProfitCard.empty ? (
+              <p className="text-sm font-bold text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</p>
+            ) : (
+              <p className={`text-sm font-bold flex items-center justify-center gap-1 ${avgProfitCard.value >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
+                {avgProfitCard.value.toLocaleString()} <SarSymbol className="text-xs" />
+              </p>
+            )}
+            {/* السطر الفرعي: السنة المعروضة + مؤشر أن الكرت قابل للضغط */}
+            <p className="text-[10px] text-tw-muted font-bold mt-0.5 flex items-center justify-center gap-0.5">
+              {avgYear}
+              <ChevronDown size={10} className="text-tw-muted/70" />
+            </p>
+          </>
+        )}
+      </button>
+      </div>{/* نهاية شبكة كرتي التوقّع/المتوسط */}
 
       </div>{/* نهاية العمود الأول */}
       <div className="lg:col-span-3">
