@@ -9,7 +9,7 @@
 //   - تجلب المبيعات وتحسب نسبة تحقيق الميزانية فعلياً
 // التقييمات: placeholder حالياً (يحتاج Google Places API)
 // ----------------------------------------------------------
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import BottomSheet from './BottomSheet';
 import BudgetGoalEdit from './BudgetGoalEdit';
@@ -17,6 +17,7 @@ import ReviewsGoalEdit from './ReviewsGoalEdit';
 import WhatsappGoalEdit from './WhatsappGoalEdit';
 import { getBranches, getMonthlyGoal, getSales, salesNet, getWhatsappEntries } from '../firebase';
 import { usePersistedState } from '../hooks/usePersistedState';
+import { useCachedQuery } from '../hooks/useCachedQuery';
 import {
   formatMonthLabel,
   monthRange,
@@ -192,50 +193,39 @@ export default function ManagerHome({ lang, userName }) {
   const [sheet, setSheet] = useState(null);
 
   // ====== البيانات الحقيقية من Firestore ======
-  // Batch 50: استعادة فورية من sessionStorage (يحدّث في الخلفية)
-  const cacheKey = `home_kpis_${selectedMonth}`;
-  const cachedSnapshot = (() => {
-    try {
-      const raw = sessionStorage.getItem(cacheKey);
-      if (!raw) return null;
-      const obj = JSON.parse(raw);
-      // صلاحية الـ cache: 5 دقائق
-      if (Date.now() - (obj.ts || 0) > 5 * 60 * 1000) return null;
-      return obj;
-    } catch { return null; }
-  })();
-  const [branches, setBranches] = useState(cachedSnapshot?.branches || []);
-  // map: { [branchId]: { budgetPct, reviewsPct, hasGoal, reviewsTarget, reviewsAchieved } }
-  const [branchKpis, setBranchKpis] = useState(cachedSnapshot?.branchKpis || {});
-  const [loading, setLoading] = useState(!cachedSnapshot); // لو فيه cache، نبدأ بدون loading
-  const [error, setError] = useState('');
-  const [refreshCounter, setRefreshCounter] = useState(0); // لإعادة تحميل البيانات بعد الحفظ
-  // Batch 49: شاشة تعديل الهدف الحالية
-  const [editScreen, setEditScreen] = useState(null); // { type: 'budget'|'reviews'|'whatsapp', branchId, branchName }
+  // Batch 74: توحيد الجلب على useCachedQuery بنفس مفاتيح بقية الشاشات
+  // (['sales', from, to] / ['whatsapp', from, to]) ⇒ الرئيسية والكشف الشامل
+  // يتشاركان cache بيانات الشهر نفسه بدل جلب مزدوج بمفاتيح مختلفة.
+  const { from, to } = useMemo(() => monthRange(selectedMonth), [selectedMonth]);
 
-  // تحميل البيانات عند تغيير الفترة
-  // Batch 50: تحميل متوازي - getBranches + getSales + getWhatsappEntries في نفس الوقت
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        // 1) النطاق الزمني (شهري فقط - Batch 46.5)
-        const { from, to } = monthRange(selectedMonth);
+  const { data: allSales = [], loading: salesLoading, error: salesError } = useCachedQuery(
+    ['sales', from, to],
+    () => getSales(from, to),
+    { ttl: 30 * 1000, defaultData: [] }
+  );
+  const { data: allWhatsapp = [], loading: waLoading } = useCachedQuery(
+    ['whatsapp', from, to],
+    () => getWhatsappEntries(from, to),
+    { ttl: 30 * 1000, defaultData: [] }
+  );
 
-        // 2) Batch 50: تحميل متوازي للفروع + المبيعات + الواتساب
-        const [brs, allSales, allWhatsapp] = await Promise.all([
-          getBranches(),
-          getSales(from, to),
-          getWhatsappEntries(from, to),
-        ]);
-        if (cancelled) return;
-
-        // 3) الأهداف لكل فرع بشكل متوازي
-        const goalsPromises = brs.map((b) =>
-          getMonthlyGoal(b.id, selectedMonth).then((g) => ({
-            branchId: b.id,
+  // Batch 74: الفروع + الأهداف في مرحلة متوازية واحدة (كان جلب الأهداف مرحلة
+  // await ثانية بعد الفروع = round-trip زائد). معرّفات الفروع ثابتة في التطبيق
+  // (toia/wardana — نفس افتراض ManagerMonthly)، وقائمة getBranches تبقى مصدر
+  // أسماء العرض. نفس تطبيع الحقول حرفياً.
+  const {
+    data: meta,
+    loading: metaLoading,
+    error: metaError,
+    refresh: refreshMeta,
+  } = useCachedQuery(
+    ['goals', selectedMonth, 'home-meta'],
+    async () => {
+      const [brs, goals] = await Promise.all([
+        getBranches(),
+        Promise.all(['toia', 'wardana'].map((id) =>
+          getMonthlyGoal(id, selectedMonth).then((g) => ({
+            branchId: id,
             budget: g.budget,
             reviewsTarget: g.reviewsTarget,
             reviewsAchieved: g.reviewsAchieved || 0,
@@ -243,102 +233,100 @@ export default function ManagerHome({ lang, userName }) {
             whatsappTargetType: g.whatsappTargetType === 'amount' ? 'amount' : 'pct',
             exists: g.exists,
           }))
-        );
-        const goals = await Promise.all(goalsPromises);
-        if (cancelled) return;
+        )),
+      ]);
+      return { branches: brs, goals };
+    },
+    { ttl: 30 * 1000, defaultData: null }
+  );
 
-        // 4) حساب KPIs لكل فرع
-        // P3: تجميع المبيعات/الواتساب حسب الفرع بمرور واحد بدل filter لكل فرع.
-        // النتيجة مطابقة تماماً لـ allSales.filter(...) — نفس العناصر ونفس الترتيب
-        // (push يحافظ على ترتيب المصفوفة الأصلية مثل filter).
-        const salesByBranch = {};
-        for (const s of allSales) {
-          if (!salesByBranch[s.branchId]) salesByBranch[s.branchId] = [];
-          salesByBranch[s.branchId].push(s);
-        }
-        const whatsappByBranch = {};
-        for (const w of allWhatsapp) {
-          if (!whatsappByBranch[w.branchId]) whatsappByBranch[w.branchId] = [];
-          whatsappByBranch[w.branchId].push(w);
-        }
-        const kpisMap = {};
-        for (const b of brs) {
-          const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0, whatsappTargetType: 'pct' };
-          const branchSales = salesByBranch[b.id] || [];
-          const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
-          const budgetPct = goal.budget > 0
-            ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
-            : 0;
-          // Batch 16: التقييمات من goal.reviewsAchieved / goal.reviewsTarget
-          const reviewsPct = goal.reviewsTarget > 0
-            ? Math.min(100, Math.round((goal.reviewsAchieved / goal.reviewsTarget) * 100))
-            : 0;
-          // Batch 49: نسبة تحقيق واتساب - تعتمد على whatsappTarget من goal
-          // لو ما حُدّد هدف للشهر → noTarget = true (يعرض "لم يُحدّد هدف")
-          const branchWa = whatsappByBranch[b.id] || [];
-          const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
-          const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
-          const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
-          // Batch 55: للنوع "مبلغ" نستخدم مبيعات التحويل (أونلاين) للفرع
-          const totalTransfer = branchSales.reduce((sum, s) => sum + (Number(s.transfer) || 0), 0);
-          const whatsappTarget = goal.whatsappTarget || 0;
-          const whatsappTargetType = goal.whatsappTargetType === 'amount' ? 'amount' : 'pct';
-          const whatsappPct = whatsappTarget > 0
-            ? (whatsappTargetType === 'amount'
-                ? Math.min(100, Math.round((totalTransfer / whatsappTarget) * 100))
-                : Math.min(100, Math.round((actualPct / whatsappTarget) * 100)))
-            : 0;
-          const whatsappNoTarget = whatsappTarget <= 0;
-          // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
-          // Batch 55: للنوع "مبلغ" نعرض المبلغ المحقّق/الهدف بالريال
-          const whatsappSubtext = whatsappTargetType === 'amount'
-            ? (whatsappTarget > 0 ? `${totalTransfer.toLocaleString('en-US')} / ${whatsappTarget.toLocaleString('en-US')} ﷼` : '')
-            : (totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '');
-          kpisMap[b.id] = {
-            budgetPct, reviewsPct,
-            whatsappPct, whatsappSubtext, whatsappNoTarget,
-            hasGoal: goal.exists,
-            reviewsTarget: goal.reviewsTarget || 0,
-            reviewsAchieved: goal.reviewsAchieved || 0,
-          };
-        }
-        setBranches(brs);
-        setBranchKpis(kpisMap);
+  const branches = meta?.branches || [];
+  const loading = salesLoading || waLoading || metaLoading;
+  const error = salesError || metaError || '';
+  // Batch 49: شاشة تعديل الهدف الحالية
+  const [editScreen, setEditScreen] = useState(null); // { type: 'budget'|'reviews'|'whatsapp', branchId, branchName }
 
-        // Batch 50: حفظ snapshot لـ sessionStorage (للعودة الفورية)
-        try {
-          sessionStorage.setItem(cacheKey, JSON.stringify({
-            ts: Date.now(),
-            branches: brs,
-            branchKpis: kpisMap,
-          }));
-        } catch { /* قد يفشل في الوضع الخصوصي */ }
-
-        // إذا لم يتم تحديد أي أهداف، أرسل إشعاراً (مرة واحدة في اليوم لكل شهر)
-        const hasAnyGoals = Object.values(kpisMap).some((k) => k.hasGoal);
-        if (!hasAnyGoals && brs.length > 0) {
-          const notifKey = `goals_reminder_${selectedMonth}_${new Date().toDateString()}`;
-          try {
-            if (!localStorage.getItem(notifKey)) {
-              addNotification({
-                title: 'تذكير: الأهداف الشهرية',
-                body: 'لم يتم تحديد أهداف لهذا الشهر بعد. حدّدها من الإعدادات.',
-                emoji: '🎯',
-                type: 'reminder',
-              });
-              localStorage.setItem(notifKey, '1');
-            }
-          } catch { /* localStorage may fail in private mode */ }
-        }
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر تحميل البيانات');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
+  // حساب KPIs لكل فرع — نفس منطق الحساب حرفياً، انتقل من useEffect إلى useMemo
+  // (الجلب صار مسؤولية useCachedQuery؛ الحساب نقي على البيانات المجلوبة)
+  const branchKpis = useMemo(() => {
+    const goals = meta?.goals || [];
+    const brs = meta?.branches || [];
+    // P3: تجميع المبيعات/الواتساب حسب الفرع بمرور واحد بدل filter لكل فرع.
+    // النتيجة مطابقة تماماً لـ allSales.filter(...) — نفس العناصر ونفس الترتيب
+    // (push يحافظ على ترتيب المصفوفة الأصلية مثل filter).
+    const salesByBranch = {};
+    for (const s of allSales) {
+      if (!salesByBranch[s.branchId]) salesByBranch[s.branchId] = [];
+      salesByBranch[s.branchId].push(s);
     }
-    load();
-    return () => { cancelled = true; };
-  }, [selectedMonth, refreshCounter]);
+    const whatsappByBranch = {};
+    for (const w of allWhatsapp) {
+      if (!whatsappByBranch[w.branchId]) whatsappByBranch[w.branchId] = [];
+      whatsappByBranch[w.branchId].push(w);
+    }
+    const kpisMap = {};
+    for (const b of brs) {
+      const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0, whatsappTargetType: 'pct' };
+      const branchSales = salesByBranch[b.id] || [];
+      const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
+      const budgetPct = goal.budget > 0
+        ? Math.min(100, Math.round((totalSales / goal.budget) * 100))
+        : 0;
+      // Batch 16: التقييمات من goal.reviewsAchieved / goal.reviewsTarget
+      const reviewsPct = goal.reviewsTarget > 0
+        ? Math.min(100, Math.round((goal.reviewsAchieved / goal.reviewsTarget) * 100))
+        : 0;
+      // Batch 49: نسبة تحقيق واتساب - تعتمد على whatsappTarget من goal
+      // لو ما حُدّد هدف للشهر → noTarget = true (يعرض "لم يُحدّد هدف")
+      const branchWa = whatsappByBranch[b.id] || [];
+      const totalCustomers = branchWa.reduce((sum, w) => sum + (w.customers || 0), 0);
+      const totalBuyers = branchWa.reduce((sum, w) => sum + (w.buyers || 0), 0);
+      const actualPct = totalCustomers > 0 ? (totalBuyers / totalCustomers) * 100 : 0;
+      // Batch 55: للنوع "مبلغ" نستخدم مبيعات التحويل (أونلاين) للفرع
+      const totalTransfer = branchSales.reduce((sum, s) => sum + (Number(s.transfer) || 0), 0);
+      const whatsappTarget = goal.whatsappTarget || 0;
+      const whatsappTargetType = goal.whatsappTargetType === 'amount' ? 'amount' : 'pct';
+      const whatsappPct = whatsappTarget > 0
+        ? (whatsappTargetType === 'amount'
+            ? Math.min(100, Math.round((totalTransfer / whatsappTarget) * 100))
+            : Math.min(100, Math.round((actualPct / whatsappTarget) * 100)))
+        : 0;
+      const whatsappNoTarget = whatsappTarget <= 0;
+      // Batch 46.5: لا نعرض 0/0 — فقط إذا فيه بيانات
+      // Batch 55: للنوع "مبلغ" نعرض المبلغ المحقّق/الهدف بالريال
+      const whatsappSubtext = whatsappTargetType === 'amount'
+        ? (whatsappTarget > 0 ? `${totalTransfer.toLocaleString('en-US')} / ${whatsappTarget.toLocaleString('en-US')} ﷼` : '')
+        : (totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '');
+      kpisMap[b.id] = {
+        budgetPct, reviewsPct,
+        whatsappPct, whatsappSubtext, whatsappNoTarget,
+        hasGoal: goal.exists,
+        reviewsTarget: goal.reviewsTarget || 0,
+        reviewsAchieved: goal.reviewsAchieved || 0,
+      };
+    }
+    return kpisMap;
+  }, [allSales, allWhatsapp, meta]);
+
+  // إذا لم يتم تحديد أي أهداف، أرسل إشعاراً (مرة واحدة في اليوم لكل شهر)
+  // Batch 74: انتقل من داخل دالة الجلب إلى effect يراقب النتيجة المحسوبة
+  useEffect(() => {
+    if (loading || error || branches.length === 0) return;
+    const hasAnyGoals = Object.values(branchKpis).some((k) => k.hasGoal);
+    if (hasAnyGoals) return;
+    const notifKey = `goals_reminder_${selectedMonth}_${new Date().toDateString()}`;
+    try {
+      if (!localStorage.getItem(notifKey)) {
+        addNotification({
+          title: 'تذكير: الأهداف الشهرية',
+          body: 'لم يتم تحديد أهداف لهذا الشهر بعد. حدّدها من الإعدادات.',
+          emoji: '🎯',
+          type: 'reminder',
+        });
+        localStorage.setItem(notifKey, '1');
+      }
+    } catch { /* localStorage may fail in private mode */ }
+  }, [loading, error, branches.length, branchKpis, selectedMonth]);
 
   const openPicker = () => {
     setSheet({
@@ -354,7 +342,7 @@ export default function ManagerHome({ lang, userName }) {
   // Batch 49: لو شاشة تعديل مفتوحة، نعرضها بدل الرئيسية
   const closeEdit = () => {
     setEditScreen(null);
-    setRefreshCounter((c) => c + 1); // إعادة تحميل البيانات بعد الحفظ
+    refreshMeta(); // Batch 74: إعادة جلب الأهداف بعد الحفظ (بدل refreshCounter)
   };
   if (editScreen?.type === 'budget') {
     return <BudgetGoalEdit

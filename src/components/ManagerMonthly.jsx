@@ -179,22 +179,39 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
   // useState عادي (وليس usePersistedState) ⇒ يعود للسنة الحالية عند إعادة فتح الشاشة
   const [avgYear, setAvgYear] = useState(() => new Date().getFullYear());
   const historyTo = `${new Date().getFullYear()}-12-31`;
+
+  // Batch 74: تأجيل استعلامات التاريخ الكامل (منذ 2024) — أثقل قراءات الشاشة،
+  // وكانت تنطلق عند كل mount رغم أن الكرت وحده يحتاجها. الآن تنطلق فقط عند
+  // اقتراب الكرت من مجال الرؤية (IntersectionObserver). نفس الحساب، توقيت الجلب فقط.
+  // متصفح بلا IntersectionObserver ⇒ يبدأ مفعّلاً (نفس السلوك السابق: جلب فوري)
+  const [histEnabled, setHistEnabled] = useState(() => typeof IntersectionObserver === 'undefined');
+  const [avgCardEl, setAvgCardEl] = useState(null); // callback ref — يتحدث عند ظهور الكرت في الشجرة
+  useEffect(() => {
+    if (histEnabled || !avgCardEl) return;
+    const obs = new IntersectionObserver((entries) => {
+      if (entries.some((en) => en.isIntersecting)) setHistEnabled(true);
+    }, { rootMargin: '200px' });
+    obs.observe(avgCardEl);
+    return () => obs.disconnect();
+  }, [histEnabled, avgCardEl]);
+
   const { data: histSales = [], loading: histSalesLoading } = useCachedQuery(
     ['sales', HISTORY_FROM, historyTo],
     () => getSales(HISTORY_FROM, historyTo),
-    { ttl: 5 * 60 * 1000, defaultData: [] }
+    { ttl: 5 * 60 * 1000, defaultData: [], enabled: histEnabled }
   );
   const { data: histExpenses = [], loading: histExpLoading } = useCachedQuery(
     ['expenses', HISTORY_FROM, historyTo],
     () => getExpenses(HISTORY_FROM, historyTo),
-    { ttl: 5 * 60 * 1000, defaultData: [] }
+    { ttl: 5 * 60 * 1000, defaultData: [], enabled: histEnabled }
   );
   const { data: histFixed = [], loading: histFixedLoading } = useCachedQuery(
     ['fixedExpenses', HISTORY_FROM.slice(0, 7), historyTo.slice(0, 7)],
     () => getFixedExpensesRange(HISTORY_FROM.slice(0, 7), historyTo.slice(0, 7)),
-    { ttl: 5 * 60 * 1000, defaultData: [] }
+    { ttl: 5 * 60 * 1000, defaultData: [], enabled: histEnabled }
   );
-  const avgCardLoading = histSalesLoading || histExpLoading || histFixedLoading;
+  // قبل تفعيل الجلب يبقى الكرت في حالة skeleton — لا أرقام صفرية مضللة
+  const avgCardLoading = !histEnabled || histSalesLoading || histExpLoading || histFixedLoading;
 
   // السنوات المتوفرة فعلياً في البيانات (لا قائمة ثابتة)
   const avgAvailableYears = useMemo(() => {
@@ -857,6 +874,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       {/* Batch 70: متوسط الربح الشهري (سنوي) — قابل للضغط لاختيار السنة
           يمتد بعرض كامل عندما يختفي كرت التوقّع (كل الأشهر / التبويب السنوي) */}
       <button
+        ref={setAvgCardEl}
         onClick={openAvgYearPicker}
         className={`bg-white p-3 rounded-xl border border-tw-line text-center min-h-[44px] active:scale-95 transition-transform ${insights ? '' : 'col-span-2'}`}
         type="button"

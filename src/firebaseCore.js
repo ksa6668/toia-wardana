@@ -9,7 +9,12 @@
 // ====================================================================
 import { initializeApp } from "firebase/app";
 import { getAuth, setPersistence, browserLocalPersistence } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from "firebase/firestore";
 
 // 🔻 كائن firebaseConfig من Firebase Console
 const firebaseConfig = {
@@ -23,7 +28,21 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 export const auth = getAuth(app);
-export const db = getFirestore(app);
+
+// Batch 74: كاش Firestore دائم (IndexedDB) — القراءات المكررة تُخدم محلياً حتى عبر
+// الجلسات (إغلاق التبويب لا يمسحه، بعكس sessionStorage). طبقة SWR في useCachedQuery
+// تبقى كما هي مسؤولة عن الحداثة من السيرفر؛ هذا الكاش يخفض زمن/تكلفة الجلب فقط.
+// حماية: أي فشل (متصفح لا يدعم IndexedDB / تهيئة سابقة already-exists) ⇒ رجوع آمن
+// إلى getFirestore الافتراضي حتى لا يتعطّل الإقلاع على أي متصفح.
+let _db;
+try {
+  _db = initializeFirestore(app, {
+    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
+  });
+} catch {
+  _db = getFirestore(app);
+}
+export const db = _db;
 
 // ========== Batch 56: ثبات الجلسة + خمول 30 يوم ==========
 // نثبّت الجلسة محلياً → عند فتح التطبيق يدخل مباشرة بدون طلب الاسم/الرمز.
