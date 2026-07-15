@@ -23,6 +23,7 @@ import DateSheet from './DateSheet';
 import BottomSheet from './BottomSheet';
 import { useScreenHeader } from '../context/ScreenCtx';
 import { todayLocal, dateLabelFor } from '../utils/dateHelpers';
+import { compressImage } from '../utils/imageCompress';
 
 const PRIMARY_TYPES = ['flower', 'delivery', 'customerOrders', 'supplies'];
 
@@ -225,9 +226,17 @@ export default function ExpenseFormV2({
       let attachmentType = existingImageUrl ? existingAttachmentType : null;
 
       // مرفق واحد متبادل: نرفع الملف الجديد (PDF أو صورة) عبر نفس آلية الرفع
-      const uploadFile = pdfFile || imageFile;
+      let uploadFile = pdfFile || imageFile;
       if (uploadFile) {
         setUploading(true);
+        // Batch 75: الصور تُضغط في المتصفح قبل الرفع (تصغير + JPEG) —
+        // PDF يمرّ كما هو بلا أي معالجة. فشل الضغط لأي سبب لا يفشل
+        // الرفع أبداً: نرجع للملف الأصلي كما كان.
+        if (!pdfFile && uploadFile.type && uploadFile.type.startsWith('image/')) {
+          try {
+            uploadFile = await compressImage(uploadFile);
+          } catch { /* متصفح قديم/ملف غريب ⇒ الأصل كما هو */ }
+        }
         // uploadInvoiceImage يرسل contentType من الملف؛ لملف PDF يكون
         // 'application/pdf' فيُفتح inline في المتصفح لا كتنزيل قسري
         const up = await uploadInvoiceImage(uploadFile);
