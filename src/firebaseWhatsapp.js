@@ -27,6 +27,17 @@ import {
 import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache";
 import { db, auth } from "./firebaseCore";
 import { notifyTelegramWhatsappAdded } from "./firebaseTelegram";
+import { refreshSummariesFor } from "./firebaseSummaries";
+
+// Batch 76: قراءة السجل القديم قبل تعديل/حذف (نفس نمط firebaseSales)
+async function _readOld(id) {
+  try {
+    const snap = await getDoc(doc(db, "whatsapp", id));
+    return snap.exists() ? snap.data() : null;
+  } catch {
+    return null;
+  }
+}
 
 export async function addWhatsappEntry({ date, branchId, customers, newCustomers, buyers }) {
   if (!auth.currentUser) throw new Error("Not logged in");
@@ -54,11 +65,16 @@ export async function addWhatsappEntry({ date, branchId, customers, newCustomers
   });
 
   _invalidateCachePrefix('whatsapp');
+
+  // Batch 76: تحديث ملخص الشهر (طبقة صامتة — لا يفشل الحفظ إن تعذّر)
+  await refreshSummariesFor([{ branchId, date }]);
   return ref;
 }
 
 export async function updateWhatsappEntry(id, { date, branchId, customers, newCustomers, buyers }) {
   if (!auth.currentUser) throw new Error("Not logged in");
+  // Batch 76: السجل القديم قبل التعديل (قد يتغيّر تاريخه/فرعه ⇒ شهران متأثران)
+  const oldRec = await _readOld(id);
   const customersN = Math.max(0, Math.floor(Number(customers) || 0));
   const newCustomersN = Math.max(0, Math.floor(Number(newCustomers) || 0));
   const buyersN = Math.max(0, Math.floor(Number(buyers) || 0));
@@ -72,12 +88,23 @@ export async function updateWhatsappEntry(id, { date, branchId, customers, newCu
     updatedAt: serverTimestamp(),
   });
   _invalidateCachePrefix('whatsapp');
+
+  // Batch 76: إعادة حساب ملخص الطرفين — القديم والجديد
+  await refreshSummariesFor([
+    oldRec && { branchId: oldRec.branchId, date: oldRec.date },
+    { branchId, date },
+  ].filter(Boolean));
   return result;
 }
 
 export async function deleteWhatsappEntry(id) {
+  // Batch 76: نقرأ السجل قبل حذفه لنعرف ملخص أي (فرع، شهر) يُعاد حسابه
+  const oldRec = await _readOld(id);
   const result = await deleteDoc(doc(db, "whatsapp", id));
   _invalidateCachePrefix('whatsapp');
+
+  // Batch 76: الحذف = إعادة حساب الشهر بدونه
+  if (oldRec) await refreshSummariesFor([{ branchId: oldRec.branchId, date: oldRec.date }]);
   return result;
 }
 

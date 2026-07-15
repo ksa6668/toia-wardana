@@ -16,6 +16,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   updateDoc,
   deleteDoc,
@@ -26,6 +27,18 @@ import {
 import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache";
 import { db, auth } from "./firebaseCore";
 import { notifyTelegramSaleAdded } from "./firebaseTelegram";
+import { refreshSummariesFor } from "./firebaseSummaries";
+
+// Batch 76: قراءة السجل القديم قبل تعديل/حذف — لمعرفة (الفرع، الشهر)
+// المتأثرَين فيُعاد حساب ملخصهما. فشل القراءة غير قاتل (يُتجاهل الطرف القديم).
+async function _readOld(collName, id) {
+  try {
+    const snap = await getDoc(doc(db, collName, id));
+    return snap.exists() ? snap.data() : null;
+  } catch {
+    return null;
+  }
+}
 // الدوال النقية لرسوم مدى مفصولة في madaMath.js (بلا تبعيات — قابلة للاختبار في Node).
 // نُعيد تصديرها من هنا فتبقى استيرادات `from '../firebase'` كما هي.
 import { MADA_FEE_RATE, madaFees, madaNet, salesNet, madaNetOf } from "./madaMath";
@@ -66,6 +79,9 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
   // Batch 45: مسح cache الاستعلامات المتأثرة
   _invalidateCachePrefix('sales');
 
+  // Batch 76: تحديث ملخص الشهر (طبقة صامتة — لا يفشل الحفظ إن تعذّر)
+  await refreshSummariesFor([{ branchId, date }]);
+
   return ref;
 }
 
@@ -75,6 +91,8 @@ export async function addDailySales({ date, branchId, cash, mada, transfer }) {
 // تحديث مبيعة يومية — يعيد حساب total/madaFees/madaNet/netTotal تلقائياً
 // Batch 58: قصّ القيم السالبة
 export async function updateDailySales(id, { date, branchId, cash, mada, transfer }) {
+  // Batch 76: السجل القديم قبل التعديل (قد يتغيّر تاريخه/فرعه ⇒ شهران متأثران)
+  const oldRec = await _readOld("dailySales", id);
   const cashN = Math.max(0, Number(cash) || 0);
   const madaN = Math.max(0, Number(mada) || 0);
   const transferN = Math.max(0, Number(transfer) || 0);
@@ -100,14 +118,25 @@ export async function updateDailySales(id, { date, branchId, cash, mada, transfe
   // Batch 45: مسح cache
   _invalidateCachePrefix('sales');
 
+  // Batch 76: إعادة حساب ملخص الطرفين — القديم (قد يكون شهراً/فرعاً آخر) والجديد
+  await refreshSummariesFor([
+    oldRec && { branchId: oldRec.branchId, date: oldRec.date },
+    { branchId, date },
+  ].filter(Boolean));
+
   return result;
 }
 
 export async function deleteDailySales(id) {
+  // Batch 76: نقرأ السجل قبل حذفه لنعرف ملخص أي (فرع، شهر) يُعاد حسابه
+  const oldRec = await _readOld("dailySales", id);
   const result = await deleteDoc(doc(db, "dailySales", id));
 
   // Batch 45: مسح cache
   _invalidateCachePrefix('sales');
+
+  // Batch 76: الحذف = إعادة حساب الشهر بدونه (طرح بالمحصلة، بلا فروقات يدوية)
+  if (oldRec) await refreshSummariesFor([{ branchId: oldRec.branchId, date: oldRec.date }]);
   return result;
 }
 

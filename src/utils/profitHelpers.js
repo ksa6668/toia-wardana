@@ -10,7 +10,9 @@
 // pure function: لا state ولا Firestore — يستقبل مصفوفات مفلترة جاهزة
 // (بعد فلتر الفرع) ويرجع الأرقام فقط.
 // ----------------------------------------------------------
-import { salesNet } from '../madaMath';
+// Batch 76: امتداد صريح ليعمل الملف في Node مباشرة (يستورده
+// scripts/buildMonthlySummaries.mjs للتحقق) — لا تغيير سلوك في Vite
+import { salesNet } from '../madaMath.js';
 
 /**
  * @param {Array} sales          سجلات dailySales (بعد فلتر الفرع)

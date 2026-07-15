@@ -18,6 +18,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   doc,
   setDoc,
   updateDoc,
@@ -29,6 +30,17 @@ import {
 import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache";
 import { db, auth } from "./firebaseCore";
 import { notifyTelegramExpenseAdded } from "./firebaseTelegram";
+import { refreshSummariesFor } from "./firebaseSummaries";
+
+// Batch 76: قراءة السجل القديم قبل تعديل/حذف (نفس نمط firebaseSales)
+async function _readOld(collName, id) {
+  try {
+    const snap = await getDoc(doc(db, collName, id));
+    return snap.exists() ? snap.data() : null;
+  } catch {
+    return null;
+  }
+}
 
 // تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
 export function classifyExpense(categoryId) {
@@ -92,6 +104,9 @@ export async function addExpense({
   // Batch 45: مسح cache
   _invalidateCachePrefix('expenses');
 
+  // Batch 76: تحديث ملخص الشهر (طبقة صامتة — لا يفشل الحفظ إن تعذّر)
+  await refreshSummariesFor([{ branchId, date }]);
+
   return ref;
 }
 
@@ -108,6 +123,8 @@ export async function updateExpense(id, {
   invoicePath,
   attachmentType, // 'image' | 'pdf' | undefined
 }) {
+  // Batch 76: السجل القديم قبل التعديل (قد يتغيّر تاريخه/فرعه ⇒ شهران متأثران)
+  const oldRec = await _readOld("expenses", id);
   const amountN = Math.max(0, Number(amount) || 0); // Batch 58: قصّ السالب
   const catName = categoryName || categoryId;
 
@@ -135,14 +152,25 @@ export async function updateExpense(id, {
   // Batch 45: مسح cache
   _invalidateCachePrefix('expenses');
 
+  // Batch 76: إعادة حساب ملخص الطرفين — القديم والجديد
+  await refreshSummariesFor([
+    oldRec && { branchId: oldRec.branchId, date: oldRec.date },
+    { branchId, date },
+  ].filter(Boolean));
+
   return result;
 }
 
 export async function deleteExpense(id) {
+  // Batch 76: نقرأ السجل قبل حذفه لنعرف ملخص أي (فرع، شهر) يُعاد حسابه
+  const oldRec = await _readOld("expenses", id);
   const result = await deleteDoc(doc(db, "expenses", id));
 
   // Batch 45: مسح cache
   _invalidateCachePrefix('expenses');
+
+  // Batch 76: الحذف = إعادة حساب الشهر بدونه
+  if (oldRec) await refreshSummariesFor([{ branchId: oldRec.branchId, date: oldRec.date }]);
   return result;
 }
 
