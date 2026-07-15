@@ -1,6 +1,7 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, X, Settings, FileText, ExternalLink } from 'lucide-react';
 import { getExpenses } from '../firebase';
+import { useCachedQuery } from '../hooks/useCachedQuery';
 import SarSymbol from './SarSymbol';
 import SheetPortal from './SheetPortal';
 import { useScreenHeader } from '../context/ScreenCtx';
@@ -50,33 +51,26 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
   useScreenHeader('الإيصالات والفواتير', onBack);
   const [period, setPeriod] = useState('7days');
   const [branch, setBranch] = useState('toia');
-  const [expenses, setExpenses] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [showFilters, setShowFilters] = useState(false);
   const [selectedReceipt, setSelectedReceipt] = useState(null); // modal viewer (صورة أو PDF)
 
-  useEffect(() => {
-    let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError('');
-      try {
-        const days = PERIOD_OPTIONS.find((p) => p.id === period)?.days || 7;
-        const to = new Date();
-        const from = new Date();
-        from.setDate(from.getDate() - days + 1);
-        const data = await getExpenses(dateStr(from), dateStr(to));
-        if (!cancelled) setExpenses(data || []);
-      } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر التحميل');
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    }
-    load();
-    return () => { cancelled = true; };
+  // Batch 74: نطاق التواريخ حسب الفترة المختارة (محلي، لا UTC)
+  const { from, to } = useMemo(() => {
+    const days = PERIOD_OPTIONS.find((p) => p.id === period)?.days || 7;
+    const toD = new Date();
+    const fromD = new Date();
+    fromD.setDate(fromD.getDate() - days + 1);
+    return { from: dateStr(fromD), to: dateStr(toD) };
   }, [period]);
+
+  // Batch 74: استعلام مع cache بنفس نمط بقية الشاشات (بدل useEffect خام يعيد
+  // الجلب عند كل فتح). المفتاح يتضمن النطاق + الفرع، والاستعلام يضيق على الفرع
+  // المختار في Firestore بدل جلب كل الفروع ثم الفلترة في JS ("الكل" يبقى شاملاً).
+  const { data: expenses = [], loading, error } = useCachedQuery(
+    ['expenses', from, to, branch],
+    () => getExpenses(from, to, branch === 'all' ? null : branch),
+    { ttl: 30 * 1000, defaultData: [] }
+  );
 
   // تصفية حسب الفرع + الفواتير اللي عليها صورة فقط
   const filtered = useMemo(() => {
@@ -234,6 +228,7 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
                 src={selectedReceipt.invoiceUrl}
                 alt="فاتورة"
                 className="max-w-full max-h-full rounded-xl shadow-2xl"
+                decoding="async"
                 onClick={(e) => e.stopPropagation()}
               />
             )}
@@ -258,10 +253,14 @@ function ReceiptCard({ expense, onViewImage }) {
         {expense.invoiceUrl && isPdf ? (
           <FileText size={22} className="text-tw-red" />
         ) : expense.invoiceUrl ? (
+          /* Batch 74: تحميل كسول للمصغّرات — نطاق R2 مباشر (r2.dev) لا يدعم
+             /cdn-cgi/image للتحجيم، فالتخفيف المتاح هو lazy + فك ترميز غير حاجب */
           <img
             src={expense.invoiceUrl}
             alt="فاتورة"
             className="w-full h-full object-cover"
+            loading="lazy"
+            decoding="async"
             onError={(e) => { e.target.style.display = 'none'; }}
           />
         ) : (
