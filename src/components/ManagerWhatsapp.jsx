@@ -1,12 +1,13 @@
 // src/components/ManagerWhatsapp.jsx
 // ----------------------------------------------------------
 // Batch 46: شاشة عرض إحصائيات عملاء واتساب للمدير
-// - 4 كروت إحصائية (إجمالي/جدد/مشترين/نسبة المشترين)
+// Batch 72: كرت واحد فقط (إجمالي عملاء واتساب) بعرض كامل،
+//           وإجماليات الفترة (عملاء/جدد/مشترين/النسبة) مدمجة في رأس الجدول
 // - جدول يومي
 // - تبويبات شهري/سنوي مثل ManagerMonthly
 // ----------------------------------------------------------
 import { useState, useMemo } from 'react';
-import { Calendar, ChevronDown, MapPin, Loader2, Users, UserPlus, ShoppingBag, Percent } from 'lucide-react';
+import { Calendar, ChevronDown, MapPin, Loader2, Users, UserPlus, ShoppingBag } from 'lucide-react';
 import {
   getWhatsappEntries, getWhatsappBaseline, updateWhatsappEntry, deleteWhatsappEntry,
 } from '../firebase';
@@ -116,7 +117,9 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
     const totalCustomers = totalBaseline + cumulativeNew;
     // نسبة المشترين من سجل الكشف فقط
     const buyersPct = dailyCustomers > 0 ? Math.round((totalBuyers / dailyCustomers) * 100) : 0;
-    return { totalCustomers, totalNew, totalBuyers, buyersPct };
+    // Batch 72: نُرجع dailyCustomers (مجموع «عدد عملاء واتساب» اليومي للفترة)
+    // لعرضه في رأس الجدول — هو نفسه مقام النسبة أعلاه.
+    return { totalCustomers, totalNew, totalBuyers, dailyCustomers, buyersPct };
   }, [filteredEntries, cumulativeEntries, baselines, branchFilter]);
 
   // جدول مجمع باليوم
@@ -296,36 +299,12 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
         </p>
       )}
 
-      {/* 4 كروت إحصائية - صفّين، كل صف كرتين */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-        <div className="bg-white p-4 rounded-2xl border border-tw-line text-center">
-          <Users size={18} className="mx-auto text-tw-blue mb-2" />
-          <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'Total customers' : 'إجمالي عملاء واتساب'}</p>
-          <p className="text-lg font-extrabold text-tw-navy">{totals.totalCustomers.toLocaleString()}</p>
-        </div>
-        <div className="bg-white p-4 rounded-2xl border border-tw-line text-center">
-          <UserPlus size={18} className="mx-auto text-tw-green mb-2" />
-          <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'New customers' : 'العملاء الجدد'}</p>
-          <p className="text-lg font-extrabold text-tw-navy">{totals.totalNew.toLocaleString()}</p>
-        </div>
-        {/* Batch 64: كرت المشترين قابل للضغط → صفحة إحصائيات المشترين الشهرية
-            (نمرّر الفرع المختار والسنة الحالية). نفس شكل الكرت تماماً — فقط
-            سلوك ضغط ومؤشر بصري خفيف، بلا تغيير ألوان أو أبعاد. */}
-        <button
-          type="button"
-          onClick={() => onOpenBuyersMonthly && onOpenBuyersMonthly(branchFilter, new Date().getFullYear())}
-          className="bg-white p-4 rounded-2xl border border-tw-line text-center cursor-pointer transition-transform active:scale-[0.98] focus:outline-none"
-          aria-label={lang === 'en' ? 'Open monthly buyers stats' : 'فتح إحصائيات المشترين الشهرية'}
-        >
-          <ShoppingBag size={18} className="mx-auto text-tw-blue mb-2" />
-          <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'Buyers' : 'عدد المشترين'}</p>
-          <p className="text-lg font-extrabold text-tw-navy">{totals.totalBuyers.toLocaleString()}</p>
-        </button>
-        <div className="bg-white p-4 rounded-2xl border border-tw-line text-center">
-          <Percent size={18} className="mx-auto text-tw-green mb-2" />
-          <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'Buyers ratio' : 'نسبة المشترين'}</p>
-          <p className="text-lg font-extrabold text-tw-navy">{totals.buyersPct}%</p>
-        </div>
+      {/* Batch 72: كرت واحد فقط بعرض كامل — إجمالي عملاء واتساب.
+          كروت الجدد/المشترين/النسبة انتقلت إجمالياتها إلى رأس الجدول أدناه. */}
+      <div className="bg-white p-4 rounded-2xl border border-tw-line text-center mb-4">
+        <Users size={18} className="mx-auto text-tw-blue mb-2" />
+        <p className="text-[11px] text-tw-muted mb-1">{lang === 'en' ? 'Total customers' : 'إجمالي عملاء واتساب'}</p>
+        <p className="text-lg font-extrabold text-tw-navy">{totals.totalCustomers.toLocaleString()}</p>
       </div>
 
       {/* Batch 67: تنبيه عند ضغط يوم يضم أكثر من فرع في وضع "الكل" */}
@@ -337,14 +316,40 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
         </p>
       )}
 
-      {/* جدول يومي - Batch 46.7: إضافة عمود النسبة */}
+      {/* جدول يومي - Batch 46.7: إضافة عمود النسبة
+          Batch 72: إجمالي الفترة أسفل عنوان كل عمود رقمي (مدمج في الرأس، ليس صف بيانات)
+          بنفس ألوان أعمدة الصفوف، ونسبة الإجمالي بنفس منطق تلوين الصفوف اليومية. */}
       <div className="bg-white rounded-2xl border border-tw-line overflow-hidden">
-        <div className="grid grid-cols-5 px-3 py-2.5 border-b border-tw-line bg-tw-soft/40 text-[11px] font-bold text-tw-muted">
-          <div className="text-right">{lang === 'en' ? 'Day' : 'اليوم'}</div>
-          <div className="text-center">{lang === 'en' ? 'Customers' : 'عملاء'}</div>
-          <div className="text-center">{lang === 'en' ? 'New' : 'جدد'}</div>
-          <div className="text-center">{lang === 'en' ? 'Buyers' : 'مشترين'}</div>
-          <div className="text-center">{lang === 'en' ? 'Ratio' : 'النسبة'}</div>
+        <div className="grid grid-cols-5 px-3 py-2 border-b border-tw-line bg-tw-soft/40 items-center">
+          <div className="text-right text-[11px] font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</div>
+          <div className="text-center">
+            <p className="text-[10px] font-bold text-tw-muted/80 leading-tight">{lang === 'en' ? 'Customers' : 'عملاء'}</p>
+            <p className="text-sm font-extrabold text-tw-navy leading-tight">{totals.dailyCustomers.toLocaleString()}</p>
+          </div>
+          <div className="text-center">
+            <p className="text-[10px] font-bold text-tw-muted/80 leading-tight">{lang === 'en' ? 'New' : 'جدد'}</p>
+            <p className="text-sm font-extrabold text-tw-green leading-tight">{totals.totalNew.toLocaleString()}</p>
+          </div>
+          {/* Batch 64/72: الضغط على «مشترين» يفتح إحصائيات المشترين الشهرية (كان على الكرت المحذوف) */}
+          <button
+            type="button"
+            onClick={() => onOpenBuyersMonthly && onOpenBuyersMonthly(branchFilter, new Date().getFullYear())}
+            className="text-center cursor-pointer transition-transform active:scale-[0.97] focus:outline-none"
+            aria-label={lang === 'en' ? 'Open monthly buyers stats' : 'فتح إحصائيات المشترين الشهرية'}
+          >
+            <p className="text-[10px] font-bold text-tw-muted/80 leading-tight">{lang === 'en' ? 'Buyers' : 'مشترين'}</p>
+            <p className="text-sm font-extrabold text-tw-blue leading-tight">{totals.totalBuyers.toLocaleString()}</p>
+          </button>
+          <div className="text-center">
+            <p className="text-[10px] font-bold text-tw-muted/80 leading-tight">{lang === 'en' ? 'Ratio' : 'النسبة'}</p>
+            <p className={`text-sm font-extrabold leading-tight ${
+              totals.dailyCustomers === 0
+                ? 'text-tw-muted'
+                : totals.buyersPct >= 20
+                  ? 'text-tw-green'
+                  : 'text-tw-red'
+            }`}>{totals.buyersPct}%</p>
+          </div>
         </div>
         {byDay.length === 0 ? (
           <p className="text-center text-tw-muted text-xs py-6">
