@@ -10,9 +10,12 @@
 //       • نسبة التحويل (أون لاين) من المبيعات
 //       • نسبة الأون من المتجر (التحويل / كاش+مدى)
 //   - حذف: نسبة التسويق، نسبة المصاريف من المبيعات
+// Batch 73:
+//   - حذف مؤشرَي «نسبة تكلفة الورد من المبيعات» و«نسبة تكلفة التوصيل من المبيعات»
+//     من العرض (مستقلان — لا يدخلان في حساب إجمالي المصروفات أو صافي الربح)
 // ----------------------------------------------------------
 import { useState, useMemo } from 'react';
-import { ChevronDown, MapPin, Globe, Flower2, Truck, Receipt, TrendingUp, Loader2 } from 'lucide-react';
+import { ChevronDown, MapPin, Globe, Receipt, TrendingUp, Loader2 } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf } from '../firebase';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
@@ -240,13 +243,6 @@ export default function ManagerKpis({ lang = 'ar' }) {
     const totalSales = totalCash + totalMadaNet + totalTransfer;
     const storeOnly = totalCash + totalMadaNet; // كاش + مدى صافي = المتجر
 
-    // مصاريف الورد والتوصيل من filteredExpenses
-    const sumByType = (type) =>
-      filteredExpenses
-        .filter((e) => e.expenseType === type || e.category === type)
-        .reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
-    const flowers = sumByType('flower');
-    const delivery = sumByType('delivery');
     // Batch 50: إجمالي كل المصاريف المتغيرة
     const totalVarExpenses = filteredExpenses.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
     // Batch 51: المصاريف الثابتة + صافي الربح
@@ -293,16 +289,6 @@ export default function ManagerKpis({ lang = 'ar' }) {
         icon: Globe,
         label: lang === 'en' ? 'Online ratio of store sales' : 'نسبة الأون لاين من المتجر',
         pct: safePct(totalTransfer, storeOnly),
-      },
-      {
-        icon: Flower2,
-        label: lang === 'en' ? 'Flowers cost ratio of sales' : 'نسبة تكلفة الورد من المبيعات',
-        pct: safePct(flowers, totalSales),
-      },
-      {
-        icon: Truck,
-        label: lang === 'en' ? 'Delivery cost ratio of sales' : 'نسبة تكلفة التوصيل من المبيعات',
-        pct: safePct(delivery, totalSales),
       },
       {
         icon: Receipt,
