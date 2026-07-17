@@ -37,9 +37,11 @@ const dict = {
   'home.recordExpenseD': { ar: 'فاتورة واحدة لكل سجل',             en: 'One invoice per record' },
   'home.logout':         { ar: 'تسجيل خروج',                      en: 'Sign out' },
   'home.langToggle':     { ar: 'English',                         en: 'العربية' }, // الزر يعرض اللغة الأخرى
-  // KPI cards on the employee home (currently use mock data — wire to Firestore later)
-  'home.kpiBudget':      { ar: 'نسبة تحقيق الميزانية',              en: 'Budget achievement' },
-  'home.kpiReviews':     { ar: 'نسبة تحقيق تقييمات قوقل ماب',        en: 'Google Maps reviews achievement' },
+  // KPI cards on the employee home (Batch 76: أسماء مختصرة + كرت المصروفات)
+  'home.kpiBudget':      { ar: 'المبيعات',                        en: 'Sales' },
+  'home.kpiReviews':     { ar: 'قوقل ماب',                        en: 'Google Maps' },
+  'home.kpiExpenses':    { ar: 'المصروفات',                       en: 'Expenses' },
+  'home.kpiWhatsapp':    { ar: 'مبيعات الواتساب',                  en: 'WhatsApp Sales' },
 
   // ===== شاشة المبيعات =====
   'sales.title':         { ar: 'تسجيل المبيعات',                  en: 'Record Sales' },
