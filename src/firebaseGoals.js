@@ -24,11 +24,17 @@ export async function getMonthlyGoal(branchId, monthStr) {
   const ref = doc(db, "goals", goalId);
   const snap = await getDoc(ref);
   if (!snap.exists()) {
-    return { budget: 0, reviewsTarget: 0, whatsappTarget: 0, whatsappTargetType: 'pct', exists: false };
+    return { budget: 0, expenseBudget: 0, reviewsTarget: 0, whatsappTarget: 0, whatsappTargetType: 'pct', exists: false };
   }
   // Batch 55: توافق رجعي — أي هدف قديم بدون نوع يُعامَل كـ "نسبة"
+  // Batch 76: توافق رجعي — المستندات القديمة بلا expenseBudget تُعامَل كـ 0
   const data = snap.data();
-  return { ...data, whatsappTargetType: data.whatsappTargetType || 'pct', exists: true };
+  return {
+    ...data,
+    whatsappTargetType: data.whatsappTargetType || 'pct',
+    expenseBudget: Number(data.expenseBudget) || 0,
+    exists: true,
+  };
 }
 
 /**
@@ -37,6 +43,7 @@ export async function getMonthlyGoal(branchId, monthStr) {
  * Batch 16: يدعم تحديث reviewsAchieved (التقييمات المُحقّقة) باستقلال.
  * Batch 49: يدعم whatsappTarget (نسبة هدف الواتساب لهذا الشهر).
  * Batch 55: يدعم whatsappTargetType ('pct' | 'amount') — نوع هدف الواتساب.
+ * Batch 76: يدعم expenseBudget (ميزانية المصروفات الشهرية) باستقلال عن budget.
  */
 export async function setMonthlyGoal(branchId, monthStr, data) {
   const goalId = `${branchId}_${monthStr}`;
@@ -47,6 +54,8 @@ export async function setMonthlyGoal(branchId, monthStr, data) {
     updatedAt: serverTimestamp(),
   };
   if (data.budget !== undefined) payload.budget = Number(data.budget) || 0;
+  // Batch 76: ميزانية المصروفات الشهرية — حقل مستقل تماماً عن budget (المبيعات)
+  if (data.expenseBudget !== undefined) payload.expenseBudget = Number(data.expenseBudget) || 0;
   if (data.reviewsTarget !== undefined) payload.reviewsTarget = Number(data.reviewsTarget) || 0;
   if (data.reviewsAchieved !== undefined) payload.reviewsAchieved = Number(data.reviewsAchieved) || 0;
   if (data.whatsappTarget !== undefined) payload.whatsappTarget = Number(data.whatsappTarget) || 0;

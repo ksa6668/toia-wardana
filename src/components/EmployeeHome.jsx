@@ -1,15 +1,21 @@
 // src/components/EmployeeHome.jsx
 // ----------------------------------------------------------
 // الصفحة الرئيسية للموظف — بطاقة ترحيب + شريط الشهر + كروت KPIs
-// (الميزانية / التقييمات / واتساب) + أزرار التسجيل + جدول واتساب.
+// (المبيعات / المصروفات / قوقل ماب / واتساب) + أزرار التسجيل.
 // مُستخرَجة من App.jsx.
+// Batch 76: كرت المصروفات (الفئات الأساسية flower/delivery/supplies
+// مقابل ميزانية expenseBudget) + صفّان 2×2 + حذف جدول آخر 3 أيام.
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import { Receipt, TrendingUp, Calendar, MessageCircle } from 'lucide-react';
-import { getSales, salesNet, getMonthlyGoal, getWhatsappEntries } from '../firebase';
+import { getSales, salesNet, getMonthlyGoal, getWhatsappEntries, getExpenses, classifyExpense } from '../firebase';
 import { t } from '../i18n';
 import { formatMonthLabel } from '../utils/periodHelpers';
-import EmployeeWhatsappTable from './EmployeeWhatsappTable';
+import ExpenseBudgetEdit from './ExpenseBudgetEdit';
+
+// Batch 76: فئات كرت المصروفات — الورد + التوصيل + المستلزمات والبضائع فقط
+// (باستبعاد customerOrders / marketing / general)
+const EXPENSE_CARD_TYPES = new Set(['flower', 'delivery', 'supplies']);
 
 export default function EmployeeHome({ setView, branch, branchId, lang }) {
   const align = lang === 'en' ? 'text-left' : 'text-right';
@@ -23,7 +29,10 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
   })();
 
   // ====== KPIs الحقيقية من Firestore ======
-  const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, whatsappPct: 0, whatsappSubtext: '', loaded: false });
+  const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, whatsappPct: 0, expensePct: 0, whatsappSubtext: '', loaded: false });
+  // Batch 76: فتح شاشة إدخال ميزانية المصروفات + إعادة الجلب بعد الحفظ
+  const [showExpenseBudget, setShowExpenseBudget] = useState(false);
+  const [refreshKey, setRefreshKey] = useState(0);
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
@@ -36,10 +45,12 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
         const to = `${monthStr}-${String(lastDay).padStart(2, '0')}`;
         // Batch 39: نمرر branchId لـ getSales ليُفلتر في Firestore (يتوافق مع Rules الموظف)
         // Batch 46: + WhatsApp data
-        const [goal, branchSales, branchWa] = await Promise.all([
+        // Batch 76: + المصروفات (لكرت المصروفات)
+        const [goal, branchSales, branchWa, branchExpenses] = await Promise.all([
           getMonthlyGoal(branchId, monthStr),
           getSales(from, to, branchId),
           getWhatsappEntries(from, to, branchId),
+          getExpenses(from, to, branchId),
         ]);
         const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
         const budgetPct = goal.budget > 0
@@ -72,17 +83,40 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
         const whatsappSubtext = whatsappTargetType === 'amount'
           ? (whatsappTarget > 0 ? `${totalTransfer.toLocaleString('en-US')} / ${whatsappTarget.toLocaleString('en-US')} ﷼` : '')
           : (totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '');
+        // Batch 76: كرت المصروفات — مجموع الفئات الأساسية الثلاث فقط
+        // (expenseType من السجل، وللسجلات القديمة بدونه نصنّف من الاسم/المعرّف)
+        const totalExpenses = branchExpenses.reduce((sum, e) => {
+          const type = e.expenseType || classifyExpense(e.categoryName || e.categoryId);
+          return EXPENSE_CARD_TYPES.has(type) ? sum + (Number(e.amount) || 0) : sum;
+        }, 0);
+        const expenseBudget = Number(goal.expenseBudget) || 0;
+        // النسبة الحقيقية بدون قصّ عند 100% — التجاوز يُعرض ويُلوَّن تحذيرياً
+        const expensePct = expenseBudget > 0
+          ? Math.round((totalExpenses / expenseBudget) * 100)
+          : 0;
         if (!cancelled) {
-          setKpis({ budgetPct, reviewsPct, whatsappPct, whatsappSubtext, whatsappNoTarget, loaded: true, hasGoal: goal.exists });
+          setKpis({ budgetPct, reviewsPct, whatsappPct, expensePct, whatsappSubtext, whatsappNoTarget, loaded: true, hasGoal: goal.exists });
         }
       } catch (err) {
         // Batch 39: نسجّل الخطأ بدل ابتلاعه — مفيد للتشخيص في Console
         console.error('EmployeeHome KPIs error:', err);
-        if (!cancelled) setKpis({ budgetPct: 0, reviewsPct: 0, loaded: true, error: true });
+        if (!cancelled) setKpis({ budgetPct: 0, reviewsPct: 0, expensePct: 0, loaded: true, error: true });
       }
     })();
     return () => { cancelled = true; };
-  }, [branchId]);
+  }, [branchId, refreshKey]);
+
+  // Batch 76: شاشة إدخال ميزانية المصروفات — نفس نمط ManagerHome مع BudgetGoalEdit
+  if (showExpenseBudget) {
+    return (
+      <ExpenseBudgetEdit
+        onBack={() => { setShowExpenseBudget(false); setRefreshKey((k) => k + 1); }}
+        branchId={branchId}
+        branchName={branch}
+        lang={lang}
+      />
+    );
+  }
 
   return (
     <div
@@ -107,10 +141,11 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
       </div>
 
       {/* الكروت الكثيرة — توزيع متوازن بمقاس صفحة واحدة (Batch 46) */}
+      {/* Batch 76: أربعة كروت متساوية في صفّين — RTL: أول عنصر في الصف يظهر يميناً */}
       <div className="relative z-10 flex-1 flex flex-col gap-2.5">
-        {/* صف الميزانية + التقييمات (جنباً إلى جنب) */}
+        {/* الصف الأول: المبيعات (يمين) + مبيعات الواتساب (يسار) */}
         <div className="grid grid-cols-2 gap-2.5">
-          {/* كارت تحقيق الميزانية */}
+          {/* كارت المبيعات (تحقيق الميزانية سابقاً) */}
           <div
             className="text-white p-3 rounded-2xl overflow-hidden relative"
             style={{
@@ -125,7 +160,7 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
             />
             <div className="relative flex flex-col items-center text-center gap-1.5 h-full justify-center">
               <p className="text-[10px] font-semibold opacity-95 leading-tight">
-                {t(lang, 'home.kpiBudget') || 'تحقيق الميزانية'}
+                {t(lang, 'home.kpiBudget') || 'المبيعات'}
               </p>
               <p className="text-2xl font-extrabold leading-none">
                 {kpis.budgetPct}%
@@ -143,7 +178,107 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
             </div>
           </div>
 
-          {/* كارت تقييمات قوقل ماب - قابل للضغط (Batch 46.9) */}
+          {/* كارت مبيعات الواتساب - نصف عرض بنفس أبعاد كرت المبيعات (Batch 76) */}
+          <div
+            onClick={() => setView('whatsappExplain')}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setView('whatsappExplain'); } }}
+            className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+            style={{
+              background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+              boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
+              minHeight: 105,
+              cursor: 'pointer',
+            }}
+          >
+            <div
+              className="absolute inset-0 opacity-30 pointer-events-none"
+              style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
+            />
+            <div className="relative flex flex-col items-center text-center gap-1.5 h-full justify-center">
+              <p className="text-[10px] font-semibold opacity-95 leading-tight">
+                {t(lang, 'home.kpiWhatsapp') || 'مبيعات الواتساب'}
+              </p>
+              {kpis.whatsappNoTarget ? (
+                <p className="text-[10px] font-bold opacity-80">
+                  {lang === 'en' ? 'No target set' : 'لم يُحدّد هدف'}
+                </p>
+              ) : (
+                <>
+                  <p className="text-2xl font-extrabold leading-none">
+                    {kpis.whatsappPct}%
+                  </p>
+                  <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all duration-500"
+                      style={{
+                        width: `${kpis.whatsappPct}%`,
+                        background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                        boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+                      }}
+                    />
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* الصف الثاني: المصروفات (يمين) + قوقل ماب (يسار) */}
+        <div className="grid grid-cols-2 gap-2.5">
+          {/* كارت المصروفات - قابل للضغط لإدخال ميزانية المصروفات (Batch 76) */}
+          {/* عند تجاوز 100%: لون تحذيري + عرض النسبة الحقيقية بدون قصّ */}
+          <div
+            onClick={() => setShowExpenseBudget(true)}
+            role="button"
+            tabIndex={0}
+            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowExpenseBudget(true); } }}
+            className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+            style={{
+              background: kpis.expensePct > 100
+                ? 'linear-gradient(145deg, #42060B 0%, #6E0F16 65%, #E5484D 100%)'
+                : 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
+              boxShadow: kpis.expensePct > 100
+                ? '0 8px 20px rgba(229,72,77,0.25)'
+                : '0 8px 20px rgba(0,91,255,0.18)',
+              minHeight: 105,
+              cursor: 'pointer',
+            }}
+          >
+            <div
+              className="absolute inset-0 opacity-30 pointer-events-none"
+              style={{
+                background: kpis.expensePct > 100
+                  ? 'radial-gradient(circle at 89% 8%, rgba(255,178,36,0.5), transparent 28%)'
+                  : 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)',
+              }}
+            />
+            <div className="relative flex flex-col items-center text-center gap-1.5 h-full justify-center">
+              <p className="text-[10px] font-semibold opacity-95 leading-tight">
+                {t(lang, 'home.kpiExpenses') || 'المصروفات'}
+              </p>
+              <p className="text-2xl font-extrabold leading-none">
+                {kpis.expensePct}%
+              </p>
+              <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+                <div
+                  className="h-full rounded-full transition-all duration-500"
+                  style={{
+                    width: `${Math.min(100, kpis.expensePct)}%`,
+                    background: kpis.expensePct > 100
+                      ? 'linear-gradient(90deg, #FFB224 0%, #E5484D 100%)'
+                      : 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+                    boxShadow: kpis.expensePct > 100
+                      ? '0 0 8px rgba(229,72,77,0.5)'
+                      : '0 0 8px rgba(40,223,255,0.5)',
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* كارت قوقل ماب - قابل للضغط (Batch 46.9) */}
           <div
             onClick={() => setView('reviewsExplain')}
             role="button"
@@ -163,7 +298,7 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
             />
             <div className="relative flex flex-col items-center text-center gap-1 h-full justify-center">
               <p className="text-[10px] font-semibold opacity-95 leading-tight">
-                {t(lang, 'home.kpiReviews') || 'تقييمات قوقل ماب'}
+                {t(lang, 'home.kpiReviews') || 'قوقل ماب'}
               </p>
               <p className="text-2xl font-extrabold leading-none">
                 {kpis.reviewsPct}%
@@ -179,54 +314,6 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
                   }}
                 />
               </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Batch 46: كرت تحقيق واتساب رفيع - قابل للضغط (Batch 46.9) */}
-        <div
-          onClick={() => setView('whatsappExplain')}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setView('whatsappExplain'); } }}
-          className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
-          style={{
-            background: 'linear-gradient(145deg, #061742 0%, #082765 65%, #005BFF 100%)',
-            boxShadow: '0 8px 20px rgba(0,91,255,0.18)',
-            cursor: 'pointer',
-          }}
-        >
-          <div
-            className="absolute inset-0 opacity-30 pointer-events-none"
-            style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
-          />
-          <div className="relative flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <MessageCircle size={16} />
-              <p className="text-[11px] font-bold opacity-95 leading-tight">
-                {lang === 'en' ? 'WhatsApp Sales' : 'تحقيق مبيعات واتساب'}
-              </p>
-            </div>
-            <div className="flex items-center gap-2 flex-1 max-w-[55%]">
-              {kpis.whatsappNoTarget ? (
-                <p className="text-[10px] font-bold whitespace-nowrap opacity-80 text-center w-full">
-                  {lang === 'en' ? 'No target set' : 'لم يُحدّد هدف'}
-                </p>
-              ) : (
-                <>
-                  <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${kpis.whatsappPct}%`,
-                        background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
-                        boxShadow: '0 0 8px rgba(40,223,255,0.5)',
-                      }}
-                    />
-                  </div>
-                  <p className="text-base font-extrabold leading-none whitespace-nowrap">{kpis.whatsappPct}%</p>
-                </>
-              )}
             </div>
           </div>
         </div>
@@ -279,9 +366,6 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
             </p>
           </div>
         </button>
-
-        {/* Batch 48: جدول كشف عملاء واتساب - آخر 3 أيام */}
-        <EmployeeWhatsappTable branchId={branchId} lang={lang} />
       </div>
     </div>
   );
