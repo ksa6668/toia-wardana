@@ -871,18 +871,20 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       {/* ===== Batch 80: صف ثلاثي — متوسط الربح الشهري + متوسط التحويل للمشتري + توقّع نهاية الشهر
           الترتيب في RTL يمين→يسار: متوسط الربح ثم متوسط التحويل ثم التوقّع.
           يختفي كرت التوقّع (كل الأشهر / التبويب السنوي) ⇒ عمودان متساويان بلا عمود فارغ.
-          Batch 81: نفس مقاس بقية الكروت (p-3 + text-sm) والارتفاع الموحّد min-h-[4.75rem] ===== */}
+          Batch 81: نفس الارتفاع الموحّد min-h-[4.75rem] وخط الرقم text-sm.
+          Batch 82: ضغط الرأس/الأسطر الفرعية (px-1.5 py-2 + عنوان 9px + أيقونة 12) حتى لا
+          يلتف العنوان لسطرين على الجوال فيرتفع الصف فوق 76px — الأرقام الرئيسية كما هي ===== */}
       <div className={`grid ${insights ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mb-2`}>
       {/* Batch 70: متوسط الربح الشهري (سنوي) — قابل للضغط لاختيار السنة */}
       <button
         ref={setAvgCardEl}
         onClick={openAvgYearPicker}
-        className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
+        className="bg-white px-1.5 py-2 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
         type="button"
       >
-        <div className="flex items-center justify-center gap-1.5 mb-1">
-          <BarChart3 size={13} className="text-tw-green" />
-          <p className="text-[10px] text-tw-muted font-bold leading-tight">{lang === 'en' ? 'Avg monthly profit' : 'متوسط الربح الشهري'}</p>
+        <div className="flex items-center justify-center gap-1 mb-0.5">
+          <BarChart3 size={12} className="text-tw-green" />
+          <p className="text-[9px] text-tw-muted font-bold leading-tight">{lang === 'en' ? 'Avg monthly profit' : 'متوسط الربح الشهري'}</p>
         </div>
         {avgCardLoading ? (
           <div className="animate-pulse space-y-1.5 py-0.5" aria-hidden="true">
@@ -899,7 +901,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
               </p>
             )}
             {/* السطر الفرعي: السنة المعروضة + مؤشر أن الكرت قابل للضغط */}
-            <p className="text-[10px] text-tw-muted font-bold mt-0.5 leading-tight flex items-center justify-center gap-0.5">
+            <p className="text-[9px] text-tw-muted font-bold mt-0.5 leading-tight flex items-center justify-center gap-0.5">
               {avgYear}
               <ChevronDown size={10} className="text-tw-muted/70" />
             </p>
@@ -909,8 +911,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
 
       {/* Batch 79: متوسط التحويل للمشتري = مبيعات «تحويل» ÷ مشتري واتساب (نفس فلتر الفرع/الفترة)
           عرض فقط — الكرت الأوسط في الصف، مشترين = 0 ⇒ '—' */}
-      <div className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center">
-        <p className="text-[10px] text-tw-muted mb-1 leading-tight">
+      <div className="bg-white px-1.5 py-2 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center">
+        <p className="text-[9px] text-tw-muted mb-0.5 leading-tight">
           {lang === 'en' ? 'Avg transfer per buyer' : 'متوسط التحويل للمشتري'}
         </p>
         {(loading || waLoading) ? (
@@ -928,15 +930,15 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
 
       {/* Batch 58: توقّع نهاية الشهر — يظهر لشهر محدّد فقط */}
       {insights && (
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center">
-          <div className="flex items-center justify-center gap-1.5 mb-1">
-            <TrendingUp size={13} className="text-tw-blue" />
-            <p className="text-[10px] text-tw-muted font-bold leading-tight">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
+        <div className="bg-white px-1.5 py-2 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center">
+          <div className="flex items-center justify-center gap-1 mb-0.5">
+            <TrendingUp size={12} className="text-tw-blue" />
+            <p className="text-[9px] text-tw-muted font-bold leading-tight">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
           </div>
           <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
             {insights.projectedSales.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-          <p className={`text-[10px] font-bold mt-0.5 leading-tight ${
+          <p className={`text-[9px] font-bold mt-0.5 leading-tight ${
             insights.budgetDiffPct == null ? 'text-tw-muted'
             : insights.budgetDiffPct >= 0 ? 'text-tw-green' : 'text-tw-red'
           }`}>
