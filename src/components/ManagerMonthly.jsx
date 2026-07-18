@@ -868,18 +868,75 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         ))}
       </div>
 
-      {/* ===== Batch 58: توقّع نهاية الشهر + Batch 70: متوسط الربح الشهري — شبكة عمودين ===== */}
-      <div className="grid grid-cols-2 gap-2 mb-2">
+      {/* ===== Batch 80: صف ثلاثي — متوسط الربح الشهري + متوسط التحويل للمشتري + توقّع نهاية الشهر
+          الترتيب في RTL يمين→يسار: متوسط الربح ثم متوسط التحويل ثم التوقّع.
+          يختفي كرت التوقّع (كل الأشهر / التبويب السنوي) ⇒ عمودان متساويان بلا عمود فارغ.
+          تصغير بسيط (p-2 + text-xs) لهذه الكروت الثلاثة فقط لتقرأ على عرض الجوال ===== */}
+      <div className={`grid ${insights ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mb-2`}>
+      {/* Batch 70: متوسط الربح الشهري (سنوي) — قابل للضغط لاختيار السنة */}
+      <button
+        ref={setAvgCardEl}
+        onClick={openAvgYearPicker}
+        className="bg-white p-2 rounded-xl border border-tw-line text-center min-h-[44px] active:scale-95 transition-transform"
+        type="button"
+      >
+        <div className="flex items-center justify-center gap-1.5 mb-1">
+          <BarChart3 size={13} className="text-tw-green" />
+          <p className="text-[10px] text-tw-muted font-bold leading-tight">{lang === 'en' ? 'Avg monthly profit' : 'متوسط الربح الشهري'}</p>
+        </div>
+        {avgCardLoading ? (
+          <div className="animate-pulse space-y-1.5 py-0.5" aria-hidden="true">
+            <div className="h-4 w-20 mx-auto rounded bg-tw-soft" />
+            <div className="h-3 w-10 mx-auto rounded bg-tw-soft" />
+          </div>
+        ) : (
+          <>
+            {avgProfitCard.empty ? (
+              <p className="text-xs font-bold text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</p>
+            ) : (
+              <p className={`text-xs font-bold flex items-center justify-center gap-1 ${avgProfitCard.value >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
+                {avgProfitCard.value.toLocaleString()} <SarSymbol className="text-xs" />
+              </p>
+            )}
+            {/* السطر الفرعي: السنة المعروضة + مؤشر أن الكرت قابل للضغط */}
+            <p className="text-[10px] text-tw-muted font-bold mt-0.5 leading-tight flex items-center justify-center gap-0.5">
+              {avgYear}
+              <ChevronDown size={10} className="text-tw-muted/70" />
+            </p>
+          </>
+        )}
+      </button>
+
+      {/* Batch 79: متوسط التحويل للمشتري = مبيعات «تحويل» ÷ مشتري واتساب (نفس فلتر الفرع/الفترة)
+          عرض فقط — الكرت الأوسط في الصف، مشترين = 0 ⇒ '—' */}
+      <div className="bg-white p-2 rounded-xl border border-tw-line text-center">
+        <p className="text-[10px] text-tw-muted mb-1 leading-tight">
+          {lang === 'en' ? 'Avg transfer per buyer' : 'متوسط التحويل للمشتري'}
+        </p>
+        {(loading || waLoading) ? (
+          <div className="animate-pulse py-0.5" aria-hidden="true">
+            <div className="h-4 w-16 mx-auto rounded bg-tw-soft" />
+          </div>
+        ) : avgTransferPerBuyer.value == null ? (
+          <p className="text-xs font-bold text-tw-muted/70">—</p>
+        ) : (
+          <p className="text-xs font-bold text-tw-navy flex items-center justify-center gap-1">
+            {avgTransferPerBuyer.value.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+        )}
+      </div>
+
+      {/* Batch 58: توقّع نهاية الشهر — يظهر لشهر محدّد فقط */}
       {insights && (
-        <div className="bg-white p-3 rounded-xl border border-tw-line text-center">
+        <div className="bg-white p-2 rounded-xl border border-tw-line text-center">
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <TrendingUp size={13} className="text-tw-blue" />
-            <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
+            <p className="text-[10px] text-tw-muted font-bold leading-tight">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
           </div>
-          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
+          <p className="text-xs font-bold text-tw-navy flex items-center justify-center gap-1">
             {insights.projectedSales.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-          <p className={`text-[10px] font-bold mt-0.5 ${
+          <p className={`text-[10px] font-bold mt-0.5 leading-tight ${
             insights.budgetDiffPct == null ? 'text-tw-muted'
             : insights.budgetDiffPct >= 0 ? 'text-tw-green' : 'text-tw-red'
           }`}>
@@ -891,61 +948,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           </p>
         </div>
       )}
-
-      {/* Batch 70: متوسط الربح الشهري (سنوي) — قابل للضغط لاختيار السنة
-          يمتد بعرض كامل عندما يختفي كرت التوقّع (كل الأشهر / التبويب السنوي) */}
-      <button
-        ref={setAvgCardEl}
-        onClick={openAvgYearPicker}
-        className={`bg-white p-3 rounded-xl border border-tw-line text-center min-h-[44px] active:scale-95 transition-transform ${insights ? '' : 'col-span-2'}`}
-        type="button"
-      >
-        <div className="flex items-center justify-center gap-1.5 mb-1">
-          <BarChart3 size={13} className="text-tw-green" />
-          <p className="text-[10px] text-tw-muted font-bold">{lang === 'en' ? 'Avg monthly profit' : 'متوسط الربح الشهري'}</p>
-        </div>
-        {avgCardLoading ? (
-          <div className="animate-pulse space-y-1.5 py-0.5" aria-hidden="true">
-            <div className="h-4 w-20 mx-auto rounded bg-tw-soft" />
-            <div className="h-3 w-10 mx-auto rounded bg-tw-soft" />
-          </div>
-        ) : (
-          <>
-            {avgProfitCard.empty ? (
-              <p className="text-sm font-bold text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</p>
-            ) : (
-              <p className={`text-sm font-bold flex items-center justify-center gap-1 ${avgProfitCard.value >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
-                {avgProfitCard.value.toLocaleString()} <SarSymbol className="text-xs" />
-              </p>
-            )}
-            {/* السطر الفرعي: السنة المعروضة + مؤشر أن الكرت قابل للضغط */}
-            <p className="text-[10px] text-tw-muted font-bold mt-0.5 flex items-center justify-center gap-0.5">
-              {avgYear}
-              <ChevronDown size={10} className="text-tw-muted/70" />
-            </p>
-          </>
-        )}
-      </button>
-
-      {/* Batch 79: متوسط التحويل للمشتري = مبيعات «تحويل» ÷ مشتري واتساب (نفس فلتر الفرع/الفترة)
-          عرض فقط — صف كامل تحت الكرتين، مشترين = 0 ⇒ '—' */}
-      <div className="col-span-2 bg-white p-3 rounded-xl border border-tw-line text-center">
-        <p className="text-[10px] text-tw-muted mb-1">
-          {lang === 'en' ? 'Avg transfer per buyer' : 'متوسط التحويل للمشتري'}
-        </p>
-        {(loading || waLoading) ? (
-          <div className="animate-pulse py-0.5" aria-hidden="true">
-            <div className="h-4 w-16 mx-auto rounded bg-tw-soft" />
-          </div>
-        ) : avgTransferPerBuyer.value == null ? (
-          <p className="text-sm font-bold text-tw-muted/70">—</p>
-        ) : (
-          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
-            {avgTransferPerBuyer.value.toLocaleString()} <SarSymbol className="text-xs" />
-          </p>
-        )}
-      </div>
-      </div>{/* نهاية شبكة كرتي التوقّع/المتوسط */}
+      </div>{/* نهاية صف متوسط الربح/متوسط التحويل/التوقّع */}
 
       </div>{/* نهاية العمود الأول */}
       <div className="lg:col-span-3">
