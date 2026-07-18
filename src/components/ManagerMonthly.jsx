@@ -729,45 +729,45 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       <div className="grid grid-cols-3 gap-2 mb-2">
         <button
           onClick={() => setBreakdownMetric('sales')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Sales' : 'إجمالي المبيعات'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Sales' : 'إجمالي المبيعات'}</p>
           <p className="text-sm font-bold text-tw-blue flex items-center justify-center gap-1">
             {Math.round(totals.sales).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
           {insights?.deltas?.sales != null && (
-            <p className={`text-[10px] font-bold mt-0.5 ${insights.deltas.sales >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
+            <p className={`text-[10px] font-bold mt-0.5 leading-tight ${insights.deltas.sales >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
               {insights.deltas.sales >= 0 ? '▲' : '▼'} {Math.abs(insights.deltas.sales)}%
             </p>
           )}
         </button>
         <button
           onClick={() => setBreakdownMetric('expenses')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Expenses' : 'إجمالي المصاريف'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Expenses' : 'إجمالي المصاريف'}</p>
           <p className="text-sm font-bold text-tw-red flex items-center justify-center gap-1">
             {Math.round(totals.expenses).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
           {insights?.deltas?.expenses != null && (
-            <p className={`text-[10px] font-bold mt-0.5 ${insights.deltas.expenses <= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
+            <p className={`text-[10px] font-bold mt-0.5 leading-tight ${insights.deltas.expenses <= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
               {insights.deltas.expenses >= 0 ? '▲' : '▼'} {Math.abs(insights.deltas.expenses)}%
             </p>
           )}
         </button>
         <button
           onClick={() => setBreakdownMetric('profit')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Net Profit' : 'صافي الربح'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Net Profit' : 'صافي الربح'}</p>
           <p className="text-sm font-bold text-tw-green flex items-center justify-center gap-1">
             {Math.round(totals.profit).toLocaleString()} <SarSymbol className="text-xs" />
           </p>
           {insights?.deltas?.profit != null && (
-            <p className={`text-[10px] font-bold mt-0.5 ${insights.deltas.profit >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
+            <p className={`text-[10px] font-bold mt-0.5 leading-tight ${insights.deltas.profit >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
               {insights.deltas.profit >= 0 ? '▲' : '▼'} {Math.abs(insights.deltas.profit)}%
             </p>
           )}
@@ -776,30 +776,30 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       <div className="grid grid-cols-3 gap-2 mb-2">
         <button
           onClick={() => setBreakdownMetric('avgSales')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg sales' : 'متوسط المبيعات'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Avg sales' : 'متوسط المبيعات'}</p>
           <p className="text-sm font-bold text-tw-blue/80 flex items-center justify-center gap-1">
             {totals.avgSales.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         </button>
         <button
           onClick={() => setBreakdownMetric('avgExpenses')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg expenses' : 'متوسط المصاريف'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Avg expenses' : 'متوسط المصاريف'}</p>
           <p className="text-sm font-bold text-tw-red/80 flex items-center justify-center gap-1">
             {totals.avgExp.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         </button>
         <button
           onClick={() => setBreakdownMetric('avgProfit')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Avg net profit' : 'متوسط صافي الربح'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Avg net profit' : 'متوسط صافي الربح'}</p>
           <p className="text-sm font-bold text-tw-green/80 flex items-center justify-center gap-1">
             {totals.avgProfit.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
@@ -810,36 +810,36 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       <div className="grid grid-cols-3 gap-2 mb-2">
         <button
           onClick={() => setBreakdownMetric('cash')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Cash' : 'الكاش'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Cash' : 'الكاش'}</p>
           <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
             {totals.cash.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-          <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.cashPct}%</p>
+          <p className="text-[10px] text-tw-blue font-bold mt-0.5 leading-tight">{totals.cashPct}%</p>
         </button>
         <button
           onClick={() => setBreakdownMetric('mada')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Mada' : 'مدى'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Mada' : 'مدى'}</p>
           <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
             {totals.mada.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-          <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.madaPct}%</p>
+          <p className="text-[10px] text-tw-blue font-bold mt-0.5 leading-tight">{totals.madaPct}%</p>
         </button>
         <button
           onClick={() => setBreakdownMetric('transfer')}
-          className="bg-white p-3 rounded-xl border border-tw-line text-center active:scale-95 transition-transform"
+          className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
           type="button"
         >
-          <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? 'Transfer' : 'تحويل'}</p>
+          <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? 'Transfer' : 'تحويل'}</p>
           <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
             {totals.transfer.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
-          <p className="text-[10px] text-tw-blue font-bold mt-0.5">{totals.transferPct}%</p>
+          <p className="text-[10px] text-tw-blue font-bold mt-0.5 leading-tight">{totals.transferPct}%</p>
         </button>
       </div>
 
@@ -847,8 +847,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           الترتيب في RTL: الورد يميناً ثم التوصيل ثم مستلزمات وبضائع */}
       <div className="grid grid-cols-3 gap-2 mb-2">
         {categoryCards.map((c) => (
-          <div key={c.key} className="bg-white p-3 rounded-xl border border-tw-line text-center">
-            <p className="text-[10px] text-tw-muted mb-1">{lang === 'en' ? c.labelEn : c.labelAr}</p>
+          <div key={c.key} className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center">
+            <p className="text-[10px] text-tw-muted mb-1 leading-tight">{lang === 'en' ? c.labelEn : c.labelAr}</p>
             {loading ? (
               <div className="animate-pulse space-y-1.5 py-0.5" aria-hidden="true">
                 <div className="h-4 w-14 mx-auto rounded bg-tw-soft" />
@@ -859,7 +859,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                 <p className="text-sm font-bold text-tw-red flex items-center justify-center gap-1">
                   {c.amount.toLocaleString()} <SarSymbol className="text-xs" />
                 </p>
-                <p className="text-[10px] text-tw-blue font-bold mt-0.5">
+                <p className="text-[10px] text-tw-blue font-bold mt-0.5 leading-tight">
                   {c.pct == null ? '—' : `${c.pct}%`}
                 </p>
               </>
@@ -871,13 +871,13 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       {/* ===== Batch 80: صف ثلاثي — متوسط الربح الشهري + متوسط التحويل للمشتري + توقّع نهاية الشهر
           الترتيب في RTL يمين→يسار: متوسط الربح ثم متوسط التحويل ثم التوقّع.
           يختفي كرت التوقّع (كل الأشهر / التبويب السنوي) ⇒ عمودان متساويان بلا عمود فارغ.
-          تصغير بسيط (p-2 + text-xs) لهذه الكروت الثلاثة فقط لتقرأ على عرض الجوال ===== */}
+          Batch 81: نفس مقاس بقية الكروت (p-3 + text-sm) والارتفاع الموحّد min-h-[4.75rem] ===== */}
       <div className={`grid ${insights ? 'grid-cols-3' : 'grid-cols-2'} gap-2 mb-2`}>
       {/* Batch 70: متوسط الربح الشهري (سنوي) — قابل للضغط لاختيار السنة */}
       <button
         ref={setAvgCardEl}
         onClick={openAvgYearPicker}
-        className="bg-white p-2 rounded-xl border border-tw-line text-center min-h-[44px] active:scale-95 transition-transform"
+        className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center active:scale-95 transition-transform"
         type="button"
       >
         <div className="flex items-center justify-center gap-1.5 mb-1">
@@ -892,9 +892,9 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         ) : (
           <>
             {avgProfitCard.empty ? (
-              <p className="text-xs font-bold text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</p>
+              <p className="text-sm font-bold text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</p>
             ) : (
-              <p className={`text-xs font-bold flex items-center justify-center gap-1 ${avgProfitCard.value >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
+              <p className={`text-sm font-bold flex items-center justify-center gap-1 ${avgProfitCard.value >= 0 ? 'text-tw-green' : 'text-tw-red'}`}>
                 {avgProfitCard.value.toLocaleString()} <SarSymbol className="text-xs" />
               </p>
             )}
@@ -909,7 +909,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
 
       {/* Batch 79: متوسط التحويل للمشتري = مبيعات «تحويل» ÷ مشتري واتساب (نفس فلتر الفرع/الفترة)
           عرض فقط — الكرت الأوسط في الصف، مشترين = 0 ⇒ '—' */}
-      <div className="bg-white p-2 rounded-xl border border-tw-line text-center">
+      <div className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center">
         <p className="text-[10px] text-tw-muted mb-1 leading-tight">
           {lang === 'en' ? 'Avg transfer per buyer' : 'متوسط التحويل للمشتري'}
         </p>
@@ -918,9 +918,9 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
             <div className="h-4 w-16 mx-auto rounded bg-tw-soft" />
           </div>
         ) : avgTransferPerBuyer.value == null ? (
-          <p className="text-xs font-bold text-tw-muted/70">—</p>
+          <p className="text-sm font-bold text-tw-muted/70">—</p>
         ) : (
-          <p className="text-xs font-bold text-tw-navy flex items-center justify-center gap-1">
+          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
             {avgTransferPerBuyer.value.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
         )}
@@ -928,12 +928,12 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
 
       {/* Batch 58: توقّع نهاية الشهر — يظهر لشهر محدّد فقط */}
       {insights && (
-        <div className="bg-white p-2 rounded-xl border border-tw-line text-center">
+        <div className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col justify-center">
           <div className="flex items-center justify-center gap-1.5 mb-1">
             <TrendingUp size={13} className="text-tw-blue" />
             <p className="text-[10px] text-tw-muted font-bold leading-tight">{lang === 'en' ? 'Month-end projection' : 'توقّع نهاية الشهر'}</p>
           </div>
-          <p className="text-xs font-bold text-tw-navy flex items-center justify-center gap-1">
+          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
             {insights.projectedSales.toLocaleString()} <SarSymbol className="text-xs" />
           </p>
           <p className={`text-[10px] font-bold mt-0.5 leading-tight ${
