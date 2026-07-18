@@ -12,7 +12,7 @@
 // ----------------------------------------------------------
 import { useState, useMemo, useEffect } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp, BarChart3 } from 'lucide-react';
-import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf, getBranches, getMonthlyGoal } from '../firebase';
+import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf, getBranches, getMonthlyGoal, getWhatsappEntries } from '../firebase';
 import { computePeriodTotals } from '../utils/profitHelpers';
 import BottomSheet from './BottomSheet';
 import DayRecordsSheet from './DayRecordsSheet';
@@ -134,6 +134,13 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
     ['fixedExpenses', fromMonth, toMonth],
     () => getFixedExpensesRange(fromMonth, toMonth),
     { ttl: 5 * 60 * 1000, defaultData: [] } // 5 دقائق (تتغير نادراً)
+  );
+  // Batch 79: سجلات واتساب لكرت «متوسط التحويل للمشتري» — نفس مفتاح cache
+  // المستخدم في تبويب واتساب (ManagerWhatsapp) ⇒ لا قراءات Firestore مكررة
+  const { data: whatsappEntries = [], loading: waLoading } = useCachedQuery(
+    ['whatsapp', from, to],
+    () => getWhatsappEntries(from, to),
+    { ttl, defaultData: [] }
   );
 
   // ===== Batch 58: بيانات إضافية للميزات (مقارنة شهرية + تعادل + توقّع) =====
@@ -349,6 +356,20 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       transferPct: Math.round((totalTransfer / salesBase) * 100),
     };
   }, [filteredSales, filteredExpenses, filteredFixed]);
+
+  // Batch 79: متوسط التحويل للمشتري = مبيعات «تحويل» ÷ مجموع مشتري واتساب
+  // نفس فلتر الفرع/الفترة — البسط totals.transfer القائم، والمقام مجموع buyers
+  // بنفس صيغة ManagerWhatsapp. مشترين = 0 ⇒ null (تُعرض '—') — لا NaN ولا Infinity
+  const avgTransferPerBuyer = useMemo(() => {
+    const waEntries = branchFilter === 'all'
+      ? whatsappEntries
+      : whatsappEntries.filter((e) => e.branchId === branchFilter);
+    const buyersCount = waEntries.reduce((sum, e) => sum + (e.buyers || 0), 0);
+    return {
+      buyersCount,
+      value: buyersCount > 0 ? Math.round(totals.transfer / buyersCount) : null,
+    };
+  }, [whatsappEntries, branchFilter, totals.transfer]);
 
   // Batch 71: مجاميع كروت الفئات ونسبتها من إجمالي المبيعات
   // فلتر الفرع فقط (بدون فلتر تصنيف جدول المصاريف حتى لا تتصفّر الكروت عند اختياره)
@@ -905,6 +926,25 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           </>
         )}
       </button>
+
+      {/* Batch 79: متوسط التحويل للمشتري = مبيعات «تحويل» ÷ مشتري واتساب (نفس فلتر الفرع/الفترة)
+          عرض فقط — صف كامل تحت الكرتين، مشترين = 0 ⇒ '—' */}
+      <div className="col-span-2 bg-white p-3 rounded-xl border border-tw-line text-center">
+        <p className="text-[10px] text-tw-muted mb-1">
+          {lang === 'en' ? 'Avg transfer per buyer' : 'متوسط التحويل للمشتري'}
+        </p>
+        {(loading || waLoading) ? (
+          <div className="animate-pulse py-0.5" aria-hidden="true">
+            <div className="h-4 w-16 mx-auto rounded bg-tw-soft" />
+          </div>
+        ) : avgTransferPerBuyer.value == null ? (
+          <p className="text-sm font-bold text-tw-muted/70">—</p>
+        ) : (
+          <p className="text-sm font-bold text-tw-navy flex items-center justify-center gap-1">
+            {avgTransferPerBuyer.value.toLocaleString()} <SarSymbol className="text-xs" />
+          </p>
+        )}
+      </div>
       </div>{/* نهاية شبكة كرتي التوقّع/المتوسط */}
 
       </div>{/* نهاية العمود الأول */}
