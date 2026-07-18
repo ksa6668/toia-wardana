@@ -42,7 +42,7 @@ function KpiCard({ label, percent, showStars, onClick, subtext }) {
   const pct = Math.min(100, Math.max(0, percent));
   return (
     <div
-      className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+      className="text-white p-2.5 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
       style={{ ...NAVY_GRADIENT, cursor: onClick ? 'pointer' : 'default' }}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
@@ -52,7 +52,7 @@ function KpiCard({ label, percent, showStars, onClick, subtext }) {
       }}
     >
       <div className="absolute inset-0 opacity-30 pointer-events-none" style={SHINE_OVERLAY} />
-      <div className="relative flex flex-col items-center text-center gap-1.5 min-h-[100px] justify-between">
+      <div className="relative flex flex-col items-center text-center gap-1 min-h-[5.5rem] justify-between">
         <p className="text-xs font-bold opacity-95">{label}</p>
         <p className="text-3xl font-extrabold leading-none">{pct}%</p>
         {showStars && (
@@ -97,7 +97,7 @@ function WhatsappKpiCard({ label, percent, onClick, noTarget }) {
   const pct = Math.min(100, Math.max(0, percent));
   return (
     <div
-      className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+      className="text-white p-2.5 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
       style={{ ...NAVY_GRADIENT, cursor: onClick ? 'pointer' : 'default' }}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
@@ -107,7 +107,7 @@ function WhatsappKpiCard({ label, percent, onClick, noTarget }) {
       }}
     >
       <div className="absolute inset-0 opacity-30 pointer-events-none" style={SHINE_OVERLAY} />
-      <div className="relative flex flex-col items-center text-center gap-1.5 min-h-[100px] justify-between">
+      <div className="relative flex flex-col items-center text-center gap-1 min-h-[5.5rem] justify-between">
         <p className="text-xs font-bold opacity-95">{label}</p>
         {noTarget ? (
           <p className="text-[10px] font-bold opacity-80">لم يُحدّد هدف</p>
@@ -136,7 +136,7 @@ function ExpenseKpiCard({ label, percent, onClick }) {
   const over = pct > 100;
   return (
     <div
-      className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+      className="text-white p-2.5 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
       style={{
         ...(over
           ? {
@@ -159,7 +159,7 @@ function ExpenseKpiCard({ label, percent, onClick }) {
           ? { background: 'radial-gradient(circle at 89% 8%, rgba(255,178,36,0.5), transparent 28%)' }
           : SHINE_OVERLAY}
       />
-      <div className="relative flex flex-col items-center text-center gap-1.5 min-h-[100px] justify-between">
+      <div className="relative flex flex-col items-center text-center gap-1 min-h-[5.5rem] justify-between">
         <p className="text-xs font-bold opacity-95">{label}</p>
         <p className="text-3xl font-extrabold leading-none">{pct}%</p>
         <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
@@ -192,18 +192,19 @@ function BranchSection({
   lang
 }) {
   return (
-    <div className="mb-3">
-      {/* فاصل اسم الفرع */}
-      <div className="tw-branch-divider">
+    <div className="mb-2">
+      {/* فاصل اسم الفرع — Batch 78: تجاوز inline لهوامش الكلاس العام (المدير فقط)
+          حتى تدخل الشاشة كاملة بدون سكرول دون المساس بـ index.css المشترك */}
+      <div className="tw-branch-divider" style={{ margin: '0.25rem 0' }}>
         <span className="line" />
-        <span className="branch-name">
+        <span className="branch-name" style={{ padding: '0.25rem 0.875rem' }}>
           <WindmillIcon />
           <span>{name}</span>
         </span>
         <span className="line" />
       </div>
       {/* الصف الأول: المبيعات (يمين) + مبيعات الواتساب (يسار) */}
-      <div className="grid grid-cols-2 gap-2 mb-2">
+      <div className="grid grid-cols-2 gap-2 mb-1.5">
         <KpiCard
           label={t(lang, 'home.kpiBudget')}
           percent={budgetPct}
@@ -458,11 +459,16 @@ export default function ManagerHome({ lang, userName }) {
 
   return (
     <div
-      className="relative min-h-full px-4 pt-4 pb-8 overflow-hidden page-bg-soft"
+      className="relative min-h-full px-4 pt-3 pb-4 overflow-hidden page-bg-soft"
       style={{ fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif" }}
     >
-      {/* منتقي الشهر */}
-      <div onClick={openPicker} className="tw-period-picker relative z-10">
+      {/* منتقي الشهر — Batch 78: تجاوز inline لتصغير الارتفاع (المدير فقط،
+          الكلاس العام مشترك مع ManagerKpis فلا نعدّله في index.css) */}
+      <div
+        onClick={openPicker}
+        className="tw-period-picker relative z-10"
+        style={{ paddingTop: '0.5rem', paddingBottom: '0.5rem', marginBottom: '0.5rem' }}
+      >
         <svg viewBox="0 0 24 24">
           <rect x="3" y="4" width="18" height="18" rx="2" />
           <line x1="16" y1="2" x2="16" y2="6" />
