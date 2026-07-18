@@ -15,7 +15,9 @@ import BottomSheet from './BottomSheet';
 import BudgetGoalEdit from './BudgetGoalEdit';
 import ReviewsGoalEdit from './ReviewsGoalEdit';
 import WhatsappGoalEdit from './WhatsappGoalEdit';
-import { getBranches, getMonthlyGoal, getSales, salesNet, getWhatsappEntries } from '../firebase';
+import ExpenseBudgetEdit from './ExpenseBudgetEdit';
+import { getBranches, getMonthlyGoal, getSales, salesNet, getWhatsappEntries, getExpenses, classifyExpense, EXPENSE_CARD_TYPES } from '../firebase';
+import { t } from '../i18n';
 import { usePersistedState } from '../hooks/usePersistedState';
 import { useCachedQuery } from '../hooks/useCachedQuery';
 import {
@@ -89,13 +91,13 @@ function WindmillIcon() {
   );
 }
 
-// كارت KPI رفيع لتحقيق واتساب (متوازن مع الكروت الأخرى لكن أقصر)
-// Batch 49: onClick يفتح صفحة إدخال نسبة الهدف
-function WhatsappKpiCard({ label, percent, subtext, onClick, noTarget }) {
+// كارت KPI لمبيعات الواتساب — Batch 77: نصف عرض بنفس أبعاد بقية الكروت
+// (كان رفيعاً بعرض كامل) — Batch 49: onClick يفتح صفحة إدخال نسبة الهدف
+function WhatsappKpiCard({ label, percent, onClick, noTarget }) {
   const pct = Math.min(100, Math.max(0, percent));
   return (
     <div
-      className="text-white px-3 py-2.5 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+      className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
       style={{ ...NAVY_GRADIENT, cursor: onClick ? 'pointer' : 'default' }}
       onClick={onClick}
       role={onClick ? 'button' : undefined}
@@ -105,45 +107,88 @@ function WhatsappKpiCard({ label, percent, subtext, onClick, noTarget }) {
       }}
     >
       <div className="absolute inset-0 opacity-30 pointer-events-none" style={SHINE_OVERLAY} />
-      <div className="relative flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 flex-shrink-0">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/>
-          </svg>
-          <p className="text-[11px] font-bold opacity-95 leading-tight">{label}</p>
-        </div>
-        <div className="flex items-center gap-2 flex-1 max-w-[60%]">
-          {noTarget ? (
-            <p className="text-[10px] font-bold whitespace-nowrap opacity-80 text-center w-full">
-              لم يُحدّد هدف
-            </p>
-          ) : (
-            <>
-              <div className="flex-1 h-1.5 bg-white/20 rounded-full overflow-hidden">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{
-                    width: `${pct}%`,
-                    background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
-                    boxShadow: '0 0 8px rgba(40,223,255,0.5)',
-                  }}
-                />
-              </div>
-              <p className="text-base font-extrabold leading-none whitespace-nowrap">{pct}%</p>
-            </>
-          )}
+      <div className="relative flex flex-col items-center text-center gap-1.5 min-h-[100px] justify-between">
+        <p className="text-xs font-bold opacity-95">{label}</p>
+        {noTarget ? (
+          <p className="text-[10px] font-bold opacity-80">لم يُحدّد هدف</p>
+        ) : (
+          <p className="text-3xl font-extrabold leading-none">{pct}%</p>
+        )}
+        <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${noTarget ? 0 : pct}%`,
+              background: 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+              boxShadow: '0 0 8px rgba(40,223,255,0.5)',
+            }}
+          />
         </div>
       </div>
     </div>
   );
 }
 
-// قسم لكل فرع (عنوان + شبكة 2×1 + كرت واتساب)
+// Batch 77: كارت المصروفات — النسبة الحقيقية بدون قصّ فوق 100%،
+// ولون تحذيري (أحمر/برتقالي) للكرت والشريط عند التجاوز (نفس سلوك شاشة الموظف)
+function ExpenseKpiCard({ label, percent, onClick }) {
+  const pct = Math.max(0, Math.round(percent));
+  const over = pct > 100;
+  return (
+    <div
+      className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+      style={{
+        ...(over
+          ? {
+              background: 'linear-gradient(145deg, #42060B 0%, #6E0F16 65%, #E5484D 100%)',
+              boxShadow: '0 8px 20px rgba(229,72,77,0.25)',
+            }
+          : NAVY_GRADIENT),
+        cursor: onClick ? 'pointer' : 'default',
+      }}
+      onClick={onClick}
+      role={onClick ? 'button' : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onKeyDown={(e) => {
+        if (onClick && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); onClick(); }
+      }}
+    >
+      <div
+        className="absolute inset-0 opacity-30 pointer-events-none"
+        style={over
+          ? { background: 'radial-gradient(circle at 89% 8%, rgba(255,178,36,0.5), transparent 28%)' }
+          : SHINE_OVERLAY}
+      />
+      <div className="relative flex flex-col items-center text-center gap-1.5 min-h-[100px] justify-between">
+        <p className="text-xs font-bold opacity-95">{label}</p>
+        <p className="text-3xl font-extrabold leading-none">{pct}%</p>
+        <div className="w-full h-1.5 bg-white/20 rounded-full overflow-hidden">
+          <div
+            className="h-full rounded-full transition-all"
+            style={{
+              width: `${Math.min(100, pct)}%`,
+              background: over
+                ? 'linear-gradient(90deg, #FFB224 0%, #E5484D 100%)'
+                : 'linear-gradient(90deg, #28DFFF 0%, #22D08A 100%)',
+              boxShadow: over
+                ? '0 0 8px rgba(229,72,77,0.5)'
+                : '0 0 8px rgba(40,223,255,0.5)',
+            }}
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// قسم لكل فرع (عنوان + صفّان 2×2)
 // Batch 49: onBudgetClick / onReviewsClick / onWhatsappClick
+// Batch 77: + كرت المصروفات (onExpenseClick) — RTL: أول عنصر في الصف يظهر يميناً،
+// والعناوين موحّدة مع شاشة الموظف عبر نفس مفاتيح i18n
 function BranchSection({
   name, budgetPct, reviewsPct, reviewsSubtext,
-  whatsappPct, whatsappSubtext, whatsappNoTarget,
-  onBudgetClick, onReviewsClick, onWhatsappClick,
+  whatsappPct, whatsappNoTarget, expensePct,
+  onBudgetClick, onReviewsClick, onWhatsappClick, onExpenseClick,
   lang
 }) {
   return (
@@ -157,28 +202,35 @@ function BranchSection({
         </span>
         <span className="line" />
       </div>
+      {/* الصف الأول: المبيعات (يمين) + مبيعات الواتساب (يسار) */}
       <div className="grid grid-cols-2 gap-2 mb-2">
         <KpiCard
-          label={lang === 'en' ? 'Budget' : 'تحقيق الميزانية'}
+          label={t(lang, 'home.kpiBudget')}
           percent={budgetPct}
           onClick={onBudgetClick}
         />
+        <WhatsappKpiCard
+          label={t(lang, 'home.kpiWhatsapp')}
+          percent={whatsappPct}
+          noTarget={whatsappNoTarget}
+          onClick={onWhatsappClick}
+        />
+      </div>
+      {/* الصف الثاني: المصروفات (يمين) + قوقل ماب (يسار) */}
+      <div className="grid grid-cols-2 gap-2">
+        <ExpenseKpiCard
+          label={t(lang, 'home.kpiExpenses')}
+          percent={expensePct}
+          onClick={onExpenseClick}
+        />
         <KpiCard
-          label={lang === 'en' ? 'Google Reviews' : 'تقييمات قوقل ماب'}
+          label={t(lang, 'home.kpiReviews')}
           percent={reviewsPct}
           showStars
           subtext={reviewsSubtext}
           onClick={onReviewsClick}
         />
       </div>
-      {/* Batch 46: كرت تحقيق واتساب رفيع */}
-      <WhatsappKpiCard
-        label={lang === 'en' ? 'WhatsApp Sales' : 'تحقيق مبيعات واتساب'}
-        percent={whatsappPct}
-        subtext={whatsappSubtext}
-        noTarget={whatsappNoTarget}
-        onClick={onWhatsappClick}
-      />
     </div>
   );
 }
@@ -208,6 +260,12 @@ export default function ManagerHome({ lang, userName }) {
     () => getWhatsappEntries(from, to),
     { ttl: 30 * 1000, defaultData: [] }
   );
+  // Batch 77: المصروفات لكرت المصروفات لكل فرع — نفس مفتاح كاش بقية شاشات المدير
+  const { data: allExpenses = [], loading: expLoading } = useCachedQuery(
+    ['expenses', from, to],
+    () => getExpenses(from, to),
+    { ttl: 30 * 1000, defaultData: [] }
+  );
 
   // Batch 74: الفروع + الأهداف في مرحلة متوازية واحدة (كان جلب الأهداف مرحلة
   // await ثانية بعد الفروع = round-trip زائد). معرّفات الفروع ثابتة في التطبيق
@@ -227,6 +285,7 @@ export default function ManagerHome({ lang, userName }) {
           getMonthlyGoal(id, selectedMonth).then((g) => ({
             branchId: id,
             budget: g.budget,
+            expenseBudget: g.expenseBudget || 0, // Batch 77: ميزانية المصروفات
             reviewsTarget: g.reviewsTarget,
             reviewsAchieved: g.reviewsAchieved || 0,
             whatsappTarget: g.whatsappTarget || 0,
@@ -241,7 +300,7 @@ export default function ManagerHome({ lang, userName }) {
   );
 
   const branches = meta?.branches || [];
-  const loading = salesLoading || waLoading || metaLoading;
+  const loading = salesLoading || waLoading || expLoading || metaLoading;
   const error = salesError || metaError || '';
   // Batch 49: شاشة تعديل الهدف الحالية
   const [editScreen, setEditScreen] = useState(null); // { type: 'budget'|'reviews'|'whatsapp', branchId, branchName }
@@ -264,9 +323,15 @@ export default function ManagerHome({ lang, userName }) {
       if (!whatsappByBranch[w.branchId]) whatsappByBranch[w.branchId] = [];
       whatsappByBranch[w.branchId].push(w);
     }
+    // Batch 77: تجميع المصروفات حسب الفرع (لكرت المصروفات)
+    const expensesByBranch = {};
+    for (const e of allExpenses) {
+      if (!expensesByBranch[e.branchId]) expensesByBranch[e.branchId] = [];
+      expensesByBranch[e.branchId].push(e);
+    }
     const kpisMap = {};
     for (const b of brs) {
-      const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0, whatsappTargetType: 'pct' };
+      const goal = goals.find((g) => g.branchId === b.id) || { budget: 0, expenseBudget: 0, reviewsTarget: 0, reviewsAchieved: 0, whatsappTarget: 0, whatsappTargetType: 'pct' };
       const branchSales = salesByBranch[b.id] || [];
       const totalSales = branchSales.reduce((sum, s) => sum + salesNet(s), 0);
       const budgetPct = goal.budget > 0
@@ -297,16 +362,29 @@ export default function ManagerHome({ lang, userName }) {
       const whatsappSubtext = whatsappTargetType === 'amount'
         ? (whatsappTarget > 0 ? `${totalTransfer.toLocaleString('en-US')} / ${whatsappTarget.toLocaleString('en-US')} ﷼` : '')
         : (totalCustomers > 0 ? `${totalBuyers} / ${totalCustomers}` : '');
+      // Batch 77: كرت المصروفات — مجموع الفئات الأساسية الثلاث فقط
+      // (expenseType من السجل، وللسجلات القديمة بدونه نصنّف من الاسم/المعرّف)
+      // النسبة بدون قصّ فوق 100% — التجاوز يُعرض ويُلوَّن تحذيرياً
+      const branchExpenses = expensesByBranch[b.id] || [];
+      const totalPrimaryExpenses = branchExpenses.reduce((sum, e) => {
+        const type = e.expenseType || classifyExpense(e.categoryName || e.categoryId);
+        return EXPENSE_CARD_TYPES.has(type) ? sum + (Number(e.amount) || 0) : sum;
+      }, 0);
+      const expenseBudget = Number(goal.expenseBudget) || 0;
+      const expensePct = expenseBudget > 0
+        ? Math.round((totalPrimaryExpenses / expenseBudget) * 100)
+        : 0;
       kpisMap[b.id] = {
         budgetPct, reviewsPct,
         whatsappPct, whatsappSubtext, whatsappNoTarget,
+        expensePct,
         hasGoal: goal.exists,
         reviewsTarget: goal.reviewsTarget || 0,
         reviewsAchieved: goal.reviewsAchieved || 0,
       };
     }
     return kpisMap;
-  }, [allSales, allWhatsapp, meta]);
+  }, [allSales, allWhatsapp, allExpenses, meta]);
 
   // إذا لم يتم تحديد أي أهداف، أرسل إشعاراً (مرة واحدة في اليوم لكل شهر)
   // Batch 74: انتقل من داخل دالة الجلب إلى effect يراقب النتيجة المحسوبة
@@ -346,6 +424,15 @@ export default function ManagerHome({ lang, userName }) {
   };
   if (editScreen?.type === 'budget') {
     return <BudgetGoalEdit
+      onBack={closeEdit}
+      branchId={editScreen.branchId}
+      branchName={editScreen.branchName}
+      lang={lang}
+    />;
+  }
+  // Batch 77: شاشة إدخال ميزانية المصروفات — تحفظ expenseBudget فقط (merge)
+  if (editScreen?.type === 'expenseBudget') {
+    return <ExpenseBudgetEdit
       onBack={closeEdit}
       branchId={editScreen.branchId}
       branchName={editScreen.branchName}
@@ -401,7 +488,7 @@ export default function ManagerHome({ lang, userName }) {
       {/* Batch 59: على التابلت/المكتب — الفرعان جنباً إلى جنب */}
       <div className="md:grid md:grid-cols-2 md:gap-4 md:items-start">
       {!loading && !error && branches.map((b) => {
-        const k = branchKpis[b.id] || { budgetPct: 0, reviewsPct: 0, hasGoal: false, reviewsTarget: 0, reviewsAchieved: 0 };
+        const k = branchKpis[b.id] || { budgetPct: 0, reviewsPct: 0, expensePct: 0, hasGoal: false, reviewsTarget: 0, reviewsAchieved: 0 };
         const branchDisplayName = lang === 'en' ? (b.nameEn || b.name) : (b.name.startsWith('فرع') ? b.name : `فرع ${b.name}`);
         // Batch 49: الـ subtext - إذا فيه هدف يعرض "محقق / هدف"
         const subtext = k.reviewsTarget > 0
@@ -415,11 +502,12 @@ export default function ManagerHome({ lang, userName }) {
             reviewsPct={k.reviewsPct}
             reviewsSubtext={subtext}
             whatsappPct={k.whatsappPct || 0}
-            whatsappSubtext={k.whatsappSubtext}
             whatsappNoTarget={k.whatsappNoTarget}
+            expensePct={k.expensePct || 0}
             onBudgetClick={() => setEditScreen({ type: 'budget', branchId: b.id, branchName: branchDisplayName })}
             onReviewsClick={() => setEditScreen({ type: 'reviews', branchId: b.id, branchName: branchDisplayName })}
             onWhatsappClick={() => setEditScreen({ type: 'whatsapp', branchId: b.id, branchName: branchDisplayName })}
+            onExpenseClick={() => setEditScreen({ type: 'expenseBudget', branchId: b.id, branchName: branchDisplayName })}
             lang={lang}
           />
         );
