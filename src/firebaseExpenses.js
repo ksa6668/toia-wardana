@@ -30,6 +30,10 @@ import { invalidateCachePrefix as _invalidateCachePrefix } from "./firebaseCache
 import { db, auth } from "./firebaseCore";
 import { notifyTelegramExpenseAdded } from "./firebaseTelegram";
 
+// Batch 77: فئات كرت المصروفات (الموظف + المدير) — الورد + التوصيل +
+// المستلزمات والبضائع فقط (باستبعاد customerOrders / marketing / general)
+export const EXPENSE_CARD_TYPES = new Set(['flower', 'delivery', 'supplies']);
+
 // تصنيف نوع المصروف لأغراض التقارير (للتوافق الخلفي مع البيانات القديمة)
 export function classifyExpense(categoryId) {
   if (!categoryId) return "general";

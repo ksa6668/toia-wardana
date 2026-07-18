@@ -5,17 +5,14 @@
 // مُستخرَجة من App.jsx.
 // Batch 76: كرت المصروفات (الفئات الأساسية flower/delivery/supplies
 // مقابل ميزانية expenseBudget) + صفّان 2×2 + حذف جدول آخر 3 أيام.
+// Batch 77: كرت المصروفات عرض فقط — إدخال الميزانية صار من شاشة المدير،
+// والثابت EXPENSE_CARD_TYPES صار مشتركاً من firebaseExpenses.
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import { Receipt, TrendingUp, Calendar, MessageCircle } from 'lucide-react';
-import { getSales, salesNet, getMonthlyGoal, getWhatsappEntries, getExpenses, classifyExpense } from '../firebase';
+import { getSales, salesNet, getMonthlyGoal, getWhatsappEntries, getExpenses, classifyExpense, EXPENSE_CARD_TYPES } from '../firebase';
 import { t } from '../i18n';
 import { formatMonthLabel } from '../utils/periodHelpers';
-import ExpenseBudgetEdit from './ExpenseBudgetEdit';
-
-// Batch 76: فئات كرت المصروفات — الورد + التوصيل + المستلزمات والبضائع فقط
-// (باستبعاد customerOrders / marketing / general)
-const EXPENSE_CARD_TYPES = new Set(['flower', 'delivery', 'supplies']);
 
 export default function EmployeeHome({ setView, branch, branchId, lang }) {
   const align = lang === 'en' ? 'text-left' : 'text-right';
@@ -30,9 +27,6 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
 
   // ====== KPIs الحقيقية من Firestore ======
   const [kpis, setKpis] = useState({ budgetPct: 0, reviewsPct: 0, whatsappPct: 0, expensePct: 0, whatsappSubtext: '', loaded: false });
-  // Batch 76: فتح شاشة إدخال ميزانية المصروفات + إعادة الجلب بعد الحفظ
-  const [showExpenseBudget, setShowExpenseBudget] = useState(false);
-  const [refreshKey, setRefreshKey] = useState(0);
   useEffect(() => {
     if (!branchId) return;
     let cancelled = false;
@@ -104,19 +98,7 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
       }
     })();
     return () => { cancelled = true; };
-  }, [branchId, refreshKey]);
-
-  // Batch 76: شاشة إدخال ميزانية المصروفات — نفس نمط ManagerHome مع BudgetGoalEdit
-  if (showExpenseBudget) {
-    return (
-      <ExpenseBudgetEdit
-        onBack={() => { setShowExpenseBudget(false); setRefreshKey((k) => k + 1); }}
-        branchId={branchId}
-        branchName={branch}
-        lang={lang}
-      />
-    );
-  }
+  }, [branchId]);
 
   return (
     <div
@@ -227,14 +209,10 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
 
         {/* الصف الثاني: المصروفات (يمين) + قوقل ماب (يسار) */}
         <div className="grid grid-cols-2 gap-2.5">
-          {/* كارت المصروفات - قابل للضغط لإدخال ميزانية المصروفات (Batch 76) */}
+          {/* كارت المصروفات - عرض فقط (Batch 77: الإدخال من شاشة المدير) */}
           {/* عند تجاوز 100%: لون تحذيري + عرض النسبة الحقيقية بدون قصّ */}
           <div
-            onClick={() => setShowExpenseBudget(true)}
-            role="button"
-            tabIndex={0}
-            onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setShowExpenseBudget(true); } }}
-            className="text-white p-3 rounded-2xl overflow-hidden relative active:scale-95 transition-transform"
+            className="text-white p-3 rounded-2xl overflow-hidden relative"
             style={{
               background: kpis.expensePct > 100
                 ? 'linear-gradient(145deg, #42060B 0%, #6E0F16 65%, #E5484D 100%)'
@@ -243,7 +221,6 @@ export default function EmployeeHome({ setView, branch, branchId, lang }) {
                 ? '0 8px 20px rgba(229,72,77,0.25)'
                 : '0 8px 20px rgba(0,91,255,0.18)',
               minHeight: 105,
-              cursor: 'pointer',
             }}
           >
             <div
