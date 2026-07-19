@@ -12,8 +12,8 @@ import { translateCategory } from '../i18n';
 import { useDragSort } from '../hooks/useDragSort';
 import { useScreenHeader } from '../context/ScreenCtx';
 
-export default function ManageCategories({ onBack }) {
-  useScreenHeader('التصنيفات', onBack);
+export default function ManageCategories({ onBack, lang = 'ar' }) {
+  useScreenHeader(lang === 'en' ? 'Categories' : 'التصنيفات', onBack);
   const [cats, setCats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState(null);
@@ -27,7 +27,7 @@ export default function ManageCategories({ onBack }) {
   const load = async () => {
     setLoading(true);
     try { setCats(await getCategories()); }
-    catch (err) { setError(err?.message || 'تعذّر التحميل'); }
+    catch (err) { setError(err?.message || (lang === 'en' ? 'Failed to load' : 'تعذّر التحميل')); }
     finally { setLoading(false); }
   };
   useEffect(() => {
@@ -38,12 +38,14 @@ export default function ManageCategories({ onBack }) {
         const data = await getCategories();
         if (!cancelled) setCats(data);
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر التحميل');
+        if (!cancelled) setError(err?.message || (lang === 'en' ? 'Failed to load' : 'تعذّر التحميل'));
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
     return () => { cancelled = true; };
+    // lang يُستخدم فقط لنص رسالة الخطأ — لا نعيد الجلب عند تبديل اللغة
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const toggleRequires = async (cat) => {
@@ -53,20 +55,22 @@ export default function ManageCategories({ onBack }) {
       await setCategoryRequiresImage(cat.id, !cat.requiresImage);
       setCats((prev) => prev.map((c) => c.id === cat.id ? { ...c, requiresImage: !c.requiresImage } : c));
     } catch (err) {
-      setError(err?.message || 'تعذّر التحديث');
+      setError(err?.message || (lang === 'en' ? 'Failed to update' : 'تعذّر التحديث'));
     } finally {
       setBusyId(null);
     }
   };
 
   const handleDelete = async (cat) => {
-    if (!confirm(`حذف تصنيف "${cat.name}"؟ السجلات القديمة لن تتأثر.`)) return;
+    if (!confirm(lang === 'en'
+      ? `Delete category "${cat.name}"? Old records are not affected.`
+      : `حذف تصنيف "${cat.name}"؟ السجلات القديمة لن تتأثر.`)) return;
     setBusyId(cat.id);
     try {
       await deleteCategory(cat.id);
       setCats((prev) => prev.filter((c) => c.id !== cat.id));
     } catch (err) {
-      setError(err?.message || 'تعذّر الحذف');
+      setError(err?.message || (lang === 'en' ? 'Delete failed' : 'تعذّر الحذف'));
     } finally {
       setBusyId(null);
     }
@@ -74,7 +78,7 @@ export default function ManageCategories({ onBack }) {
 
   const handleAdd = async () => {
     setError('');
-    if (!newName.trim()) { setError('أدخل اسم التصنيف'); return; }
+    if (!newName.trim()) { setError(lang === 'en' ? 'Enter the category name' : 'أدخل اسم التصنيف'); return; }
     setSaving(true);
     try {
       await addCategory({ name: newName, requiresImage: newReq, expenseType: newType });
@@ -82,7 +86,7 @@ export default function ManageCategories({ onBack }) {
       setShowForm(false);
       await load();
     } catch (err) {
-      setError(err?.message || 'تعذّر الإضافة');
+      setError(err?.message || (lang === 'en' ? 'Failed to add' : 'تعذّر الإضافة'));
     } finally {
       setSaving(false);
     }
@@ -93,7 +97,7 @@ export default function ManageCategories({ onBack }) {
     try {
       await reorderCategories(finalCats.map((c) => c.id));
     } catch (err) {
-      setError(err?.message || 'تعذّر تحديث الترتيب');
+      setError(err?.message || (lang === 'en' ? 'Failed to update order' : 'تعذّر تحديث الترتيب'));
       await load();
     }
   });
@@ -118,35 +122,37 @@ export default function ManageCategories({ onBack }) {
               boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
             }}
           >
-            <Plus size={18} /> + إضافة تصنيف
+            <Plus size={18} /> {lang === 'en' ? '+ Add category' : '+ إضافة تصنيف'}
           </button>
         )}
 
         {/* form إضافة تصنيف جديد */}
         {showForm && (
           <div className="bg-white border border-tw-blue/30 rounded-2xl p-4 space-y-3 shadow-sm">
-            <h3 className="font-bold text-sm text-tw-navy">تصنيف جديد</h3>
+            <h3 className="font-bold text-sm text-tw-navy">{lang === 'en' ? 'New category' : 'تصنيف جديد'}</h3>
             <input
               type="text"
-              placeholder="اسم التصنيف (مثل: كهرباء)"
+              placeholder={lang === 'en' ? 'Category name (e.g. Electricity)' : 'اسم التصنيف (مثل: كهرباء)'}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue"
             />
 
             <div>
-              <label className="text-xs font-bold text-tw-muted mb-1.5 block">نوع المصروف (لتقارير المدير)</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">
+                {lang === 'en' ? 'Expense type (for manager reports)' : 'نوع المصروف (لتقارير المدير)'}
+              </label>
               <select
                 value={newType}
                 onChange={(e) => setNewType(e.target.value)}
                 className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm font-bold outline-none focus:border-tw-blue"
               >
-                <option value="general">عام</option>
-                <option value="flower">ورد</option>
-                <option value="delivery">توصيل</option>
-                <option value="customerOrders">طلبات عملاء</option>
-                <option value="supplies">مستلزمات وبضائع</option>
-                <option value="marketing">تسويق</option>
+                <option value="general">{lang === 'en' ? 'General' : 'عام'}</option>
+                <option value="flower">{lang === 'en' ? 'Flowers' : 'ورد'}</option>
+                <option value="delivery">{lang === 'en' ? 'Delivery' : 'توصيل'}</option>
+                <option value="customerOrders">{lang === 'en' ? 'Customer orders' : 'طلبات عملاء'}</option>
+                <option value="supplies">{lang === 'en' ? 'Supplies & goods' : 'مستلزمات وبضائع'}</option>
+                <option value="marketing">{lang === 'en' ? 'Marketing' : 'تسويق'}</option>
               </select>
             </div>
 
@@ -157,7 +163,7 @@ export default function ManageCategories({ onBack }) {
                 onChange={(e) => setNewReq(e.target.checked)}
                 className="w-5 h-5 accent-blue-600"
               />
-              <span className="text-sm font-bold text-tw-navy">صورة الفاتورة إجبارية</span>
+              <span className="text-sm font-bold text-tw-navy">{lang === 'en' ? 'Invoice image required' : 'صورة الفاتورة إجبارية'}</span>
             </label>
 
             {error && (
@@ -170,7 +176,7 @@ export default function ManageCategories({ onBack }) {
                 onClick={() => { setShowForm(false); setError(''); }}
                 className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-2.5 rounded-xl text-sm hover:bg-tw-soft/40"
               >
-                إلغاء
+                {lang === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
               <button
                 onClick={handleAdd}
@@ -179,7 +185,7 @@ export default function ManageCategories({ onBack }) {
                 style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)' }}
               >
                 {saving && <Loader2 size={16} className="animate-spin" />}
-                {saving ? 'جارٍ...' : 'حفظ'}
+                {saving ? (lang === 'en' ? 'Saving...' : 'جارٍ...') : (lang === 'en' ? 'Save' : 'حفظ')}
               </button>
             </div>
           </div>
@@ -220,10 +226,12 @@ export default function ManageCategories({ onBack }) {
                 </button>
 
                 {/* النص + نقطة ملوّنة */}
-                <div className="flex-1 text-right">
-                  <p className="font-bold text-base text-tw-navy mb-1">{translateCategory('ar', cat.name)}</p>
+                <div className={`flex-1 ${lang === 'en' ? 'text-left' : 'text-right'}`}>
+                  <p className="font-bold text-base text-tw-navy mb-1">{translateCategory(lang, cat.name)}</p>
                   <p className="text-xs text-tw-muted flex items-center gap-1.5 justify-end">
-                    <span>{cat.requiresImage ? 'صورة إجبارية' : 'صورة اختيارية'}</span>
+                    <span>{cat.requiresImage
+                      ? (lang === 'en' ? 'Image required' : 'صورة إجبارية')
+                      : (lang === 'en' ? 'Image optional' : 'صورة اختيارية')}</span>
                     <span className={`w-2 h-2 rounded-full ${cat.requiresImage ? 'bg-tw-red' : 'bg-gray-300'}`}></span>
                   </p>
                 </div>
@@ -232,7 +240,7 @@ export default function ManageCategories({ onBack }) {
                 <div
                   {...catDrag.handleProps(idx)}
                   className="p-2 text-tw-muted/60 cursor-grab active:cursor-grabbing flex-shrink-0"
-                  title="اسحب لإعادة الترتيب"
+                  title={lang === 'en' ? 'Drag to reorder' : 'اسحب لإعادة الترتيب'}
                   aria-label="drag handle"
                 >
                   <GripVertical size={18} strokeWidth={2} />
@@ -243,7 +251,7 @@ export default function ManageCategories({ onBack }) {
                   onClick={() => handleDelete(cat)}
                   disabled={busyId === cat.id}
                   className="p-2 text-tw-red hover:bg-red-50 rounded-lg disabled:opacity-50 flex-shrink-0"
-                  title="حذف"
+                  title={lang === 'en' ? 'Delete' : 'حذف'}
                 >
                   {busyId === cat.id ? <Loader2 size={14} className="animate-spin" /> : <Trash2 size={14} />}
                 </button>

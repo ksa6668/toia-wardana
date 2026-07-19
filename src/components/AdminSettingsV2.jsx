@@ -151,10 +151,10 @@ export default function AdminSettingsV2({
     } catch { /* ignore */ }
   });
 
-  if (screen === 'users' && ManageUsersComponent) return <ManageUsersComponent onBack={goBack} />;
-  if (screen === 'fixed' && ManageFixedExpensesComponent) return <ManageFixedExpensesComponent onBack={goBack} />;
+  if (screen === 'users' && ManageUsersComponent) return <ManageUsersComponent onBack={goBack} lang={lang} />;
+  if (screen === 'fixed' && ManageFixedExpensesComponent) return <ManageFixedExpensesComponent onBack={goBack} lang={lang} />;
   if (screen === 'whatsappBaseline') return <ManageWhatsappBaseline onBack={goBack} lang={lang} />;
-  if (screen === 'categories' && ManageCategoriesComponent) return <ManageCategoriesComponent onBack={goBack} />;
+  if (screen === 'categories' && ManageCategoriesComponent) return <ManageCategoriesComponent onBack={goBack} lang={lang} />;
   if (screen === 'adminEntry' && AdminDataEntryComponent) return (
     <AdminDataEntryComponent
       onBack={() => { goBack(); onPendingConsumed?.(); }}
@@ -169,7 +169,7 @@ export default function AdminSettingsV2({
   if (screen === 'backup') return <ManagerBackup onBack={goBack} lang={lang} />;
   if (screen === 'receipts') {
     if (showCategoriesFromReceipts && ManageCategoriesComponent) {
-      return <ManageCategoriesComponent onBack={() => setShowCategoriesFromReceipts(false)} />;
+      return <ManageCategoriesComponent onBack={() => setShowCategoriesFromReceipts(false)} lang={lang} />;
     }
     return (
       <ManagerReceipts
