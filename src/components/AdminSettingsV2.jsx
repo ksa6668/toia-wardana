@@ -219,7 +219,7 @@ export default function AdminSettingsV2({
                 {...drag.handleProps(idx)}
                 className="p-2 text-tw-muted/40 flex-shrink-0 cursor-grab active:cursor-grabbing"
                 onClick={(e) => e.stopPropagation()}
-                title="اسحب لإعادة الترتيب"
+                title={lang === 'en' ? 'Drag to reorder' : 'اسحب لإعادة الترتيب'}
               >
                 <GripVertical size={16} />
               </div>

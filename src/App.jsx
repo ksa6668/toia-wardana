@@ -8,7 +8,7 @@ import {
   saveUserLanguage,
   markActive,
 } from './firebase';
-import { dirFor, readSavedLang, saveLangLocal, translateBranch } from './i18n';
+import { t, dirFor, readSavedLang, saveLangLocal, translateBranch } from './i18n';
 import { clearAllPersistedState } from './hooks/usePersistedState';
 import { clearAllCache } from './hooks/useCachedQuery';
 import { ScreenCtxContext } from './context/ScreenCtx';
@@ -50,7 +50,7 @@ export default function App() {
   const [adminTab, setAdminTab] = useState('home');
   // Batch 64: وسائط صفحة إحصائيات المشترين الشهرية (الفرع + السنة) عند فتحها من كرت المشترين
   const [buyersMonthlyArgs, setBuyersMonthlyArgs] = useState(null);
-  // ✨ اللغة — تخص شاشات الموظف فقط، لكن نقرأها للجميع لاتساق شاشة الدخول
+  // ✨ اللغة — Batch 83: لكل الشاشات (موظف + مدير)
   const [lang, setLang] = useState(readSavedLang());
   // Batch 5: حالات الإشعارات + تأكيد الخروج + الإيصالات
   const [showNotifications, setShowNotifications] = useState(false);
@@ -97,10 +97,8 @@ export default function App() {
 
   const branchId = user?.branchId || 'toia';
   const isAdmin = userRole === 'admin';
-  // اسم الفرع: للموظف يترجم حسب اللغة، للمدير يبقى عربي
-  const branch = isAdmin
-    ? (branchId === 'wardana' ? 'وردانة' : 'تويا')
-    : translateBranch(lang, branchId, branchId === 'wardana' ? 'وردانة' : 'تويا');
+  // اسم الفرع: يترجم حسب اللغة (Batch 83: للمدير أيضاً)
+  const branch = translateBranch(lang, branchId, branchId === 'wardana' ? 'وردانة' : 'تويا');
 
   useEffect(() => {
     const unsub = watchAuth((u) => {
@@ -135,7 +133,7 @@ export default function App() {
     setAdminTab('home');
   };
 
-  // تبديل لغة الموظف (يحفظ محلياً + في Firestore)
+  // تبديل اللغة (يحفظ محلياً + في Firestore للموظف فقط — لغة المدير محلية بلا كتابة Firestore)
   const changeLang = async (newLang) => {
     setLang(newLang);
     saveLangLocal(newLang);
@@ -144,8 +142,8 @@ export default function App() {
     }
   };
 
-  // اتجاه الصفحة: للموظف حسب لغته، للمدير دائماً RTL
-  const pageDir = isAdmin ? 'rtl' : dirFor(lang);
+  // اتجاه الصفحة حسب اللغة (Batch 83: للمدير أيضاً — كان RTL دائماً)
+  const pageDir = dirFor(lang);
   const pageAlign = pageDir === 'rtl' ? 'text-right' : 'text-left';
 
   // Batch 59: هل يظهر الشريط الجانبي (تابلت/مكتب)؟ نفس شرط الشريط السفلي
@@ -179,10 +177,10 @@ export default function App() {
           // Batch 21: تحديد عنوان الهيدر بناءً على adminTab أو screenCtx
           // أولوية: screenCtx (شاشة فرعية) > adminTab title > home mode
           const adminTabTitles = {
-            monthly: 'الكشف الشامل',
-            whatsapp: 'عملاء واتساب',
-            kpis: 'المؤشرات',
-            settings: 'الإعدادات',
+            monthly: t(lang, 'admin.tab.monthly'),
+            whatsapp: t(lang, 'admin.tab.whatsapp'),
+            kpis: t(lang, 'admin.tab.kpis'),
+            settings: t(lang, 'admin.tab.settings'),
             // home: لا يوجد title → home mode
           };
           const tabTitle = isAdmin && currentView === 'adminHome' && adminTab !== 'home'
@@ -203,14 +201,19 @@ export default function App() {
               onBack={effectiveBack}
               greeting={
                 isAdmin
-                  ? `مرحباً، ${user?.displayName || user?.username || 'المدير'}`
-                  : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`
+                  ? (lang === 'en'
+                      ? `Welcome, ${user?.displayName || user?.username || t(lang, 'admin.manager')}`
+                      : `مرحباً، ${user?.displayName || user?.username || 'المدير'}`)
+                  : (lang === 'en'
+                      ? `Welcome, ${branch}`
+                      : `مرحباً، ${branchId === 'wardana' ? 'وردانة' : 'تويا'}`)
               }
               notifCount={isAdmin ? unreadCount : 0}
               onProfileClick={() => isAdmin ? setShowProfileMenu(true) : setShowLogoutConfirm(true)}
               onNotifClick={() => setShowNotifications(true)}
+              lang={lang}
               langButton={
-                (!isAdmin && !screenCtx) ? (
+                (!screenCtx) ? (
                   <button
                     onClick={() => changeLang(lang === 'ar' ? 'en' : 'ar')}
                     className="tw-circle-btn"
@@ -267,10 +270,10 @@ export default function App() {
             <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
           )}
           {/* ====== شاشات المدير ====== */}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang="ar" userName={user?.displayName || user?.username || ''} />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang={lang} userName={user?.displayName || user?.username || ''} />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && (
             <ManagerMonthly
-              lang="ar"
+              lang={lang}
               onEditRecord={(rec) => {
                 // Batch 51: انتقل لتبويب الإعدادات → AdminDataEntry → تعديل
                 setPendingEditRecord(rec);
@@ -280,7 +283,7 @@ export default function App() {
           )}
           {!authLoading && currentView === 'adminHome' && adminTab === 'whatsapp' && (
             <ManagerWhatsapp
-              lang="ar"
+              lang={lang}
               onOpenBuyersMonthly={(branchId, year) => {
                 setBuyersMonthlyArgs({ branchId, year });
                 setCurrentView('whatsappBuyersMonthly');
@@ -289,16 +292,16 @@ export default function App() {
           )}
           {!authLoading && currentView === 'whatsappBuyersMonthly' && (
             <WhatsappBuyersMonthly
-              lang="ar"
+              lang={lang}
               branchId={buyersMonthlyArgs?.branchId || 'all'}
               year={buyersMonthlyArgs?.year || new Date().getFullYear()}
               onBack={() => setCurrentView('adminHome')}
             />
           )}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang="ar" />}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang={lang} />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
             <AdminSettingsV2
-              lang="ar"
+              lang={lang}
               ManageUsersComponent={ManageUsers}
               ManageFixedExpensesComponent={ManageFixedExpenses}
               ManageCategoriesComponent={ManageCategories}
@@ -328,11 +331,11 @@ export default function App() {
                 كشف / واتساب / الرئيسية / المؤشرات / الإعدادات
             */}
             {[
-              { key: 'monthly',  icon: List,           label: 'كشف' },
-              { key: 'whatsapp', icon: MessageCircle,  label: 'واتساب' },
-              { key: 'home',     icon: Home,           label: 'الرئيسية' },
-              { key: 'kpis',     icon: Activity,       label: 'المؤشرات' },
-              { key: 'settings', icon: Settings,       label: 'الإعدادات' },
+              { key: 'monthly',  icon: List,           label: t(lang, 'admin.tab.monthlyShort') },
+              { key: 'whatsapp', icon: MessageCircle,  label: t(lang, 'admin.tab.whatsappShort') },
+              { key: 'home',     icon: Home,           label: t(lang, 'admin.tab.home') },
+              { key: 'kpis',     icon: Activity,       label: t(lang, 'admin.tab.kpis') },
+              { key: 'settings', icon: Settings,       label: t(lang, 'admin.tab.settings') },
             ].map((tab) => {
               const Icon = tab.icon;
               const active = adminTab === tab.key;
@@ -369,18 +372,18 @@ export default function App() {
               <div className="hidden lg:block min-w-0">
                 <p className="text-sm font-extrabold text-tw-navy leading-tight">Toia &amp; Wardana</p>
                 <p className="text-[11px] text-tw-muted truncate">
-                  {user?.displayName || user?.username || 'المدير'}
+                  {user?.displayName || user?.username || t(lang, 'admin.manager')}
                 </p>
               </div>
             </div>
             {/* التبويبات */}
             <div className="flex flex-col gap-1 flex-1">
               {[
-                { key: 'home',     icon: Home,          label: 'الرئيسية' },
-                { key: 'monthly',  icon: List,          label: 'الكشف الشامل' },
-                { key: 'whatsapp', icon: MessageCircle, label: 'عملاء واتساب' },
-                { key: 'kpis',     icon: Activity,      label: 'المؤشرات' },
-                { key: 'settings', icon: Settings,      label: 'الإعدادات' },
+                { key: 'home',     icon: Home,          label: t(lang, 'admin.tab.home') },
+                { key: 'monthly',  icon: List,          label: t(lang, 'admin.tab.monthly') },
+                { key: 'whatsapp', icon: MessageCircle, label: t(lang, 'admin.tab.whatsapp') },
+                { key: 'kpis',     icon: Activity,      label: t(lang, 'admin.tab.kpis') },
+                { key: 'settings', icon: Settings,      label: t(lang, 'admin.tab.settings') },
               ].map((tab) => {
                 const Icon = tab.icon;
                 const active = adminTab === tab.key;
@@ -403,12 +406,12 @@ export default function App() {
             {/* تسجيل الخروج */}
             <button
               onClick={() => setShowLogoutConfirm(true)}
-              title="تسجيل الخروج"
+              title={t(lang, 'admin.logout')}
               type="button"
               className="flex items-center justify-center lg:justify-start gap-3 rounded-xl px-3 py-3 text-tw-red/80 hover:bg-red-50 transition-colors"
             >
               <LogOut size={20} className="flex-shrink-0" />
-              <span className="hidden lg:block text-[13px] font-bold">تسجيل الخروج</span>
+              <span className="hidden lg:block text-[13px] font-bold">{t(lang, 'admin.logout')}</span>
             </button>
           </aside>
         )}
@@ -419,6 +422,7 @@ export default function App() {
             <NotificationsCenter
               onBack={() => setShowNotifications(false)}
               userName={user?.displayName || user?.username || 'أحمد'}
+              lang={lang}
             />
           </div>
         )}
@@ -448,6 +452,7 @@ export default function App() {
               await handleLogout();
             }}
             onCancel={() => setShowLogoutConfirm(false)}
+            lang={lang}
           />
         )}
 
@@ -457,7 +462,8 @@ export default function App() {
           onClose={() => setShowProfileMenu(false)}
           onChangePin={() => setShowChangePinModal(true)}
           onLogout={() => setShowLogoutConfirm(true)}
-          userName={user?.displayName || user?.username || 'المدير'}
+          userName={user?.displayName || user?.username || t(lang, 'admin.manager')}
+          lang={lang}
         />
 
         {/* Batch 13: شاشة تغيير الرمز السري كـ overlay */}

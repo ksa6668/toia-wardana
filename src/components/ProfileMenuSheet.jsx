@@ -3,7 +3,7 @@
 import { Key, LogOut } from 'lucide-react';
 import SheetPortal from './SheetPortal';
 
-export default function ProfileMenuSheet({ open, onClose, onChangePin, onLogout, userName = 'المدير' }) {
+export default function ProfileMenuSheet({ open, onClose, onChangePin, onLogout, userName = 'المدير', lang = 'ar' }) {
   if (!open) return null;
 
   return (
@@ -11,13 +11,13 @@ export default function ProfileMenuSheet({ open, onClose, onChangePin, onLogout,
       <div className="tw-sheet-overlay show" onClick={onClose} />
       <div className="tw-sheet-panel show" role="dialog" aria-modal="true">
         <div className="tw-sheet-grab" />
-        <h3>الحساب</h3>
+        <h3>{lang === 'en' ? 'Account' : 'الحساب'}</h3>
 
         <p style={{
           fontSize: 12, color: 'var(--tw-muted)', textAlign: 'center',
           margin: '0 0 14px', fontWeight: 600,
         }}>
-          مرحباً، {userName}
+          {lang === 'en' ? `Welcome, ${userName}` : `مرحباً، ${userName}`}
         </p>
 
         <div
@@ -35,8 +35,8 @@ export default function ProfileMenuSheet({ open, onClose, onChangePin, onLogout,
             <Key size={18} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--tw-navy)' }}>تغيير الرمز السري</div>
-            <div style={{ fontSize: 11, color: 'var(--tw-muted)', fontWeight: 500, marginTop: 2 }}>تحديث رمزك أنت</div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--tw-navy)' }}>{lang === 'en' ? 'Change PIN' : 'تغيير الرمز السري'}</div>
+            <div style={{ fontSize: 11, color: 'var(--tw-muted)', fontWeight: 500, marginTop: 2 }}>{lang === 'en' ? 'Update your own PIN' : 'تحديث رمزك أنت'}</div>
           </div>
           <span style={{ color: 'var(--tw-muted)', fontWeight: 700 }}>›</span>
         </div>
@@ -60,8 +60,8 @@ export default function ProfileMenuSheet({ open, onClose, onChangePin, onLogout,
             <LogOut size={18} />
           </div>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--tw-red)' }}>تسجيل الخروج</div>
-            <div style={{ fontSize: 11, color: 'var(--tw-muted)', fontWeight: 500, marginTop: 2 }}>إنهاء الجلسة الحالية</div>
+            <div style={{ fontWeight: 800, fontSize: 13, color: 'var(--tw-red)' }}>{lang === 'en' ? 'Sign out' : 'تسجيل الخروج'}</div>
+            <div style={{ fontSize: 11, color: 'var(--tw-muted)', fontWeight: 500, marginTop: 2 }}>{lang === 'en' ? 'End the current session' : 'إنهاء الجلسة الحالية'}</div>
           </div>
           <span style={{ color: 'var(--tw-muted)', fontWeight: 700 }}>›</span>
         </div>
