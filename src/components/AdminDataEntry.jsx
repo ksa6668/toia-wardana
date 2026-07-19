@@ -18,11 +18,12 @@ import RecHistorySection from './RecHistorySection';
 import DeleteConfirmSheet from './DeleteConfirmSheet';
 import BottomSheet from './BottomSheet';
 
-export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPendingConsumed }) {
+export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPendingConsumed, lang = 'ar' }) {
   const [step, setStep] = useState('home');
   // Batch 41: نُجبر إعادة تسجيل الـ header عند تغيّر step
   // (عند العودة لـ home بعد فتح salesForm، الـ ctx يكون null)
-  const headerTitle = step === 'home' ? 'المبيعات والمصاريف' : null;
+  // Batch 85: نفس نص label في ITEMS بشاشة الإعدادات
+  const headerTitle = step === 'home' ? (lang === 'en' ? 'Sales & Expenses' : 'المبيعات والمصاريف') : null;
   useScreenHeader(headerTitle, onBack);
 
   const [chosenBranch, setChosenBranch] = useState('all');
@@ -41,14 +42,17 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
         const bs = await getBranches();
         if (!cancelled) setBranches(bs);
       } catch {
-        if (!cancelled) setBranches([{ id: 'toia', name: 'تويا' }, { id: 'wardana', name: 'وردانة' }]);
+        if (!cancelled) setBranches([{ id: 'toia', name: 'تويا', nameEn: 'Toia' }, { id: 'wardana', name: 'وردانة', nameEn: 'Wardana' }]);
       }
     })();
     return () => { cancelled = true; };
   }, []);
 
-  const branchName = branches.find((b) => b.id === chosenBranch)?.name
-    || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا');
+  // اسم الفرع للعرض: بالإنجليزية nameEn إن وُجد (نفس نمط ManagerHome)
+  const branchObj = branches.find((b) => b.id === chosenBranch);
+  const branchName = lang === 'en'
+    ? (branchObj?.nameEn || branchObj?.name || (chosenBranch === 'wardana' ? 'Wardana' : 'Toia'))
+    : (branchObj?.name || (chosenBranch === 'wardana' ? 'وردانة' : 'تويا'));
 
   const setView = (v) => {
     if (v === 'salesForm' || v === 'expenseForm') {
@@ -105,7 +109,7 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
       setDeletingRecord(null);
       setRefreshKey((k) => k + 1);
     } catch (err) {
-      setDeleteError(err?.message || 'تعذّر الحذف');
+      setDeleteError(err?.message || (lang === 'en' ? 'Delete failed' : 'تعذّر الحذف'));
       throw err;
     }
   };
@@ -126,7 +130,9 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
               <span className="flex items-center gap-2">
                 <MapPin size={14} className="text-tw-blue" />
                 <span style={{ fontWeight: 800, fontSize: 13 }}>
-                  {chosenBranch === 'all' ? 'كل الفروع' : `فرع ${branchName}`}
+                  {chosenBranch === 'all'
+                    ? (lang === 'en' ? 'All branches' : 'كل الفروع')
+                    : (lang === 'en' ? `${branchName} branch` : `فرع ${branchName}`)}
                 </span>
               </span>
               <ChevronDown size={14} className="text-tw-muted/70" />
@@ -143,10 +149,10 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
                 <TrendingUp />
               </div>
               <div>
-                <h4>تسجيل المبيعات</h4>
-                <p>إجمالي المبيعات اليومية</p>
+                <h4>{lang === 'en' ? 'Record Sales' : 'تسجيل المبيعات'}</h4>
+                <p>{lang === 'en' ? 'Daily sales total' : 'إجمالي المبيعات اليومية'}</p>
               </div>
-              <div className="arrow">‹</div>
+              <div className="arrow">{lang === 'en' ? '›' : '‹'}</div>
             </div>
 
             <div
@@ -160,15 +166,15 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
                 <Receipt />
               </div>
               <div>
-                <h4>تسجيل المصروفات</h4>
-                <p>فواتير ومصروفات أخرى</p>
+                <h4>{lang === 'en' ? 'Record Expenses' : 'تسجيل المصروفات'}</h4>
+                <p>{lang === 'en' ? 'Invoices and other expenses' : 'فواتير ومصروفات أخرى'}</p>
               </div>
-              <div className="arrow">‹</div>
+              <div className="arrow">{lang === 'en' ? '›' : '‹'}</div>
             </div>
 
             <RecHistorySection
               branchId={chosenBranch}
-              lang="ar"
+              lang={lang}
               refreshKey={refreshKey}
               editable={true}
               onEdit={handleEdit}
@@ -185,20 +191,22 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
 
         <DeleteConfirmSheet
           open={!!deletingRecord}
-          title={deletingRecord?.kind === 'sale' ? 'حذف هذه المبيعة؟' : 'حذف هذا المصروف؟'}
-          message="لا يمكن التراجع عن هذا الإجراء."
+          title={deletingRecord?.kind === 'sale'
+            ? (lang === 'en' ? 'Delete this sale?' : 'حذف هذه المبيعة؟')
+            : (lang === 'en' ? 'Delete this expense?' : 'حذف هذا المصروف؟')}
+          message={lang === 'en' ? 'This action cannot be undone.' : 'لا يمكن التراجع عن هذا الإجراء.'}
           onConfirm={handleDeleteConfirm}
           onClose={() => setDeletingRecord(null)}
-          lang="ar"
+          lang={lang}
         />
 
         {/* Batch 41: bottom sheet اختيار الفرع لتصفية سجل آخر 7 أيام */}
         <BottomSheet
           open={homeBranchSheetOpen}
-          title="اختر الفرع"
+          title={lang === 'en' ? 'Pick branch' : 'اختر الفرع'}
           options={[
-            { value: 'all', label: 'كل الفروع' },
-            ...branches.map((b) => ({ value: b.id, label: b.name })),
+            { value: 'all', label: lang === 'en' ? 'All branches' : 'كل الفروع' },
+            ...branches.map((b) => ({ value: b.id, label: lang === 'en' ? (b.nameEn || b.name) : b.name })),
           ]}
           current={chosenBranch}
           onPick={(v) => {
@@ -217,7 +225,7 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
         setView={setView}
         branch={branchName}
         branchId={chosenBranch}
-        lang="ar"
+        lang={lang}
         allowBranchSwitch={true}
         onBranchChange={handleBranchChange}
         existingRecord={step === 'editSalesForm' ? editingRecord : null}
@@ -232,7 +240,7 @@ export default function AdminDataEntry({ onBack, pendingEditRecord = null, onPen
         setView={setView}
         branch={branchName}
         branchId={chosenBranch}
-        lang="ar"
+        lang={lang}
         allowBranchSwitch={true}
         onBranchChange={handleBranchChange}
         existingRecord={step === 'editExpenseForm' ? editingRecord : null}

@@ -160,6 +160,7 @@ export default function AdminSettingsV2({
       onBack={() => { goBack(); onPendingConsumed?.(); }}
       pendingEditRecord={pendingEditRecord}
       onPendingConsumed={onPendingConsumed}
+      lang={lang}
     />
   );
   if (screen === 'branches') return <ManagerBranches onBack={goBack} lang={lang} />;
@@ -179,6 +180,7 @@ export default function AdminSettingsV2({
             ? () => setShowCategoriesFromReceipts(true)
             : undefined
         }
+        lang={lang}
       />
     );
   }
