@@ -6,7 +6,7 @@
 // 3) hideProfileGroup (شاشات الدخول): العنوان فقط
 //
 // زر العودة (screen mode): أقصى يمين الشاشة (RTL) — مكان langButton
-// langButton: يمين الشاشة لشاشة الموظف الرئيسية فقط
+// langButton: يمين الشاشة — الموظف (الرئيسية) والمدير (كل التبويبات) — Batch 83
 // notif+profile: يسار الشاشة (RTL) — للمدير
 // ----------------------------------------------------------
 import { ChevronRight } from 'lucide-react';
@@ -23,6 +23,7 @@ export default function AppHeader({
   onNotifClick,
   hideProfileGroup = false,
   langButton = null,
+  lang = 'ar',
 }) {
   const rightGroupWidth = hideProfileGroup ? '36px' : '88px';
   const leftSlotWidth = (onBack || langButton) ? '36px' : rightGroupWidth;
@@ -31,7 +32,7 @@ export default function AppHeader({
     <header className="tw-phone-head">
       <div style={{ width: leftSlotWidth, flexShrink: 0, display: 'flex', justifyContent: 'flex-start' }}>
         {onBack ? (
-          <button onClick={onBack} className="tw-circle-btn" aria-label="رجوع" type="button">
+          <button onClick={onBack} className="tw-circle-btn" aria-label={lang === 'en' ? 'Back' : 'رجوع'} type="button">
             <ChevronRight size={18} strokeWidth={2} style={{ transform: 'scaleX(-1)' }} />
           </button>
         ) : langButton}

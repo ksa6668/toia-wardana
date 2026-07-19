@@ -2,7 +2,7 @@
 // Bottom Sheet لتأكيد تسجيل الخروج — يستخدم Portal
 import SheetPortal from './SheetPortal';
 
-export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
+export default function LogoutConfirmSheet({ onConfirm, onCancel, lang = 'ar' }) {
   return (
     <SheetPortal>
       <div
@@ -39,7 +39,7 @@ export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
             fontSize: 18, fontWeight: 800, color: 'var(--tw-navy)',
             textAlign: 'center', margin: '0 0 18px',
           }}>
-            تسجيل الخروج؟
+            {lang === 'en' ? 'Sign out?' : 'تسجيل الخروج؟'}
           </h3>
 
           {/* الأزرار */}
@@ -54,7 +54,7 @@ export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
                 fontFamily: 'inherit',
               }}
             >
-              تأكيد
+              {lang === 'en' ? 'Confirm' : 'تأكيد'}
             </button>
             <button
               onClick={onCancel}
@@ -67,7 +67,7 @@ export default function LogoutConfirmSheet({ onConfirm, onCancel }) {
                 cursor: 'pointer', fontFamily: 'inherit',
               }}
             >
-              إلغاء
+              {lang === 'en' ? 'Cancel' : 'إلغاء'}
             </button>
           </div>
         </div>

@@ -9,8 +9,11 @@ expenses across two flower-shop branches: **تويا (`toia`)** and **وردان
 It has two roles — **employee (موظف)** who records sales/expenses/WhatsApp data, and
 **manager/admin (مدير)** who sees reports, KPIs, and manages settings.
 
-UI text is mostly Arabic. Employee-facing screens are bilingual (ar/en) via `src/i18n.js`;
-**manager screens are Arabic-only** (always rendered with `lang="ar"` and `dir="rtl"`).
+UI text is mostly Arabic. Employee-facing screens and (since Batch 83) the five main
+manager screens are bilingual (ar/en) via `src/i18n.js` — page `dir` follows the language
+(rtl/ltr). Settings **sub-screens** (ManageUsers, ManageCategories, ManagerReceipts,
+ManagerImportantDates, ManageFixedExpenses, AdminDataEntry) are still Arabic-only.
+The printable monthly report and stored notification/Telegram content stay Arabic.
 
 ## Commands
 

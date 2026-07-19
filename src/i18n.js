@@ -1,7 +1,7 @@
 // src/i18n.js
 // ----------------------------------------------------------
-// نظام ترجمة للموظفين (عربي / إنجليزي)
-// شاشات المدير تبقى عربية فقط.
+// نظام ترجمة (عربي / إنجليزي) لكل شاشات التطبيق.
+// Batch 83: شاشات المدير أصبحت ثنائية اللغة أيضاً (كانت عربية فقط).
 //
 // الاستخدام:
 //   import { t, translateCategory } from './i18n';
@@ -91,6 +91,18 @@ const dict = {
   'expense.pdf.attach':  { ar: 'إرفاق ملف PDF',                  en: 'Attach a PDF file' },
   'expense.pdf.view':    { ar: 'عرض PDF',                        en: 'View PDF' },
   'expense.err.save':    { ar: 'تعذّر الحفظ',                    en: 'Save failed' },
+
+  // ===== قشرة واجهة المدير (Batch 83): هيدر + شريط سفلي + شريط جانبي =====
+  'admin.tab.home':          { ar: 'الرئيسية',       en: 'Home' },
+  'admin.tab.monthly':       { ar: 'الكشف الشامل',   en: 'Monthly Report' },
+  'admin.tab.monthlyShort':  { ar: 'كشف',            en: 'Report' },
+  'admin.tab.whatsapp':      { ar: 'عملاء واتساب',   en: 'WhatsApp Customers' },
+  'admin.tab.whatsappShort': { ar: 'واتساب',         en: 'WhatsApp' },
+  'admin.tab.kpis':          { ar: 'المؤشرات',       en: 'KPIs' },
+  'admin.tab.settings':      { ar: 'الإعدادات',      en: 'Settings' },
+  'admin.logout':            { ar: 'تسجيل الخروج',   en: 'Sign out' },
+  'admin.manager':           { ar: 'المدير',         en: 'Manager' },
+  'header.back':             { ar: 'رجوع',           en: 'Back' },
 
   // ===== أسماء طرق الدفع =====
   'pm.Cash':             { ar: 'نقدي (كاش)',                    en: 'Cash' },

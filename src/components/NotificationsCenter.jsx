@@ -50,23 +50,23 @@ export function addNotification({ title, body, emoji = '🔔', type = 'info' }) 
   saveStoredNotifs(updated);
 }
 
-// تنسيق التاريخ النسبي
-function formatRelative(iso) {
+// تنسيق التاريخ النسبي — Batch 83: يدعم اللغتين
+function formatRelative(iso, lang = 'ar') {
   try {
     const d = new Date(iso);
     const now = new Date();
     const diff = (now - d) / 1000; // ثواني
 
-    if (diff < 60) return 'الآن';
-    if (diff < 3600) return `${Math.floor(diff / 60)} دقيقة`;
+    if (diff < 60) return lang === 'en' ? 'Now' : 'الآن';
+    if (diff < 3600) return lang === 'en' ? `${Math.floor(diff / 60)} min` : `${Math.floor(diff / 60)} دقيقة`;
     if (diff < 86400) {
       const hours = d.getHours();
       const mins = d.getMinutes();
-      const period = hours >= 12 ? 'م' : 'ص';
+      const period = hours >= 12 ? (lang === 'en' ? 'PM' : 'م') : (lang === 'en' ? 'AM' : 'ص');
       const h12 = hours % 12 || 12;
       return `${h12.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')} ${period}`;
     }
-    return d.toLocaleDateString('ar-SA');
+    return d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ar-SA');
   } catch {
     return '';
   }
@@ -88,18 +88,26 @@ function groupByDay(notifs) {
     return localDate(d);
   })();
 
-  const groups = { اليوم: [], أمس: [], أقدم: [] };
+  // Batch 83: مفاتيح محايدة — التسمية المعروضة تُترجم عند العرض حسب اللغة
+  const groups = { today: [], yesterday: [], older: [] };
   for (const n of notifs) {
     // n.createdAt هو ISO UTC string - نحوّله لـ Date محلي ثم نأخذ التاريخ المحلي
     const day = n.createdAt ? localDate(new Date(n.createdAt)) : '';
-    if (day === today) groups['اليوم'].push(n);
-    else if (day === yesterday) groups['أمس'].push(n);
-    else groups['أقدم'].push(n);
+    if (day === today) groups.today.push(n);
+    else if (day === yesterday) groups.yesterday.push(n);
+    else groups.older.push(n);
   }
   return groups;
 }
 
-export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
+// تسميات مجموعات الأيام (Batch 83)
+const GROUP_LABELS = {
+  today:     { ar: 'اليوم', en: 'Today' },
+  yesterday: { ar: 'أمس',   en: 'Yesterday' },
+  older:     { ar: 'أقدم',  en: 'Older' },
+};
+
+export default function NotificationsCenter({ onBack, userName = 'أحمد', lang = 'ar' }) {
   const [notifs, setNotifs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -142,7 +150,7 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
   };
 
   const clearAll = () => {
-    if (!confirm('مسح جميع الإشعارات؟')) return;
+    if (!confirm(lang === 'en' ? 'Clear all notifications?' : 'مسح جميع الإشعارات؟')) return;
     setNotifs([]);
     saveStoredNotifs([]);
     window.dispatchEvent(new Event('tw-notifs-changed'));
@@ -165,8 +173,8 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
           <ChevronRight size={20} className="rotate-180" />
         </button>
         <div className="flex-1 text-center px-8">
-          <h2 className="text-lg font-bold text-tw-navy">الإشعارات</h2>
-          <p className="text-xs text-tw-muted/70 mt-0.5">كل التنبيهات والتذكيرات</p>
+          <h2 className="text-lg font-bold text-tw-navy">{lang === 'en' ? 'Notifications' : 'الإشعارات'}</h2>
+          <p className="text-xs text-tw-muted/70 mt-0.5">{lang === 'en' ? 'All alerts and reminders' : 'كل التنبيهات والتذكيرات'}</p>
         </div>
       </div>
 
@@ -177,13 +185,13 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
             onClick={clearAll}
             className="text-tw-red font-bold text-sm hover:underline"
           >
-            مسح الكل
+            {lang === 'en' ? 'Clear all' : 'مسح الكل'}
           </button>
           <button
             onClick={markAllRead}
             className="text-tw-blue font-bold text-sm hover:underline"
           >
-            تعليم الكل كمقروء
+            {lang === 'en' ? 'Mark all as read' : 'تعليم الكل كمقروء'}
           </button>
         </div>
       )}
@@ -198,17 +206,19 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
             <div className="w-20 h-20 mx-auto rounded-full bg-tw-soft flex items-center justify-center mb-4">
               <Bell size={32} className="text-blue-300" />
             </div>
-            <p className="text-tw-muted font-bold">لا توجد إشعارات حالياً</p>
-            <p className="text-tw-muted/70 text-xs mt-1">سيظهر هنا أي تنبيه أو تذكير</p>
+            <p className="text-tw-muted font-bold">{lang === 'en' ? 'No notifications yet' : 'لا توجد إشعارات حالياً'}</p>
+            <p className="text-tw-muted/70 text-xs mt-1">{lang === 'en' ? 'Alerts and reminders will appear here' : 'سيظهر هنا أي تنبيه أو تذكير'}</p>
           </div>
         ) : (
-          Object.entries(groups).map(([groupName, items]) => {
+          Object.entries(groups).map(([groupKey, items]) => {
             if (items.length === 0) return null;
             return (
-              <div key={groupName} className="space-y-3">
-                <h3 className="text-sm font-bold text-tw-muted text-right">{groupName}</h3>
+              <div key={groupKey} className="space-y-3">
+                <h3 className={`text-sm font-bold text-tw-muted ${lang === 'en' ? 'text-left' : 'text-right'}`}>
+                  {GROUP_LABELS[groupKey]?.[lang] || GROUP_LABELS[groupKey]?.ar || groupKey}
+                </h3>
                 {items.map((n) => (
-                  <NotificationCard key={n.id} notif={n} onDismiss={() => dismissOne(n.id)} />
+                  <NotificationCard key={n.id} notif={n} onDismiss={() => dismissOne(n.id)} lang={lang} />
                 ))}
               </div>
             );
@@ -219,25 +229,25 @@ export default function NotificationsCenter({ onBack, userName = 'أحمد' }) {
   );
 }
 
-function NotificationCard({ notif, onDismiss }) {
+function NotificationCard({ notif, onDismiss, lang = 'ar' }) {
   return (
     <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 flex items-center gap-3 relative">
       {/* زر الإغلاق X على اليسار */}
       <button
         onClick={onDismiss}
         className="p-1.5 text-tw-muted/70 hover:bg-tw-soft rounded-lg flex-shrink-0 transition-colors"
-        title="حذف الإشعار"
+        title={lang === 'en' ? 'Delete notification' : 'حذف الإشعار'}
       >
         <X size={16} />
       </button>
 
-      {/* المحتوى */}
-      <div className="flex-1 min-w-0 text-right">
+      {/* المحتوى — العنوان/النص محتوى مخزَّن يُعرض كما هو، والاتجاه يتبع اللغة */}
+      <div className={`flex-1 min-w-0 ${lang === 'en' ? 'text-left' : 'text-right'}`}>
         <p className="font-bold text-sm text-tw-navy mb-1">{notif.title}</p>
         {notif.body && (
           <p className="text-xs text-tw-muted leading-relaxed">{notif.body}</p>
         )}
-        <p className="text-[11px] text-tw-muted/70 mt-1.5">{formatRelative(notif.createdAt)}</p>
+        <p className="text-[11px] text-tw-muted/70 mt-1.5">{formatRelative(notif.createdAt, lang)}</p>
       </div>
 
       {/* أيقونة الإيموجي + النقطة الزرقاء */}

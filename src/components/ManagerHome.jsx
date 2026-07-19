@@ -93,7 +93,7 @@ function WindmillIcon() {
 
 // كارت KPI لمبيعات الواتساب — Batch 77: نصف عرض بنفس أبعاد بقية الكروت
 // (كان رفيعاً بعرض كامل) — Batch 49: onClick يفتح صفحة إدخال نسبة الهدف
-function WhatsappKpiCard({ label, percent, onClick, noTarget }) {
+function WhatsappKpiCard({ label, percent, onClick, noTarget, lang }) {
   const pct = Math.min(100, Math.max(0, percent));
   return (
     <div
@@ -110,7 +110,7 @@ function WhatsappKpiCard({ label, percent, onClick, noTarget }) {
       <div className="relative flex flex-col items-center text-center gap-1 min-h-[5.5rem] justify-between">
         <p className="text-xs font-bold opacity-95">{label}</p>
         {noTarget ? (
-          <p className="text-[10px] font-bold opacity-80">لم يُحدّد هدف</p>
+          <p className="text-[10px] font-bold opacity-80">{lang === 'en' ? 'No target set' : 'لم يُحدّد هدف'}</p>
         ) : (
           <p className="text-3xl font-extrabold leading-none">{pct}%</p>
         )}
@@ -215,6 +215,7 @@ function BranchSection({
           percent={whatsappPct}
           noTarget={whatsappNoTarget}
           onClick={onWhatsappClick}
+          lang={lang}
         />
       </div>
       {/* الصف الثاني: المصروفات (يمين) + قوقل ماب (يسار) */}
