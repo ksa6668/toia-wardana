@@ -10,10 +10,12 @@ import {
   setUserActive, adminChangeUserPin, adminDeleteUser, adminUpdateUserProfile,
 } from '../firebase';
 import { useScreenHeader } from '../context/ScreenCtx';
+import { t, translateBranch } from '../i18n';
 import EditSheet from './EditSheet';
 
-export default function ManageUsers({ onBack }) {
-  useScreenHeader('المستخدمون والصلاحيات', onBack);
+export default function ManageUsers({ onBack, lang = 'ar' }) {
+  // نفس نص label في ITEMS بشاشة الإعدادات (Batch 84)
+  useScreenHeader(lang === 'en' ? 'Users & Permissions' : 'المستخدمون والصلاحيات', onBack);
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
@@ -42,12 +44,14 @@ export default function ManageUsers({ onBack }) {
     try {
       setUsers(await getUsers());
     } catch (err) {
-      setError(err?.message || 'تعذّر تحميل المستخدمين');
+      setError(err?.message || (lang === 'en' ? 'Failed to load users' : 'تعذّر تحميل المستخدمين'));
     } finally {
       setLoading(false);
     }
   };
 
+  // lang يُستخدم فقط لنص رسالة الخطأ — لا نعيد الجلب عند تبديل اللغة
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { loadUsers(); }, []);
 
   // فتح modal التعديل لمستخدم
@@ -71,11 +75,13 @@ export default function ManageUsers({ onBack }) {
     if (!editingUser) return;
     setEditError('');
     if (!editName.trim()) {
-      setEditError('أدخل اسم المستخدم');
+      setEditError(lang === 'en' ? 'Enter the name' : 'أدخل اسم المستخدم');
       return;
     }
     if (editPin && !/^\d{4}$/.test(editPin)) {
-      setEditError('كلمة المرور يجب أن تكون 4 أرقام (أو اتركها فارغة لعدم التغيير)');
+      setEditError(lang === 'en'
+        ? 'PIN must be 4 digits (or leave it empty to keep it unchanged)'
+        : 'كلمة المرور يجب أن تكون 4 أرقام (أو اتركها فارغة لعدم التغيير)');
       return;
     }
     setEditSaving(true);
@@ -98,7 +104,7 @@ export default function ManageUsers({ onBack }) {
       await loadUsers();
       closeEdit();
     } catch (err) {
-      setEditError(err?.message || 'تعذّر الحفظ');
+      setEditError(err?.message || (lang === 'en' ? 'Save failed' : 'تعذّر الحفظ'));
     } finally {
       setEditSaving(false);
     }
@@ -107,7 +113,10 @@ export default function ManageUsers({ onBack }) {
   // حذف من داخل modal التعديل
   const handleDeleteFromEdit = async () => {
     if (!editingUser) return;
-    if (!confirm(`حذف نهائي لمستخدم "${editingUser.displayName || editingUser.username}"؟ لا يمكن التراجع.`)) return;
+    const uName = editingUser.displayName || editingUser.username;
+    if (!confirm(lang === 'en'
+      ? `Permanently delete user "${uName}"? This cannot be undone.`
+      : `حذف نهائي لمستخدم "${uName}"؟ لا يمكن التراجع.`)) return;
     setEditSaving(true);
     setEditError('');
     try {
@@ -115,7 +124,7 @@ export default function ManageUsers({ onBack }) {
       await loadUsers();
       closeEdit();
     } catch (err) {
-      setEditError(err?.message || 'تعذّر الحذف');
+      setEditError(err?.message || (lang === 'en' ? 'Delete failed' : 'تعذّر الحذف'));
     } finally {
       setEditSaving(false);
     }
@@ -123,8 +132,8 @@ export default function ManageUsers({ onBack }) {
 
   const handleCreate = async () => {
     setError('');
-    if (!username.trim()) { setError('أدخل اسم المستخدم'); return; }
-    if (!/^\d{4}$/.test(pin)) { setError('الرمز يجب أن يكون 4 أرقام'); return; }
+    if (!username.trim()) { setError(lang === 'en' ? 'Enter the username' : 'أدخل اسم المستخدم'); return; }
+    if (!/^\d{4}$/.test(pin)) { setError(t(lang, 'login.err.pin')); return; }
     setSaving(true);
     try {
       await createStaffUser({ username, pin, role, branchId, displayName });
@@ -134,8 +143,8 @@ export default function ManageUsers({ onBack }) {
       await loadUsers();
     } catch (err) {
       const code = err?.code || '';
-      if (code.includes('email-already-in-use')) setError('اسم المستخدم مستخدم مسبقاً');
-      else setError(err?.message || 'تعذّر إنشاء المستخدم');
+      if (code.includes('email-already-in-use')) setError(lang === 'en' ? 'Username already taken' : 'اسم المستخدم مستخدم مسبقاً');
+      else setError(err?.message || (lang === 'en' ? 'Failed to create user' : 'تعذّر إنشاء المستخدم'));
     } finally {
       setSaving(false);
     }
@@ -154,18 +163,21 @@ export default function ManageUsers({ onBack }) {
         {/* form إضافة مستخدم */}
         {showForm && (
           <div className="bg-white border border-tw-blue/30 rounded-2xl p-4 space-y-3 shadow-sm">
-            <h3 className="font-bold text-sm text-tw-navy">مستخدم جديد</h3>
-            <input type="text" placeholder="اسم المستخدم (إنجليزي)" value={username}
+            <h3 className="font-bold text-sm text-tw-navy">{lang === 'en' ? 'New user' : 'مستخدم جديد'}</h3>
+            <input type="text" placeholder={lang === 'en' ? 'Username (English)' : 'اسم المستخدم (إنجليزي)'} value={username}
               onChange={(e) => setUsername(e.target.value)} autoCapitalize="off"
               className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue" />
-            <input type="text" placeholder="الاسم الظاهر" value={displayName}
+            <input type="text" placeholder={lang === 'en' ? 'Display name' : 'الاسم الظاهر'} value={displayName}
               onChange={(e) => setDisplayName(e.target.value)}
               className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue" />
-            <input type="password" inputMode="numeric" maxLength={4} placeholder="الرمز (4 أرقام)" value={pin}
+            <input type="password" inputMode="numeric" maxLength={4} placeholder={lang === 'en' ? 'PIN (4 digits)' : 'الرمز (4 أرقام)'} value={pin}
               onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
               className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue text-center tracking-[0.4em] font-mono" />
             <div className="flex gap-2">
-              {[{ v: 'employee', t: 'موظف' }, { v: 'admin', t: 'مدير' }].map((r) => (
+              {[
+                { v: 'employee', t: lang === 'en' ? 'Employee' : 'موظف' },
+                { v: 'admin', t: lang === 'en' ? 'Manager' : 'مدير' },
+              ].map((r) => (
                 <button key={r.v} onClick={() => setRole(r.v)}
                   className={`flex-1 py-2 rounded-xl text-sm font-bold border ${role === r.v ? 'bg-tw-blue text-white border-blue-600' : 'bg-tw-soft/40 text-tw-muted border-tw-line'}`}>
                   {r.t}
@@ -173,7 +185,10 @@ export default function ManageUsers({ onBack }) {
               ))}
             </div>
             <div className="flex gap-2">
-              {[{ v: 'toia', t: 'تويا' }, { v: 'wardana', t: 'وردانة' }].map((b) => (
+              {[
+                { v: 'toia', t: translateBranch(lang, 'toia') },
+                { v: 'wardana', t: translateBranch(lang, 'wardana') },
+              ].map((b) => (
                 <button key={b.v} onClick={() => setBranchId(b.v)}
                   className={`flex-1 py-2 rounded-xl text-sm font-bold border ${branchId === b.v ? 'bg-slate-800 text-white border-slate-800' : 'bg-tw-soft/40 text-tw-muted border-tw-line'}`}>
                   {b.t}
@@ -184,17 +199,19 @@ export default function ManageUsers({ onBack }) {
             <div className="flex gap-2">
               <button onClick={() => { setShowForm(false); setError(''); }}
                 className="flex-1 bg-white border border-tw-line text-tw-muted font-bold py-2.5 rounded-xl text-sm">
-                إلغاء
+                {lang === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
               <button onClick={handleCreate} disabled={saving}
                 className="flex-1 text-white font-bold py-2.5 rounded-xl text-sm disabled:opacity-60 flex items-center justify-center gap-2"
                 style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)' }}>
                 {saving && <Loader2 size={16} className="animate-spin" />}
-                {saving ? 'جارٍ...' : 'حفظ'}
+                {saving ? (lang === 'en' ? 'Saving...' : 'جارٍ...') : (lang === 'en' ? 'Save' : 'حفظ')}
               </button>
             </div>
             <p className="text-[10px] text-tw-orange bg-amber-50 rounded-lg p-2 text-center">
-              ملاحظة: بعد الحفظ سيُسجَّل دخولك بالحساب الجديد. سجّل خروج ثم ادخل بحسابك من جديد.
+              {lang === 'en'
+                ? 'Note: after saving you will be signed in as the new account. Sign out, then sign back in with your own account.'
+                : 'ملاحظة: بعد الحفظ سيُسجَّل دخولك بالحساب الجديد. سجّل خروج ثم ادخل بحسابك من جديد.'}
             </p>
           </div>
         )}
@@ -213,7 +230,7 @@ export default function ManageUsers({ onBack }) {
                 <button
                   key={u.uid}
                   onClick={() => openEdit(u)}
-                  className={`w-full p-4 flex items-center gap-3 text-right hover:bg-tw-soft/40 transition-colors ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
+                  className={`w-full p-4 flex items-center gap-3 ${lang === 'en' ? 'text-left' : 'text-right'} hover:bg-tw-soft/40 transition-colors ${idx > 0 ? 'border-t border-tw-line/60' : ''}`}
                 >
                   {/* الأيقونة قبل الاسم (في RTL تظهر يمين، بجانب الاسم) */}
                   <div className="w-12 h-12 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
@@ -225,7 +242,15 @@ export default function ManageUsers({ onBack }) {
                       {u.displayName || u.username}
                     </p>
                     <p className="text-xs text-tw-muted truncate">
-                      {u.role === 'admin' ? 'مدير' : 'موظف'} — {u.branchId === 'wardana' ? 'فرع وردانة' : u.branchId === 'toia' ? 'فرع تويا' : 'الكل'}
+                      {u.role === 'admin'
+                        ? (lang === 'en' ? 'Manager' : 'مدير')
+                        : (lang === 'en' ? 'Employee' : 'موظف')}
+                      {' — '}
+                      {u.branchId === 'wardana'
+                        ? (lang === 'en' ? 'Wardana branch' : 'فرع وردانة')
+                        : u.branchId === 'toia'
+                          ? (lang === 'en' ? 'Toia branch' : 'فرع تويا')
+                          : (lang === 'en' ? 'All' : 'الكل')}
                     </p>
                   </div>
                   {/* شارة الحالة على أقصى اليسار (في RTL = آخر DOM element) */}
@@ -234,7 +259,9 @@ export default function ManageUsers({ onBack }) {
                       ? 'bg-gray-100 text-tw-muted/70'
                       : 'bg-emerald-50 text-tw-green'
                   }`}>
-                    {u.active === false ? 'معطّل' : 'نشط'}
+                    {u.active === false
+                      ? (lang === 'en' ? 'Disabled' : 'معطّل')
+                      : (lang === 'en' ? 'Active' : 'نشط')}
                   </div>
                 </button>
               ))}
@@ -248,7 +275,7 @@ export default function ManageUsers({ onBack }) {
                   background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)',
                   boxShadow: '0 6px 16px rgba(0,91,255,0.25)',
                 }}>
-                <Plus size={18} /> + إضافة مستخدم
+                <Plus size={18} /> {lang === 'en' ? '+ Add user' : '+ إضافة مستخدم'}
               </button>
             )}
           </>
@@ -256,12 +283,12 @@ export default function ManageUsers({ onBack }) {
       </div>
 
       {/* Batch 6: Bottom Sheet لتعديل المستخدم */}
-      <EditSheet open={!!editingUser} onClose={closeEdit} title="تعديل المستخدم">
+      <EditSheet open={!!editingUser} onClose={closeEdit} title={lang === 'en' ? 'Edit user' : 'تعديل المستخدم'}>
         {editingUser && (
           <div className="space-y-4">
             {/* الاسم */}
             <div>
-              <label className="text-xs font-bold text-tw-muted mb-1.5 block">الاسم</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Name' : 'الاسم'}</label>
               <input
                 type="text"
                 value={editName}
@@ -273,7 +300,10 @@ export default function ManageUsers({ onBack }) {
             {/* كلمة المرور */}
             <div>
               <label className="text-xs font-bold text-tw-muted mb-1.5 block">
-                كلمة المرور <span className="font-normal text-tw-muted/70">(اتركها فارغة لعدم التغيير)</span>
+                {lang === 'en' ? 'PIN' : 'كلمة المرور'}{' '}
+                <span className="font-normal text-tw-muted/70">
+                  {lang === 'en' ? '(leave empty to keep unchanged)' : '(اتركها فارغة لعدم التغيير)'}
+                </span>
               </label>
               <input
                 type="text"
@@ -288,11 +318,11 @@ export default function ManageUsers({ onBack }) {
 
             {/* الدور */}
             <div>
-              <label className="text-xs font-bold text-tw-muted mb-1.5 block">الدور</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Role' : 'الدور'}</label>
               <div className="flex gap-2">
                 {[
-                  { v: 'admin', t: 'مدير' },
-                  { v: 'employee', t: 'موظف' },
+                  { v: 'admin', t: lang === 'en' ? 'Manager' : 'مدير' },
+                  { v: 'employee', t: lang === 'en' ? 'Employee' : 'موظف' },
                 ].map((r) => (
                   <button
                     key={r.v}
@@ -311,12 +341,12 @@ export default function ManageUsers({ onBack }) {
 
             {/* الفرع */}
             <div>
-              <label className="text-xs font-bold text-tw-muted mb-1.5 block">الفرع</label>
+              <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Branch' : 'الفرع'}</label>
               <div className="flex gap-2">
                 {[
-                  { v: 'all', t: 'الكل' },
-                  { v: 'toia', t: 'فرع تويا' },
-                  { v: 'wardana', t: 'فرع وردانة' },
+                  { v: 'all', t: lang === 'en' ? 'All' : 'الكل' },
+                  { v: 'toia', t: lang === 'en' ? 'Toia branch' : 'فرع تويا' },
+                  { v: 'wardana', t: lang === 'en' ? 'Wardana branch' : 'فرع وردانة' },
                 ].map((b) => (
                   <button
                     key={b.v}
@@ -341,7 +371,7 @@ export default function ManageUsers({ onBack }) {
               <div className={`relative w-12 h-6 rounded-full transition-colors ${editActive ? 'bg-tw-green' : 'bg-gray-300'}`}>
                 <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-all ${editActive ? 'right-0.5' : 'right-[26px]'}`} />
               </div>
-              <span className="text-sm font-bold text-tw-navy">المستخدم نشط</span>
+              <span className="text-sm font-bold text-tw-navy">{lang === 'en' ? 'User is active' : 'المستخدم نشط'}</span>
             </button>
 
             {/* رسالة الخطأ */}
@@ -358,7 +388,7 @@ export default function ManageUsers({ onBack }) {
                 disabled={editSaving}
                 className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 disabled:opacity-60"
               >
-                إلغاء
+                {lang === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
               <button
                 onClick={handleSaveEdit}
@@ -370,7 +400,7 @@ export default function ManageUsers({ onBack }) {
                 }}
               >
                 {editSaving && <Loader2 size={16} className="animate-spin" />}
-                حفظ
+                {lang === 'en' ? 'Save' : 'حفظ'}
               </button>
             </div>
 
@@ -380,7 +410,7 @@ export default function ManageUsers({ onBack }) {
               disabled={editSaving}
               className="w-full bg-red-50 hover:bg-red-50 text-tw-red font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
             >
-              حذف المستخدم
+              {lang === 'en' ? 'Delete user' : 'حذف المستخدم'}
             </button>
           </div>
         )}

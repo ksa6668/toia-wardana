@@ -440,7 +440,7 @@ export default function App() {
         {/* Batch 11: شاشة التصنيفات المفتوحة من داخل الإيصالات */}
         {showReceiptsCategories && (
           <div className="absolute inset-0 z-50 bg-white overflow-y-auto">
-            <ManageCategories onBack={() => setShowReceiptsCategories(false)} />
+            <ManageCategories onBack={() => setShowReceiptsCategories(false)} lang={lang} />
           </div>
         )}
 

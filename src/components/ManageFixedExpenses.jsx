@@ -12,8 +12,9 @@ import { useScreenHeader } from '../context/ScreenCtx';
 import SarSymbol from './SarSymbol';
 import BottomSheet from './BottomSheet';
 
-export default function ManageFixedExpenses({ onBack }) {
-  useScreenHeader('المصاريف الثابتة', onBack);
+export default function ManageFixedExpenses({ onBack, lang = 'ar' }) {
+  // نفس نص label في ITEMS بشاشة الإعدادات (Batch 84)
+  useScreenHeader(lang === 'en' ? 'Fixed Expenses' : 'المصاريف الثابتة', onBack);
   // Batch 31: السماح باختيار الشهر (للسجلات التاريخية + الشهر الحالي)
   const [month, setMonth] = useState(monthStr());
   const [showMonthPicker, setShowMonthPicker] = useState(false);
@@ -61,13 +62,15 @@ export default function ManageFixedExpenses({ onBack }) {
           }
         }
       } catch (err) {
-        if (!cancelled) setError(err?.message || 'تعذّر التحميل');
+        if (!cancelled) setError(err?.message || (lang === 'en' ? 'Failed to load' : 'تعذّر التحميل'));
       } finally {
         if (!cancelled) setLoading(false);
       }
     }
     load();
     return () => { cancelled = true; };
+    // lang يُستخدم فقط لنص رسالة الخطأ — لا نعيد الجلب (ولا نفقد المدخلات) عند تبديل اللغة
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [month]);
 
   const handleSave = async () => {
@@ -84,7 +87,7 @@ export default function ManageFixedExpenses({ onBack }) {
       });
       setDone(true);
     } catch (err) {
-      setError(err?.message || 'تعذّر الحفظ');
+      setError(err?.message || (lang === 'en' ? 'Save failed' : 'تعذّر الحفظ'));
     } finally {
       setSaving(false);
     }
@@ -107,9 +110,9 @@ export default function ManageFixedExpenses({ onBack }) {
       </div>
 
       {[
-        { key: 'rent', label: 'الإيجار' },
-        { key: 'salaries', label: 'الرواتب' },
-        { key: 'gosi', label: 'التأمينات (GOSI)' },
+        { key: 'rent', label: lang === 'en' ? 'Rent' : 'الإيجار' },
+        { key: 'salaries', label: lang === 'en' ? 'Salaries' : 'الرواتب' },
+        { key: 'gosi', label: lang === 'en' ? 'Insurance (GOSI)' : 'التأمينات (GOSI)' },
       ].map((field) => (
         <div key={field.key}>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">{field.label}</label>
@@ -144,9 +147,11 @@ export default function ManageFixedExpenses({ onBack }) {
           onClick={() => setShowMonthPicker(true)}
           className="w-full bg-white rounded-2xl border border-tw-line shadow-sm p-3 flex items-center justify-between"
         >
-          <div className="text-right flex-1">
-            <p className="text-tw-navy font-bold text-sm">{formatMonthLabel(month, 'ar')}</p>
-            <p className="text-tw-muted/70 text-[11px] mt-1">إيجار + رواتب + تأمينات GOSI لكل فرع</p>
+          <div className={`${lang === 'en' ? 'text-left' : 'text-right'} flex-1`}>
+            <p className="text-tw-navy font-bold text-sm">{formatMonthLabel(month, lang)}</p>
+            <p className="text-tw-muted/70 text-[11px] mt-1">
+              {lang === 'en' ? 'Rent + salaries + GOSI insurance per branch' : 'إيجار + رواتب + تأمينات GOSI لكل فرع'}
+            </p>
           </div>
           <ChevronDown size={16} className="text-tw-muted" />
         </button>
@@ -155,13 +160,13 @@ export default function ManageFixedExpenses({ onBack }) {
           <div className="flex justify-center py-8"><Loader2 size={24} className="animate-spin text-tw-muted/50" /></div>
         ) : (
           <>
-            {renderBranchCard('فرع تويا', toia, setToia)}
-            {renderBranchCard('فرع وردانة', wardana, setWardana)}
+            {renderBranchCard(lang === 'en' ? 'Toia branch' : 'فرع تويا', toia, setToia)}
+            {renderBranchCard(lang === 'en' ? 'Wardana branch' : 'فرع وردانة', wardana, setWardana)}
 
             {error && <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{error}</p>}
             {done && (
               <p className="text-tw-green text-sm font-bold bg-emerald-50 border border-emerald-100 rounded-lg p-3 text-center flex items-center justify-center gap-2">
-                <CheckCircle2 size={18} /> تم الحفظ
+                <CheckCircle2 size={18} /> {lang === 'en' ? 'Saved' : 'تم الحفظ'}
               </p>
             )}
 
@@ -176,7 +181,9 @@ export default function ManageFixedExpenses({ onBack }) {
                 className="absolute inset-0 opacity-30 pointer-events-none"
                 style={{ background: 'radial-gradient(circle at 89% 8%, rgba(40,223,255,0.5), transparent 28%)' }}
               />
-              <small className="relative text-xs opacity-95 font-bold">إجمالي المصاريف الثابتة الشهرية</small>
+              <small className="relative text-xs opacity-95 font-bold">
+                {lang === 'en' ? 'Total monthly fixed expenses' : 'إجمالي المصاريف الثابتة الشهرية'}
+              </small>
               <b className="relative text-xl font-extrabold flex items-center gap-1.5">
                 {totalFixed.toLocaleString()} <SarSymbol className="text-base" />
               </b>
@@ -191,7 +198,7 @@ export default function ManageFixedExpenses({ onBack }) {
                 style={{ flex: 1 }}
               >
                 {saving && <Loader2 size={18} className="animate-spin inline-block ml-1" />}
-                {saving ? 'جارٍ الحفظ...' : 'حفظ'}
+                {saving ? (lang === 'en' ? 'Saving...' : 'جارٍ الحفظ...') : (lang === 'en' ? 'Save' : 'حفظ')}
               </button>
             </div>
           </>
@@ -201,8 +208,8 @@ export default function ManageFixedExpenses({ onBack }) {
       {/* Batch 31: BottomSheet لاختيار الشهر — من ماي 2024 للحالي */}
       <BottomSheet
         open={showMonthPicker}
-        title="اختر الشهر"
-        options={getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, 'ar') }))}
+        title={lang === 'en' ? 'Pick month' : 'اختر الشهر'}
+        options={getAvailableMonths().map((m) => ({ value: m, label: formatMonthLabel(m, lang) }))}
         current={month}
         onPick={(v) => { setMonth(v); setShowMonthPicker(false); }}
         onClose={() => setShowMonthPicker(false)}
