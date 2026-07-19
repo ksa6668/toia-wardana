@@ -433,6 +433,7 @@ export default function App() {
             <ManagerReceipts
               onBack={() => setShowReceipts(false)}
               onOpenCategories={() => setShowReceiptsCategories(true)}
+              lang={lang}
             />
           </div>
         )}

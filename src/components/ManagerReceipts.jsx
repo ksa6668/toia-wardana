@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Loader2, Calendar, MapPin, Receipt, Image as ImageIcon, X, Settings, FileText, ExternalLink } from 'lucide-react';
 import { getExpenses } from '../firebase';
+import { t, translateCategory } from '../i18n';
 import { useCachedQuery } from '../hooks/useCachedQuery';
 import SarSymbol from './SarSymbol';
 import SheetPortal from './SheetPortal';
@@ -16,16 +17,17 @@ function isPdfAttachment(exp) {
   return /\.pdf($|\?)/i.test(exp?.invoiceUrl || '');
 }
 
+// Batch 85: تسميات ثنائية {ar,en} — المعرّفات والمنطق كما هي
 const PERIOD_OPTIONS = [
-  { id: '7days', label: 'آخر 7 أيام', days: 7 },
-  { id: '30days', label: 'آخر 30 يوماً', days: 30 },
-  { id: 'all', label: 'الكل', days: 365 },
+  { id: '7days', label: { ar: 'آخر 7 أيام', en: 'Last 7 days' }, days: 7 },
+  { id: '30days', label: { ar: 'آخر 30 يوماً', en: 'Last 30 days' }, days: 30 },
+  { id: 'all', label: { ar: 'الكل', en: 'All' }, days: 365 },
 ];
 
 const BRANCH_OPTIONS = [
-  { id: 'all', label: 'الكل' },
-  { id: 'toia', label: 'فرع تويا' },
-  { id: 'wardana', label: 'فرع وردانة' },
+  { id: 'all', label: { ar: 'الكل', en: 'All' } },
+  { id: 'toia', label: { ar: 'فرع تويا', en: 'Toia branch' } },
+  { id: 'wardana', label: { ar: 'فرع وردانة', en: 'Wardana branch' } },
 ];
 
 function dateStr(date) {
@@ -36,10 +38,10 @@ function dateStr(date) {
   return `${y}-${m}-${d}`;
 }
 
-function formatDate(iso) {
+function formatDate(iso, lang = 'ar') {
   try {
     const d = new Date(iso);
-    return d.toLocaleDateString('ar-SA', {
+    return d.toLocaleDateString(lang === 'en' ? 'en-GB' : 'ar-SA', {
       day: '2-digit', month: 'short', year: 'numeric',
     });
   } catch {
@@ -47,8 +49,9 @@ function formatDate(iso) {
   }
 }
 
-export default function ManagerReceipts({ onBack, onOpenCategories }) {
-  useScreenHeader('الإيصالات والفواتير', onBack);
+export default function ManagerReceipts({ onBack, onOpenCategories, lang = 'ar' }) {
+  // نفس نص label في ITEMS بشاشة الإعدادات (Batch 85)
+  useScreenHeader(lang === 'en' ? 'Receipts & Invoices' : 'الإيصالات والفواتير', onBack);
   const [period, setPeriod] = useState('7days');
   const [branch, setBranch] = useState('toia');
   const [showFilters, setShowFilters] = useState(false);
@@ -84,8 +87,8 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
     return filtered.reduce((sum, e) => sum + (Number(e.amount) || 0), 0);
   }, [filtered]);
 
-  const currentBranchLabel = BRANCH_OPTIONS.find((b) => b.id === branch)?.label || 'الكل';
-  const currentPeriodLabel = PERIOD_OPTIONS.find((p) => p.id === period)?.label || 'آخر 7 أيام';
+  const currentBranchLabel = BRANCH_OPTIONS.find((b) => b.id === branch)?.label[lang] || (lang === 'en' ? 'All' : 'الكل');
+  const currentPeriodLabel = PERIOD_OPTIONS.find((p) => p.id === period)?.label[lang] || (lang === 'en' ? 'Last 7 days' : 'آخر 7 أيام');
 
   return (
     <div
@@ -120,8 +123,8 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
             <button
               onClick={onOpenCategories}
               className="bg-white rounded-xl border border-tw-line p-3 hover:bg-tw-soft/40 transition-colors"
-              title="إعدادات التصنيفات"
-              aria-label="إعدادات التصنيفات"
+              title={lang === 'en' ? 'Category settings' : 'إعدادات التصنيفات'}
+              aria-label={lang === 'en' ? 'Category settings' : 'إعدادات التصنيفات'}
             >
               <Settings size={18} className="text-tw-muted" />
             </button>
@@ -131,11 +134,11 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
         {/* بطاقات الإحصائيات */}
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 text-center">
-            <p className="text-xs text-tw-muted mb-1">عدد الفواتير</p>
+            <p className="text-xs text-tw-muted mb-1">{lang === 'en' ? 'Invoices count' : 'عدد الفواتير'}</p>
             <p className="text-2xl font-extrabold text-tw-blue">{filtered.length}</p>
           </div>
           <div className="bg-white rounded-2xl border border-tw-line shadow-sm p-4 text-center">
-            <p className="text-xs text-tw-muted mb-1">الإجمالي</p>
+            <p className="text-xs text-tw-muted mb-1">{lang === 'en' ? 'Total' : 'الإجمالي'}</p>
             <p className="text-2xl font-extrabold text-tw-red flex items-center justify-center gap-1">
               {totalAmount.toLocaleString()} <SarSymbol className="text-base" />
             </p>
@@ -157,10 +160,12 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
               <Receipt size={32} className="text-blue-300" />
             </div>
             <p className="text-tw-muted font-bold text-sm">
-              لا توجد فواتير {branch !== 'all' ? `لـ${currentBranchLabel}` : ''} خلال {currentPeriodLabel.toLowerCase()}.
+              {lang === 'en'
+                ? `No invoices ${branch !== 'all' ? `for ${currentBranchLabel} ` : ''}in ${currentPeriodLabel.toLowerCase()}.`
+                : `لا توجد فواتير ${branch !== 'all' ? `لـ${currentBranchLabel}` : ''} خلال ${currentPeriodLabel}.`}
             </p>
             <p className="text-tw-muted/70 text-xs mt-1">
-              الفواتير التي يرفع الموظف صورتها ستظهر هنا
+              {lang === 'en' ? 'Invoices photographed by employees will appear here' : 'الفواتير التي يرفع الموظف صورتها ستظهر هنا'}
             </p>
           </div>
         ) : (
@@ -170,6 +175,7 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
                 key={exp.id}
                 expense={exp}
                 onViewImage={() => setSelectedReceipt(exp)}
+                lang={lang}
               />
             ))}
           </div>
@@ -184,6 +190,7 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
           branch={branch}
           setBranch={setBranch}
           onClose={() => setShowFilters(false)}
+          lang={lang}
         />
       )}
 
@@ -206,12 +213,14 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
               <div
                 className="bg-white rounded-2xl shadow-2xl p-6 flex flex-col items-center gap-4 max-w-xs w-full"
                 onClick={(e) => e.stopPropagation()}
-                dir="rtl"
+                dir={lang === 'en' ? 'ltr' : 'rtl'}
               >
                 <div className="w-16 h-16 rounded-2xl bg-tw-soft flex items-center justify-center text-tw-red">
                   <FileText size={30} />
                 </div>
-                <p className="text-sm font-bold text-tw-navy text-center">ملف الفاتورة بصيغة PDF</p>
+                <p className="text-sm font-bold text-tw-navy text-center">
+                  {lang === 'en' ? 'Invoice file (PDF)' : 'ملف الفاتورة بصيغة PDF'}
+                </p>
                 <a
                   href={selectedReceipt.invoiceUrl}
                   target="_blank"
@@ -220,13 +229,13 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
                   style={{ display: 'inline-flex', alignItems: 'center', gap: 6, width: '100%', justifyContent: 'center' }}
                 >
                   <ExternalLink size={16} />
-                  عرض PDF
+                  {t(lang, 'expense.pdf.view')}
                 </a>
               </div>
             ) : (
               <img
                 src={selectedReceipt.invoiceUrl}
-                alt="فاتورة"
+                alt={lang === 'en' ? 'Invoice' : 'فاتورة'}
                 className="max-w-full max-h-full rounded-xl shadow-2xl"
                 decoding="async"
                 onClick={(e) => e.stopPropagation()}
@@ -239,8 +248,12 @@ export default function ManagerReceipts({ onBack, onOpenCategories }) {
   );
 }
 
-function ReceiptCard({ expense, onViewImage }) {
-  const branchLabel = expense.branchId === 'wardana' ? 'فرع وردانة' : expense.branchId === 'toia' ? 'فرع تويا' : '—';
+function ReceiptCard({ expense, onViewImage, lang = 'ar' }) {
+  const branchLabel = expense.branchId === 'wardana'
+    ? (lang === 'en' ? 'Wardana branch' : 'فرع وردانة')
+    : expense.branchId === 'toia'
+      ? (lang === 'en' ? 'Toia branch' : 'فرع تويا')
+      : '—';
   const isPdf = isPdfAttachment(expense);
 
   return (
@@ -257,7 +270,7 @@ function ReceiptCard({ expense, onViewImage }) {
              /cdn-cgi/image للتحجيم، فالتخفيف المتاح هو lazy + فك ترميز غير حاجب */
           <img
             src={expense.invoiceUrl}
-            alt="فاتورة"
+            alt={lang === 'en' ? 'Invoice' : 'فاتورة'}
             className="w-full h-full object-cover"
             loading="lazy"
             decoding="async"
@@ -271,12 +284,12 @@ function ReceiptCard({ expense, onViewImage }) {
       </button>
 
       {/* التفاصيل */}
-      <div className="flex-1 min-w-0 text-right">
+      <div className={`flex-1 min-w-0 ${lang === 'en' ? 'text-left' : 'text-right'}`}>
         <p className="font-bold text-sm text-tw-navy truncate">
-          {expense.category || 'مصروف'}
+          {expense.category ? translateCategory(lang, expense.category) : (lang === 'en' ? 'Expense' : 'مصروف')}
         </p>
         <p className="text-xs text-tw-muted mt-0.5">
-          {branchLabel} · {formatDate(expense.date)}
+          {branchLabel} · {formatDate(expense.date, lang)}
         </p>
         {expense.notes && (
           <p className="text-[11px] text-tw-muted/70 truncate mt-1">{expense.notes}</p>
@@ -284,7 +297,7 @@ function ReceiptCard({ expense, onViewImage }) {
       </div>
 
       {/* المبلغ */}
-      <div className="text-left flex-shrink-0">
+      <div className={`${lang === 'en' ? 'text-right' : 'text-left'} flex-shrink-0`}>
         <p className="font-extrabold text-base text-tw-red flex items-center gap-1">
           {Number(expense.amount || 0).toLocaleString()} <SarSymbol className="text-xs" />
         </p>
@@ -293,7 +306,7 @@ function ReceiptCard({ expense, onViewImage }) {
   );
 }
 
-function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
+function FiltersSheet({ period, setPeriod, branch, setBranch, onClose, lang = 'ar' }) {
   return (
     <SheetPortal>
       <div
@@ -306,11 +319,13 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
       >
         <div className="tw-sheet-grab"></div>
 
-        <h3 className="text-lg font-bold text-tw-navy text-center" style={{ marginBottom: 14 }}>تصفية الفواتير</h3>
+        <h3 className="text-lg font-bold text-tw-navy text-center" style={{ marginBottom: 14 }}>
+          {lang === 'en' ? 'Filter invoices' : 'تصفية الفواتير'}
+        </h3>
 
         {/* الفترة */}
         <div style={{ marginBottom: 14 }}>
-          <label className="text-xs font-bold text-tw-muted mb-2 block">الفترة</label>
+          <label className="text-xs font-bold text-tw-muted mb-2 block">{lang === 'en' ? 'Period' : 'الفترة'}</label>
           <div className="grid grid-cols-3 gap-2">
             {PERIOD_OPTIONS.map((p) => (
               <button
@@ -322,7 +337,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
                     : 'bg-tw-soft/40 text-tw-muted border-tw-line'
                 }`}
               >
-                {p.label}
+                {p.label[lang]}
               </button>
             ))}
           </div>
@@ -330,7 +345,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
 
         {/* الفرع */}
         <div style={{ marginBottom: 18 }}>
-          <label className="text-xs font-bold text-tw-muted mb-2 block">الفرع</label>
+          <label className="text-xs font-bold text-tw-muted mb-2 block">{lang === 'en' ? 'Branch' : 'الفرع'}</label>
           <div className="grid grid-cols-3 gap-2">
             {BRANCH_OPTIONS.map((b) => (
               <button
@@ -342,7 +357,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
                     : 'bg-tw-soft/40 text-tw-muted border-tw-line'
                 }`}
               >
-                {b.label}
+                {b.label[lang]}
               </button>
             ))}
           </div>
@@ -353,7 +368,7 @@ function FiltersSheet({ period, setPeriod, branch, setBranch, onClose }) {
           className="w-full text-white font-bold py-3.5 rounded-xl"
           style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)' }}
         >
-          تطبيق
+          {lang === 'en' ? 'Apply' : 'تطبيق'}
         </button>
       </div>
     </SheetPortal>

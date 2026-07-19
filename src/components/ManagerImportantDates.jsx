@@ -2,7 +2,7 @@
 // ----------------------------------------------------------
 // شاشة إدارة "تواريخ مهمة" للمدير — داخل الإعدادات.
 // إضافة/تعديل/حذف مهام متكررة مرتبطة بفرع، يظهر لها تذكير في الرئيسية
-// قبل موعدها بـ 7 أيام. (شاشة المدير عربية فقط.)
+// قبل موعدها بـ 7 أيام. (Batch 85: ثنائية اللغة عربي/إنجليزي.)
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import {
@@ -30,15 +30,19 @@ function todayStr() {
 // أسماء الأشهر الميلادية — نبني التاريخ يدوياً لضمان التقويم الميلادي
 // (toLocaleDateString('ar-SA') يستخدم التقويم الهجري افتراضياً).
 const MONTHS_AR = ['يناير', 'فبراير', 'مارس', 'أبريل', 'مايو', 'يونيو', 'يوليو', 'أغسطس', 'سبتمبر', 'أكتوبر', 'نوفمبر', 'ديسمبر'];
+const MONTHS_EN = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 
-function fmtDate(dateStr) {
+function fmtDate(dateStr, lang = 'ar') {
   if (!dateStr) return '—';
   const [y, m, d] = dateStr.split('-').map(Number);
-  return `${d} ${MONTHS_AR[m - 1]} ${y}`;
+  const months = lang === 'en' ? MONTHS_EN : MONTHS_AR;
+  return `${d} ${months[m - 1]} ${y}`;
 }
 
-function branchName(b) {
+// نفس نمط ManagerHome (Batch 78): بالإنجليزية nameEn إن وُجد، وبالعربية «فرع …»
+function branchName(b, lang = 'ar') {
   if (!b) return '';
+  if (lang === 'en') return b.nameEn || b.name || '';
   return b.name?.startsWith('فرع') ? b.name : `فرع ${b.name}`;
 }
 
@@ -63,24 +67,24 @@ function PillButton({ active, onClick, children }) {
 }
 
 // نموذج موحّد للإضافة والتعديل
-function TaskForm({ value, onChange, branches }) {
+function TaskForm({ value, onChange, branches, lang = 'ar' }) {
   return (
     <div className="space-y-4">
       {/* اسم المهمة */}
       <div>
-        <label className="text-xs font-bold text-tw-muted mb-1.5 block">اسم المهمة</label>
+        <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Task name' : 'اسم المهمة'}</label>
         <input
           type="text"
           value={value.name}
           onChange={(e) => onChange({ ...value, name: e.target.value })}
-          placeholder="مثلاً: تجديد السجل التجاري"
+          placeholder={lang === 'en' ? 'e.g. Renew commercial registration' : 'مثلاً: تجديد السجل التجاري'}
           className={inputCls}
         />
       </div>
 
       {/* الفرع */}
       <div>
-        <label className="text-xs font-bold text-tw-muted mb-1.5 block">الفرع</label>
+        <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Branch' : 'الفرع'}</label>
         <div className="flex flex-wrap gap-2">
           {branches.map((b) => (
             <PillButton
@@ -88,7 +92,7 @@ function TaskForm({ value, onChange, branches }) {
               active={value.branchId === b.id}
               onClick={() => onChange({ ...value, branchId: b.id })}
             >
-              {branchName(b)}
+              {branchName(b, lang)}
             </PillButton>
           ))}
         </div>
@@ -96,7 +100,7 @@ function TaskForm({ value, onChange, branches }) {
 
       {/* تاريخ المهمة */}
       <div>
-        <label className="text-xs font-bold text-tw-muted mb-1.5 block">تاريخ المهمة</label>
+        <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Due date' : 'تاريخ المهمة'}</label>
         <input
           type="date"
           value={value.dueDate}
@@ -107,7 +111,7 @@ function TaskForm({ value, onChange, branches }) {
 
       {/* نوع التكرار */}
       <div>
-        <label className="text-xs font-bold text-tw-muted mb-1.5 block">نوع التكرار</label>
+        <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Recurrence' : 'نوع التكرار'}</label>
         <div className="grid grid-cols-2 gap-2">
           {RECURRENCE_KEYS.map((k) => (
             <PillButton
@@ -115,7 +119,7 @@ function TaskForm({ value, onChange, branches }) {
               active={value.recurrence === k}
               onClick={() => onChange({ ...value, recurrence: k })}
             >
-              {RECURRENCE_LABELS[k].ar}
+              {RECURRENCE_LABELS[k][lang] || RECURRENCE_LABELS[k].ar}
             </PillButton>
           ))}
         </div>
@@ -123,12 +127,12 @@ function TaskForm({ value, onChange, branches }) {
 
       {/* ملاحظات */}
       <div>
-        <label className="text-xs font-bold text-tw-muted mb-1.5 block">ملاحظات (اختياري)</label>
+        <label className="text-xs font-bold text-tw-muted mb-1.5 block">{lang === 'en' ? 'Notes (optional)' : 'ملاحظات (اختياري)'}</label>
         <textarea
           value={value.notes}
           onChange={(e) => onChange({ ...value, notes: e.target.value })}
           rows={2}
-          placeholder="أي تفاصيل إضافية"
+          placeholder={lang === 'en' ? 'Any extra details' : 'أي تفاصيل إضافية'}
           className={`${inputCls} resize-none`}
         />
       </div>
@@ -138,8 +142,9 @@ function TaskForm({ value, onChange, branches }) {
 
 const EMPTY_FORM = { name: '', branchId: '', dueDate: todayStr(), recurrence: 'monthly', notes: '' };
 
-export default function ManagerImportantDates({ onBack }) {
-  useScreenHeader('تواريخ مهمة', onBack);
+export default function ManagerImportantDates({ onBack, lang = 'ar' }) {
+  // نفس نص label في ITEMS بشاشة الإعدادات (Batch 85)
+  useScreenHeader(lang === 'en' ? 'Important Dates' : 'تواريخ مهمة', onBack);
   const [tasks, setTasks] = useState([]);
   const [branches, setBranches] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -166,12 +171,14 @@ export default function ManagerImportantDates({ onBack }) {
       setBranches(brs);
       setTasks(list);
     } catch (err) {
-      setError(err?.message || 'تعذّر تحميل البيانات');
+      setError(err?.message || (lang === 'en' ? 'Failed to load data' : 'تعذّر تحميل البيانات'));
     } finally {
       setLoading(false);
     }
   };
 
+  // lang يُستخدم فقط لنص رسالة الخطأ — لا نعيد الجلب عند تبديل اللغة
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { reload(); }, []);
 
   const showDoneMsg = (msg) => {
@@ -182,18 +189,18 @@ export default function ManagerImportantDates({ onBack }) {
   // ----- إضافة -----
   const handleAdd = async () => {
     setAddError('');
-    if (!addForm.name.trim()) { setAddError('اسم المهمة مطلوب'); return; }
-    if (!addForm.branchId) { setAddError('اختر الفرع'); return; }
-    if (!addForm.dueDate) { setAddError('تاريخ المهمة مطلوب'); return; }
+    if (!addForm.name.trim()) { setAddError(lang === 'en' ? 'Task name is required' : 'اسم المهمة مطلوب'); return; }
+    if (!addForm.branchId) { setAddError(lang === 'en' ? 'Pick a branch' : 'اختر الفرع'); return; }
+    if (!addForm.dueDate) { setAddError(lang === 'en' ? 'Due date is required' : 'تاريخ المهمة مطلوب'); return; }
     setAdding(true);
     try {
       await addImportantDate(addForm);
       setShowAdd(false);
       setAddForm(EMPTY_FORM);
       await reload();
-      showDoneMsg('تم إضافة المهمة');
+      showDoneMsg(lang === 'en' ? 'Task added' : 'تم إضافة المهمة');
     } catch (err) {
-      setAddError(err?.message || 'تعذّر إضافة المهمة');
+      setAddError(err?.message || (lang === 'en' ? 'Failed to add task' : 'تعذّر إضافة المهمة'));
     } finally {
       setAdding(false);
     }
@@ -216,17 +223,17 @@ export default function ManagerImportantDates({ onBack }) {
   const handleSaveEdit = async () => {
     if (!editing) return;
     setEditError('');
-    if (!editForm.name.trim()) { setEditError('اسم المهمة مطلوب'); return; }
-    if (!editForm.branchId) { setEditError('اختر الفرع'); return; }
-    if (!editForm.dueDate) { setEditError('تاريخ المهمة مطلوب'); return; }
+    if (!editForm.name.trim()) { setEditError(lang === 'en' ? 'Task name is required' : 'اسم المهمة مطلوب'); return; }
+    if (!editForm.branchId) { setEditError(lang === 'en' ? 'Pick a branch' : 'اختر الفرع'); return; }
+    if (!editForm.dueDate) { setEditError(lang === 'en' ? 'Due date is required' : 'تاريخ المهمة مطلوب'); return; }
     setSavingEdit(true);
     try {
       await updateImportantDate(editing.id, editForm);
       await reload();
       closeEdit();
-      showDoneMsg('تم تحديث المهمة');
+      showDoneMsg(lang === 'en' ? 'Task updated' : 'تم تحديث المهمة');
     } catch (err) {
-      setEditError(err?.message || 'تعذّر تحديث المهمة');
+      setEditError(err?.message || (lang === 'en' ? 'Failed to update task' : 'تعذّر تحديث المهمة'));
     } finally {
       setSavingEdit(false);
     }
@@ -234,16 +241,16 @@ export default function ManagerImportantDates({ onBack }) {
 
   const handleDelete = async () => {
     if (!editing) return;
-    if (!window.confirm(`هل تريد حذف مهمة "${editing.name}"؟`)) return;
+    if (!window.confirm(lang === 'en' ? `Delete task "${editing.name}"?` : `هل تريد حذف مهمة "${editing.name}"؟`)) return;
     setSavingEdit(true);
     setEditError('');
     try {
       await deleteImportantDate(editing.id);
       await reload();
       closeEdit();
-      showDoneMsg('تم حذف المهمة');
+      showDoneMsg(lang === 'en' ? 'Task deleted' : 'تم حذف المهمة');
     } catch (err) {
-      setEditError(err?.message || 'تعذّر حذف المهمة');
+      setEditError(err?.message || (lang === 'en' ? 'Failed to delete task' : 'تعذّر حذف المهمة'));
     } finally {
       setSavingEdit(false);
     }
@@ -259,7 +266,9 @@ export default function ManagerImportantDates({ onBack }) {
     >
       <div className="relative z-10 p-4 space-y-4">
         <p className="text-xs text-tw-muted text-center">
-          مهام وتواريخ متكررة لكل فرع — يظهر تذكيرها في الرئيسية قبل الموعد بـ 7 أيام
+          {lang === 'en'
+            ? 'Recurring tasks and dates per branch — a reminder shows on the home screen 7 days before the due date'
+            : 'مهام وتواريخ متكررة لكل فرع — يظهر تذكيرها في الرئيسية قبل الموعد بـ 7 أيام'}
         </p>
 
         {loading && (
@@ -283,7 +292,7 @@ export default function ManagerImportantDates({ onBack }) {
             {tasks.length === 0 ? (
               <div className="bg-white rounded-2xl p-8 text-center border border-tw-line shadow-sm">
                 <CalendarClock size={32} className="text-tw-muted/50 mx-auto mb-3" />
-                <p className="text-sm font-bold text-tw-muted">لا توجد مهام بعد</p>
+                <p className="text-sm font-bold text-tw-muted">{lang === 'en' ? 'No tasks yet' : 'لا توجد مهام بعد'}</p>
               </div>
             ) : (
               <div className="space-y-2.5">
@@ -294,7 +303,7 @@ export default function ManagerImportantDates({ onBack }) {
                     <button
                       key={task.id}
                       onClick={() => openEdit(task)}
-                      className="w-full bg-white rounded-2xl p-4 border border-tw-line shadow-sm flex items-center gap-3 hover:bg-tw-soft/40 transition-colors text-right"
+                      className={`w-full bg-white rounded-2xl p-4 border border-tw-line shadow-sm flex items-center gap-3 hover:bg-tw-soft/40 transition-colors ${lang === 'en' ? 'text-left' : 'text-right'}`}
                     >
                       <div className="w-11 h-11 rounded-2xl bg-tw-soft text-tw-blue flex items-center justify-center flex-shrink-0">
                         <CalendarClock size={18} />
@@ -302,11 +311,11 @@ export default function ManagerImportantDates({ onBack }) {
                       <div className="flex-1 min-w-0">
                         <p className="text-base font-bold text-tw-navy truncate">{task.name}</p>
                         <p className="text-xs text-tw-muted truncate mt-0.5">
-                          {branchName(b)} · {RECURRENCE_LABELS[task.recurrence]?.ar || ''} · {fmtDate(task.dueDate)}
+                          {branchName(b, lang)} · {RECURRENCE_LABELS[task.recurrence]?.[lang] || RECURRENCE_LABELS[task.recurrence]?.ar || ''} · {fmtDate(task.dueDate, lang)}
                         </p>
                       </div>
                       <span className={`text-[11px] font-bold flex-shrink-0 px-2.5 py-1 rounded-full ${st.badge}`}>
-                        {st.label.ar}
+                        {st.label[lang] || st.label.ar}
                       </span>
                     </button>
                   );
@@ -324,16 +333,16 @@ export default function ManagerImportantDates({ onBack }) {
               }}
             >
               <Plus size={18} />
-              إضافة مهمة جديدة
+              {lang === 'en' ? 'Add new task' : 'إضافة مهمة جديدة'}
             </button>
           </>
         )}
       </div>
 
       {/* Bottom Sheet — إضافة مهمة */}
-      <EditSheet open={showAdd} onClose={() => setShowAdd(false)} title="إضافة مهمة جديدة">
+      <EditSheet open={showAdd} onClose={() => setShowAdd(false)} title={lang === 'en' ? 'Add new task' : 'إضافة مهمة جديدة'}>
         <div className="space-y-4">
-          <TaskForm value={addForm} onChange={setAddForm} branches={branches} />
+          <TaskForm value={addForm} onChange={setAddForm} branches={branches} lang={lang} />
           {addError && (
             <p className="text-tw-red text-xs font-bold bg-red-50 border border-red-100 rounded-lg p-3 text-center">{addError}</p>
           )}
@@ -343,7 +352,7 @@ export default function ManagerImportantDates({ onBack }) {
               disabled={adding}
               className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 disabled:opacity-60"
             >
-              إلغاء
+              {lang === 'en' ? 'Cancel' : 'إلغاء'}
             </button>
             <button
               onClick={handleAdd}
@@ -352,31 +361,33 @@ export default function ManagerImportantDates({ onBack }) {
               style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)', boxShadow: '0 6px 16px rgba(0,91,255,0.25)' }}
             >
               {adding && <Loader2 size={16} className="animate-spin" />}
-              حفظ
+              {lang === 'en' ? 'Save' : 'حفظ'}
             </button>
           </div>
         </div>
       </EditSheet>
 
       {/* Bottom Sheet — تعديل مهمة */}
-      <EditSheet open={!!editing} onClose={closeEdit} title="تعديل المهمة">
+      <EditSheet open={!!editing} onClose={closeEdit} title={lang === 'en' ? 'Edit task' : 'تعديل المهمة'}>
         {editing && (
           <div className="space-y-4">
-            <TaskForm value={editForm} onChange={setEditForm} branches={branches} />
+            <TaskForm value={editForm} onChange={setEditForm} branches={branches} lang={lang} />
 
             {/* معلومات الحالة وآخر إنجاز (للقراءة فقط) */}
             <div className="bg-tw-soft/40 border border-tw-line rounded-xl p-3 space-y-1.5">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-tw-muted font-bold">حالة المهمة</span>
+                <span className="text-tw-muted font-bold">{lang === 'en' ? 'Task status' : 'حالة المهمة'}</span>
                 <span className={`font-bold px-2 py-0.5 rounded-full ${importantDateStatus(editForm.dueDate).badge}`}>
-                  {importantDateStatus(editForm.dueDate).label.ar}
+                  {importantDateStatus(editForm.dueDate).label[lang] || importantDateStatus(editForm.dueDate).label.ar}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-tw-muted font-bold">آخر تاريخ إنجاز</span>
+                <span className="text-tw-muted font-bold">{lang === 'en' ? 'Last completed' : 'آخر تاريخ إنجاز'}</span>
                 <span className="text-tw-navy font-bold flex items-center gap-1">
                   <CalendarDays size={13} className="text-tw-muted" />
-                  {editing.lastCompletedDate ? fmtDate(editing.lastCompletedDate) : 'لم يُنجز بعد'}
+                  {editing.lastCompletedDate
+                    ? fmtDate(editing.lastCompletedDate, lang)
+                    : (lang === 'en' ? 'Not completed yet' : 'لم يُنجز بعد')}
                 </span>
               </div>
             </div>
@@ -391,7 +402,7 @@ export default function ManagerImportantDates({ onBack }) {
                 disabled={savingEdit}
                 className="flex-1 bg-white border border-tw-line text-tw-navy font-bold py-3.5 rounded-xl hover:bg-tw-soft/40 disabled:opacity-60"
               >
-                إلغاء
+                {lang === 'en' ? 'Cancel' : 'إلغاء'}
               </button>
               <button
                 onClick={handleSaveEdit}
@@ -400,7 +411,7 @@ export default function ManagerImportantDates({ onBack }) {
                 style={{ background: 'linear-gradient(135deg, #082765 0%, #005BFF 100%)', boxShadow: '0 6px 16px rgba(0,91,255,0.25)' }}
               >
                 {savingEdit && <Loader2 size={16} className="animate-spin" />}
-                حفظ التغييرات
+                {lang === 'en' ? 'Save changes' : 'حفظ التغييرات'}
               </button>
             </div>
 
@@ -409,7 +420,7 @@ export default function ManagerImportantDates({ onBack }) {
               disabled={savingEdit}
               className="w-full bg-red-50 hover:bg-red-50 text-tw-red font-bold py-3.5 rounded-xl border border-red-100 transition-colors disabled:opacity-60"
             >
-              حذف المهمة
+              {lang === 'en' ? 'Delete task' : 'حذف المهمة'}
             </button>
           </div>
         )}
