@@ -14,6 +14,7 @@ import { useState, useMemo, useEffect } from 'react';
 import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp, BarChart3 } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf, getBranches, getMonthlyGoal, getWhatsappEntries } from '../firebase';
 import { computePeriodTotals } from '../utils/profitHelpers';
+import { translateCategory } from '../i18n';
 import BottomSheet from './BottomSheet';
 import DayRecordsSheet from './DayRecordsSheet';
 import MonthlyBreakdownSheet from './MonthlyBreakdownSheet';
@@ -58,6 +59,8 @@ const expenseMatchesValues = (e, values) =>
     .some((f) => f != null && values.includes(String(f).trim()));
 
 export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
+  // محاذاة بداية السطر حسب الاتجاه — تُطبَّق صراحةً على th وtd معاً (لا وراثة)
+  const startAlign = lang === 'en' ? 'text-left' : 'text-right';
   // Batch 45: حفظ اختيارات المستخدم عبر التنقل (sessionStorage)
   const [period, setPeriod] = usePersistedState('monthly.period', 'month');
   const [selectedMonth, setSelectedMonth] = usePersistedState('monthly.month', () => {
@@ -1058,7 +1061,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                       title: lang === 'en' ? 'Pick category' : 'اختر التصنيف',
                       options: [
                         { value: 'all', label: lang === 'en' ? 'All categories' : 'كل التصنيفات' },
-                        ...availableCategories.map((c) => ({ value: c.id, label: c.name })),
+                        // الترجمة للعرض فقط — قيمة الفلتر تبقى c.id (المقارنة على categoryId لا تتغير)
+                        ...availableCategories.map((c) => ({ value: c.id, label: translateCategory(lang, c.name) })),
                       ],
                       current: categoryFilter,
                       onPick: (v) => { setCategoryFilter(v); setSheet(null); },
@@ -1069,7 +1073,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                     <span>
                       {categoryFilter === 'all'
                         ? (lang === 'en' ? 'All categories' : 'كل التصنيفات')
-                        : (availableCategories.find((c) => c.id === categoryFilter)?.name || (lang === 'en' ? 'Category' : 'تصنيف'))}
+                        : translateCategory(lang, availableCategories.find((c) => c.id === categoryFilter)?.name || (lang === 'en' ? 'Category' : 'تصنيف'))}
                     </span>
                     <ChevronDown size={10} className="text-tw-muted/70" />
                   </button>
@@ -1079,8 +1083,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                 <table className="w-full text-xs">
                   <thead className="bg-tw-soft/40">
                     <tr>
-                      <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</th>
-                      <th className="p-2 text-right font-bold text-tw-muted">{lang === 'en' ? 'Category' : 'التصنيف'}</th>
+                      <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>{lang === 'en' ? 'Day' : 'اليوم'}</th>
+                      <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>{lang === 'en' ? 'Category' : 'التصنيف'}</th>
                       <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
                     </tr>
                   </thead>
@@ -1089,8 +1093,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                       <tr><td colSpan={3} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
                     ) : expenseLineItems.map((row, i) => (
                       <tr key={row.id || i} className="border-t border-tw-line/60">
-                        <td className="p-2 text-tw-navy">{formatDayShort(row.date, lang, showYearInDay)}</td>
-                        <td className="p-2 text-tw-navy">{row.categoryName || row.category || row.expenseType || '—'}</td>
+                        <td className={`p-2 ${startAlign} text-tw-navy`}>{formatDayShort(row.date, lang, showYearInDay)}</td>
+                        <td className={`p-2 ${startAlign} text-tw-navy`}>{translateCategory(lang, row.categoryName || row.category || row.expenseType || '—')}</td>
                         <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.amount).toLocaleString()}</td>
                       </tr>
                     ))}
@@ -1101,7 +1105,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                 <table className="w-full text-xs">
                   <thead className="bg-tw-soft/40">
                     <tr>
-                      <th className="p-2 text-right font-bold text-tw-muted">{periodColLabel}</th>
+                      <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>{periodColLabel}</th>
                       <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Total expenses' : 'إجمالي المصاريف'}</th>
                     </tr>
                   </thead>
@@ -1110,7 +1114,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                       <tr><td colSpan={2} className="text-center p-6 text-tw-muted/70">{lang === 'en' ? 'No data' : 'لا توجد بيانات'}</td></tr>
                     ) : profitByGroup.map((row) => (
                       <tr key={row.key} className="border-t border-tw-line/60">
-                        <td className="p-2 font-bold text-tw-navy">{formatPeriodLabel(row.key)}</td>
+                        <td className={`p-2 ${startAlign} font-bold text-tw-navy`}>{formatPeriodLabel(row.key)}</td>
                         <td className="p-2 text-center font-bold text-tw-red">{Math.round(row.expenses).toLocaleString()}</td>
                       </tr>
                     ))}

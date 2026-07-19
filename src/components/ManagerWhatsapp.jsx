@@ -321,7 +321,8 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
           بنفس ألوان أعمدة الصفوف، ونسبة الإجمالي بنفس منطق تلوين الصفوف اليومية. */}
       <div className="bg-white rounded-2xl border border-tw-line overflow-hidden">
         <div className="grid grid-cols-5 px-3 py-2 border-b border-tw-line bg-tw-soft/40 items-center">
-          <div className="text-right text-[11px] font-bold text-tw-muted">{lang === 'en' ? 'Day' : 'اليوم'}</div>
+          {/* عمود اليوم: محاذاة بداية السطر حسب اللغة — رأساً وخلايا (Batch 86) */}
+          <div className={`${lang === 'en' ? 'text-left' : 'text-right'} text-[11px] font-bold text-tw-muted`}>{lang === 'en' ? 'Day' : 'اليوم'}</div>
           <div className="text-center">
             <p className="text-[10px] font-bold text-tw-muted/80 leading-tight">{lang === 'en' ? 'Customers' : 'عملاء'}</p>
             <p className="text-sm font-extrabold text-tw-navy leading-tight">{totals.dailyCustomers.toLocaleString()}</p>
@@ -374,7 +375,7 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
                 className="grid grid-cols-5 px-3 py-2.5 border-b border-tw-line/50 last:border-b-0 text-xs cursor-pointer hover:bg-tw-soft/30 active:bg-tw-soft/50 transition-colors focus:outline-none focus:bg-tw-soft/40"
                 title={lang === 'en' ? 'Tap to edit this day' : 'اضغط لتعديل هذا اليوم'}
               >
-                <div className="text-right font-bold text-tw-navy">{formatDayShort(d.date, lang)}</div>
+                <div className={`${lang === 'en' ? 'text-left' : 'text-right'} font-bold text-tw-navy`}>{formatDayShort(d.date, lang)}</div>
                 <div className="text-center text-tw-navy">{d.customers}</div>
                 <div className="text-center text-tw-green font-bold">{d.newCustomers}</div>
                 <div className="text-center text-tw-blue font-bold">{d.buyers}</div>
