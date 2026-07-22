@@ -561,6 +561,19 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       });
     }
   };
+  // Batch 87: منتقي التصنيف — نفس الخيارات والمنطق حرفياً (كان داخل زر "كل التصنيفات" فوق الجدول)
+  const openCategoryPicker = () => {
+    setSheet({
+      title: lang === 'en' ? 'Pick category' : 'اختر التصنيف',
+      options: [
+        { value: 'all', label: lang === 'en' ? 'All categories' : 'كل التصنيفات' },
+        // الترجمة للعرض فقط — قيمة الفلتر تبقى c.id (المقارنة على categoryId لا تتغير)
+        ...availableCategories.map((c) => ({ value: c.id, label: translateCategory(lang, c.name) })),
+      ],
+      current: categoryFilter,
+      onPick: (v) => { setCategoryFilter(v); setSheet(null); },
+    });
+  };
   const openBranchPicker = () => {
     setSheet({
       title: lang === 'en' ? 'Pick branch' : 'اختر الفرع',
@@ -1012,7 +1025,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
             <table className="w-full text-xs">
               <thead className="bg-tw-soft/40">
                 <tr>
-                  <th className="p-2 text-right font-bold text-tw-muted">{periodColLabel}</th>
+                  {/* عمود اليوم: محاذاة بداية السطر حسب اللغة — رأساً وخلايا (Batch 86) */}
+                  <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>{periodColLabel}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Cash' : 'كاش'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Mada' : 'مدى'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Transfer' : 'تحويل'}</th>
@@ -1035,7 +1049,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                 ) : sortedSalesByGroup.map((row) => (
                   <tr key={row.key} className="border-t border-tw-line/60">
                     <td
-                      className={`p-2 font-bold text-tw-navy ${groupBy === 'day' ? 'cursor-pointer hover:text-tw-blue active:opacity-70' : ''}`}
+                      className={`p-2 ${startAlign} font-bold text-tw-navy ${groupBy === 'day' ? 'cursor-pointer hover:text-tw-blue active:opacity-70' : ''}`}
                       onClick={groupBy === 'day' ? () => setDayDetailDate(row.key) : undefined}
                     >
                       {formatPeriodLabel(row.key)}
@@ -1053,38 +1067,30 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           {/* تبويب المصاريف */}
           {activeTab === 'expenses' && (
             <>
-              {/* Batch 36: زر فلتر التصنيف فوق الجدول (يومي فقط) */}
-              {groupBy === 'day' && availableCategories.length > 0 && (
-                <div className="px-2 pt-2 pb-1 flex justify-end">
-                  <button
-                    onClick={() => setSheet({
-                      title: lang === 'en' ? 'Pick category' : 'اختر التصنيف',
-                      options: [
-                        { value: 'all', label: lang === 'en' ? 'All categories' : 'كل التصنيفات' },
-                        // الترجمة للعرض فقط — قيمة الفلتر تبقى c.id (المقارنة على categoryId لا تتغير)
-                        ...availableCategories.map((c) => ({ value: c.id, label: translateCategory(lang, c.name) })),
-                      ],
-                      current: categoryFilter,
-                      onPick: (v) => { setCategoryFilter(v); setSheet(null); },
-                    })}
-                    className="inline-flex items-center gap-1.5 bg-white border border-tw-line rounded-lg px-3 py-1.5 text-xs font-bold text-tw-navy hover:bg-tw-soft/40"
-                  >
-                    <Filter size={12} className="text-tw-blue" />
-                    <span>
-                      {categoryFilter === 'all'
-                        ? (lang === 'en' ? 'All categories' : 'كل التصنيفات')
-                        : translateCategory(lang, availableCategories.find((c) => c.id === categoryFilter)?.name || (lang === 'en' ? 'Category' : 'تصنيف'))}
-                    </span>
-                    <ChevronDown size={10} className="text-tw-muted/70" />
-                  </button>
-                </div>
-              )}
               {groupBy === 'day' ? (
                 <table className="w-full text-xs">
                   <thead className="bg-tw-soft/40">
                     <tr>
                       <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>{lang === 'en' ? 'Day' : 'اليوم'}</th>
-                      <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>{lang === 'en' ? 'Category' : 'التصنيف'}</th>
+                      {/* Batch 87: أيقونة فلتر التصنيف بجانب العنوان (بدل زر "كل التصنيفات" النصي فوق الجدول)
+                          نفس القائمة ونفس منطق الفلترة — لمس ≥40×40px عبر min-w/min-h مع هامش سالب يحفظ ارتفاع الرأس */}
+                      <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>
+                        <span className="inline-flex items-center gap-0.5">
+                          {lang === 'en' ? 'Category' : 'التصنيف'}
+                          {availableCategories.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={openCategoryPicker}
+                              aria-label={lang === 'en' ? 'Filter by category' : 'تصفية حسب التصنيف'}
+                              className={`inline-flex items-center justify-center min-w-10 min-h-10 -my-3 rounded-lg active:bg-tw-soft/60 ${
+                                categoryFilter !== 'all' ? 'text-tw-blue' : 'text-tw-muted/70'
+                              }`}
+                            >
+                              <Filter size={14} fill={categoryFilter !== 'all' ? 'currentColor' : 'none'} />
+                            </button>
+                          )}
+                        </span>
+                      </th>
                       <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Amount' : 'المبلغ'}</th>
                     </tr>
                   </thead>
@@ -1129,7 +1135,8 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
             <table className="w-full text-xs">
               <thead className="bg-tw-soft/40">
                 <tr>
-                  <th className="p-2 text-right font-bold text-tw-muted">{periodColLabel}</th>
+                  {/* عمود اليوم: محاذاة بداية السطر حسب اللغة — رأساً وخلايا (Batch 86) */}
+                  <th className={`p-2 ${startAlign} font-bold text-tw-muted`}>{periodColLabel}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Sales' : 'المبيعات'}</th>
                   <th className="p-2 text-center font-bold text-tw-muted">{lang === 'en' ? 'Expenses' : 'المصاريف'}</th>
                   <th
@@ -1151,7 +1158,7 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
                 ) : sortedProfitByGroup.map((row) => (
                   <tr key={row.key} className="border-t border-tw-line/60">
                     <td
-                      className={`p-2 font-bold text-tw-navy ${groupBy === 'day' ? 'cursor-pointer hover:text-tw-blue active:opacity-70' : ''}`}
+                      className={`p-2 ${startAlign} font-bold text-tw-navy ${groupBy === 'day' ? 'cursor-pointer hover:text-tw-blue active:opacity-70' : ''}`}
                       onClick={groupBy === 'day' ? () => setDayDetailDate(row.key) : undefined}
                     >
                       {formatPeriodLabel(row.key)}
