@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Settings, Loader2,
-  Home, List, Activity, MessageCircle, LogOut,
+  Home, List, MessageCircle, LogOut,
 } from 'lucide-react';
 import {
   logout, watchAuth,
@@ -26,7 +26,6 @@ import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
 import ManagerWhatsapp from './components/ManagerWhatsapp';
 import WhatsappBuyersMonthly from './components/WhatsappBuyersMonthly';
-import ManagerKpis from './components/ManagerKpis';
 import AdminSettingsV2 from './components/AdminSettingsV2';
 import ManageUsers from './components/ManageUsers';
 import ManageFixedExpenses from './components/ManageFixedExpenses';
@@ -179,7 +178,6 @@ export default function App() {
           const adminTabTitles = {
             monthly: t(lang, 'admin.tab.monthly'),
             whatsapp: t(lang, 'admin.tab.whatsapp'),
-            kpis: t(lang, 'admin.tab.kpis'),
             settings: t(lang, 'admin.tab.settings'),
             // home: لا يوجد title → home mode
           };
@@ -298,7 +296,6 @@ export default function App() {
               onBack={() => setCurrentView('adminHome')}
             />
           )}
-          {!authLoading && currentView === 'adminHome' && adminTab === 'kpis' && <ManagerKpis lang={lang} />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
             <AdminSettingsV2
               lang={lang}
@@ -328,13 +325,13 @@ export default function App() {
             {/*
               في RTL، أول عنصر بالـ array يظهر يمين.
               ترتيب جديد (يمين → يسار):
-                كشف / واتساب / الرئيسية / المؤشرات / الإعدادات
+                كشف / واتساب / الرئيسية / الإعدادات
+              Batch 88: حُذف تبويب المؤشرات — كروته انتقلت إلى الكشف الشامل
             */}
             {[
               { key: 'monthly',  icon: List,           label: t(lang, 'admin.tab.monthlyShort') },
               { key: 'whatsapp', icon: MessageCircle,  label: t(lang, 'admin.tab.whatsappShort') },
               { key: 'home',     icon: Home,           label: t(lang, 'admin.tab.home') },
-              { key: 'kpis',     icon: Activity,       label: t(lang, 'admin.tab.kpis') },
               { key: 'settings', icon: Settings,       label: t(lang, 'admin.tab.settings') },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -382,7 +379,6 @@ export default function App() {
                 { key: 'home',     icon: Home,          label: t(lang, 'admin.tab.home') },
                 { key: 'monthly',  icon: List,          label: t(lang, 'admin.tab.monthly') },
                 { key: 'whatsapp', icon: MessageCircle, label: t(lang, 'admin.tab.whatsapp') },
-                { key: 'kpis',     icon: Activity,      label: t(lang, 'admin.tab.kpis') },
                 { key: 'settings', icon: Settings,      label: t(lang, 'admin.tab.settings') },
               ].map((tab) => {
                 const Icon = tab.icon;

@@ -98,7 +98,6 @@ const dict = {
   'admin.tab.monthlyShort':  { ar: 'كشف',            en: 'Report' },
   'admin.tab.whatsapp':      { ar: 'عملاء واتساب',   en: 'WhatsApp Customers' },
   'admin.tab.whatsappShort': { ar: 'واتساب',         en: 'WhatsApp' },
-  'admin.tab.kpis':          { ar: 'المؤشرات',       en: 'KPIs' },
   'admin.tab.settings':      { ar: 'الإعدادات',      en: 'Settings' },
   'admin.logout':            { ar: 'تسجيل الخروج',   en: 'Sign out' },
   'admin.manager':           { ar: 'المدير',         en: 'Manager' },
