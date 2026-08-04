@@ -11,11 +11,13 @@
 // تستهلك Firestore عبر firebase.js الموجود فعلاً (getSales, getExpenses)
 // ----------------------------------------------------------
 import { useState, useMemo, useEffect } from 'react';
-import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp, BarChart3 } from 'lucide-react';
+import { Calendar, ChevronDown, MapPin, Loader2, Filter, Printer, TrendingUp, BarChart3, Globe, Receipt } from 'lucide-react';
 import { getSales, getExpenses, getFixedExpensesRange, dateRangeToMonthRange, salesNet, madaNetOf, getBranches, getMonthlyGoal, getWhatsappEntries } from '../firebase';
 import { computePeriodTotals } from '../utils/profitHelpers';
+import { computeKpiRatios } from '../utils/kpiHelpers';
 import { translateCategory } from '../i18n';
 import BottomSheet from './BottomSheet';
+import SalesPerformanceCards from './SalesPerformanceCards';
 import DayRecordsSheet from './DayRecordsSheet';
 import MonthlyBreakdownSheet from './MonthlyBreakdownSheet';
 import SarSymbol from './SarSymbol';
@@ -392,6 +394,17 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
       };
     });
   }, [expenses, branchFilter, totals.sales]);
+
+  // ===== Batch 88: النسب الثلاث المنقولة من شاشة المؤشرات — نفس المعادلات حرفياً (kpiHelpers) =====
+  // فلتر الفرع فقط (بدون فلتر تصنيف جدول المصاريف — شاشة المؤشرات لم يكن فيها فلتر تصنيف)
+  // لا مبيعات ولا مصاريف للفترة ⇒ حالة فارغة (تُعرض '—') — لا أصفار مضللة
+  const kpiRatios = useMemo(() => {
+    const branchExpenses = branchFilter === 'all'
+      ? expenses
+      : expenses.filter((e) => e.branchId === branchFilter);
+    if (filteredSales.length === 0 && branchExpenses.length === 0) return { empty: true };
+    return { empty: false, ...computeKpiRatios(filteredSales, branchExpenses, filteredFixed) };
+  }, [filteredSales, expenses, branchFilter, filteredFixed]);
 
   // ===== Batch 58: الرؤى — نقطة التعادل اليومية + توقّع نهاية الشهر + مقارنة الشهر السابق =====
   const insights = useMemo(() => {
@@ -822,6 +835,10 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
         </button>
       </div>
 
+      {/* ===== Batch 88: كروت أداء المبيعات (أسبوعي/ربع سنوي/نصف سنوي) — منقولة من شاشة المؤشرات =====
+          قابلة للتوسّع، كرت واحد مفتوح فقط، ولكل كرت منتقي فترة خاص به */}
+      <SalesPerformanceCards lang={lang} branchFilter={branchFilter} />
+
       {/* Batch 51: كروت طرق الدفع - الكاش + مدى + التحويل (مبلغ ونسبة) - Batch 53: قابلة للضغط */}
       <div className="grid grid-cols-3 gap-2 mb-2">
         <button
@@ -857,6 +874,45 @@ export default function ManagerMonthly({ lang = 'ar', onEditRecord }) {
           </p>
           <p className="text-[10px] text-tw-blue font-bold mt-0.5 leading-tight">{totals.transferPct}%</p>
         </button>
+      </div>
+
+      {/* ===== Batch 88: صف النسب الثلاث — منقول من شاشة المؤشرات (نفس معادلات kpiRows حرفياً)
+          يتبع فلتر الفترة/الفرع المعتمد في الشاشة. نفس تنسيق العرض السابق:
+          تقريب لعدد صحيح + علامة % + أحمر للنسبة السالبة ===== */}
+      <div className="grid grid-cols-3 gap-2 mb-2">
+        {[
+          { icon: TrendingUp,
+            label: lang === 'en' ? 'Net profit ratio of sales' : 'نسبة صافي الربح من المبيعات',
+            pct: kpiRatios.empty ? null : kpiRatios.netProfitPct },
+          { icon: Globe,
+            label: lang === 'en' ? 'Online ratio of store sales' : 'نسبة الأون لاين من المتجر',
+            pct: kpiRatios.empty ? null : kpiRatios.onlinePct },
+          { icon: Receipt,
+            label: lang === 'en' ? 'Total expenses ratio of sales' : 'نسبة إجمالي المصروفات من المبيعات',
+            pct: kpiRatios.empty ? null : kpiRatios.expensesPct },
+        ].map((row, i) => {
+          const Icon = row.icon;
+          const displayPct = row.pct == null ? null : Math.round(row.pct);
+          return (
+            <div key={i} className="bg-white p-3 rounded-xl border border-tw-line text-center min-h-[4.75rem] flex flex-col items-center justify-center">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <Icon size={11} className="text-tw-blue flex-shrink-0" />
+                <p className="text-[9px] text-tw-muted leading-tight">{row.label}</p>
+              </div>
+              {loading ? (
+                <div className="animate-pulse py-0.5" aria-hidden="true">
+                  <div className="h-4 w-10 mx-auto rounded bg-tw-soft" />
+                </div>
+              ) : (
+                <p className={`text-sm font-bold ${
+                  displayPct == null ? 'text-tw-muted/70' : displayPct < 0 ? 'text-tw-red' : 'text-tw-navy'
+                }`}>
+                  {displayPct == null ? '—' : `${displayPct}%`}
+                </p>
+              )}
+            </div>
+          );
+        })}
       </div>
 
       {/* ===== Batch 71: كروت مصاريف الفئات (ورد/توصيل/مستلزمات) ونسبتها من المبيعات =====

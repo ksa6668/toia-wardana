@@ -1,7 +1,7 @@
 // src/utils/periodHelpers.js
 // ----------------------------------------------------------
 // أدوات مساعدة لحساب نطاقات التواريخ — مستخدمة في شاشات المدير
-// (Monthly, Overview, KPIs, Home)
+// (Monthly, Overview, Home)
 //
 // كلها pure functions: لا تعتمد على state أو على Firestore.
 // الـ Firestore queries تستخدم النواتج لتصفية البيانات.
@@ -149,6 +149,29 @@ export function splitMonthToWeeks(monthStr) {
     });
   });
   return weeks;
+}
+
+/**
+ * Batch 88: يقسم السنة إلى نصفين (1–6 و 7–12) — نفس نمط splitYearToQuarters.
+ * مستخدم في كرت «أداء المبيعات النصف سنوي» بالكشف الشامل.
+ */
+export function splitYearToHalves(year) {
+  const labels = ['النصف الأول', 'النصف الثاني'];
+  const labelsEn = ['H1', 'H2'];
+  const halves = [];
+  for (let h = 0; h < 2; h++) {
+    const fm = h * 6;        // 0, 6
+    const lm = fm + 5;       // 5, 11
+    const fd = new Date(year, fm, 1);
+    const ld = new Date(year, lm + 1, 0);
+    halves.push({
+      labelAr: labels[h],
+      labelEn: labelsEn[h],
+      from: _localDate(fd),
+      to: _localDate(ld),
+    });
+  }
+  return halves;
 }
 
 /**
