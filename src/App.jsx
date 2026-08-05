@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import {
   Settings, Loader2,
-  Home, List, MessageCircle, LogOut,
+  Home, List, MessageCircle, LogOut, Star,
 } from 'lucide-react';
 import {
   logout, watchAuth,
@@ -21,6 +21,7 @@ import WhatsappFormV2 from './components/WhatsappFormV2';
 import ReviewsExplain from './components/ReviewsExplain';
 import WhatsappExplain from './components/WhatsappExplain';
 import EmployeeHistory from './components/EmployeeHistory';
+import EmployeeLoyalty from './components/EmployeeLoyalty';
 // شاشات المدير
 import ManagerHome from './components/ManagerHome';
 import ManagerMonthly from './components/ManagerMonthly';
@@ -32,6 +33,7 @@ import ManageFixedExpenses from './components/ManageFixedExpenses';
 import ManageCategories from './components/ManageCategories';
 import ChangeMyPin from './components/ChangeMyPin';
 import AdminDataEntry from './components/AdminDataEntry';
+import ManagerLoyalty from './components/ManagerLoyalty';
 // عناصر مشتركة (هيدر + overlays)
 import AppHeader from './components/AppHeader';
 import NotificationsCenter, { getUnreadCount } from './components/NotificationsCenter';
@@ -178,12 +180,17 @@ export default function App() {
           const adminTabTitles = {
             monthly: t(lang, 'admin.tab.monthly'),
             whatsapp: t(lang, 'admin.tab.whatsapp'),
+            loyalty: t(lang, 'admin.tab.loyalty'),
             settings: t(lang, 'admin.tab.settings'),
             // home: لا يوجد title → home mode
           };
+          // تبويب الولاء للموظف يعرض عنواناً في الهيدر (كتبويبات المدير)
+          const empTabTitle = !isAdmin && currentView === 'employeeLoyalty'
+            ? t(lang, 'admin.tab.loyalty')
+            : null;
           const tabTitle = isAdmin && currentView === 'adminHome' && adminTab !== 'home'
             ? adminTabTitles[adminTab]
-            : null;
+            : empTabTitle;
 
           // الـ effective mode + title
           const effectiveMode = screenCtx
@@ -267,6 +274,10 @@ export default function App() {
           {!authLoading && currentView === 'employeeHistory' && (
             <EmployeeHistory setView={setCurrentView} branchId={branchId} lang={lang} />
           )}
+          {/* برنامج الولاء — تبويب الموظف */}
+          {!authLoading && currentView === 'employeeLoyalty' && (
+            <EmployeeLoyalty branchId={branchId} lang={lang} user={user} />
+          )}
           {/* ====== شاشات المدير ====== */}
           {!authLoading && currentView === 'adminHome' && adminTab === 'home' && <ManagerHome lang={lang} userName={user?.displayName || user?.username || ''} />}
           {!authLoading && currentView === 'adminHome' && adminTab === 'monthly' && (
@@ -295,6 +306,10 @@ export default function App() {
               year={buyersMonthlyArgs?.year || new Date().getFullYear()}
               onBack={() => setCurrentView('adminHome')}
             />
+          )}
+          {/* برنامج الولاء — تبويب المدير */}
+          {!authLoading && currentView === 'adminHome' && adminTab === 'loyalty' && (
+            <ManagerLoyalty lang={lang} user={user} />
           )}
           {!authLoading && currentView === 'adminHome' && adminTab === 'settings' && (
             <AdminSettingsV2
@@ -325,13 +340,15 @@ export default function App() {
             {/*
               في RTL، أول عنصر بالـ array يظهر يمين.
               ترتيب جديد (يمين → يسار):
-                كشف / واتساب / الرئيسية / الإعدادات
+                كشف / واتساب / الرئيسية / الولاء / الإعدادات
               Batch 88: حُذف تبويب المؤشرات — كروته انتقلت إلى الكشف الشامل
+              الولاء: بين الرئيسية والإعدادات
             */}
             {[
               { key: 'monthly',  icon: List,           label: t(lang, 'admin.tab.monthlyShort') },
               { key: 'whatsapp', icon: MessageCircle,  label: t(lang, 'admin.tab.whatsappShort') },
               { key: 'home',     icon: Home,           label: t(lang, 'admin.tab.home') },
+              { key: 'loyalty',  icon: Star,           label: t(lang, 'admin.tab.loyalty') },
               { key: 'settings', icon: Settings,       label: t(lang, 'admin.tab.settings') },
             ].map((tab) => {
               const Icon = tab.icon;
@@ -340,6 +357,47 @@ export default function App() {
                 <button
                   key={tab.key}
                   onClick={() => setAdminTab(tab.key)}
+                  className={`flex flex-col items-center justify-center flex-1 py-1 gap-1.5 transition-colors ${
+                    active ? 'text-tw-blue' : 'text-[#8A96AA] hover:text-tw-navy2'
+                  }`}
+                  style={{ minHeight: 48 }}
+                >
+                  <Icon size={22} strokeWidth={active ? 2.4 : 2} />
+                  <span className="text-[11px] font-bold leading-none whitespace-nowrap">
+                    {tab.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
+        )}
+
+        {/* شريط الموظف السفلي — تبويبان: الرئيسية / الولاء.
+            يظهر فقط في employeeHome و employeeLoyalty — لا يظهر إطلاقاً
+            في شاشات الإدخال (المبيعات/المصاريف/واتساب/الكشف). */}
+        {userRole === 'employee'
+          && (currentView === 'employeeHome' || currentView === 'employeeLoyalty')
+          && !authLoading && (
+          <nav
+            className="flex items-center px-2 z-10 flex-shrink-0"
+            style={{
+              background: '#F2F6FC',
+              borderTop: '1px solid rgba(230, 236, 246, 0.8)',
+              fontFamily: "'IBM Plex Sans Arabic', system-ui, sans-serif",
+              paddingTop: '8px',
+              paddingBottom: 'calc(8px + env(safe-area-inset-bottom, 0px))',
+            }}
+          >
+            {[
+              { key: 'employeeHome',    icon: Home, label: t(lang, 'admin.tab.home') },
+              { key: 'employeeLoyalty', icon: Star, label: t(lang, 'admin.tab.loyalty') },
+            ].map((tab) => {
+              const Icon = tab.icon;
+              const active = currentView === tab.key;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setCurrentView(tab.key)}
                   className={`flex flex-col items-center justify-center flex-1 py-1 gap-1.5 transition-colors ${
                     active ? 'text-tw-blue' : 'text-[#8A96AA] hover:text-tw-navy2'
                   }`}
@@ -379,6 +437,7 @@ export default function App() {
                 { key: 'home',     icon: Home,          label: t(lang, 'admin.tab.home') },
                 { key: 'monthly',  icon: List,          label: t(lang, 'admin.tab.monthly') },
                 { key: 'whatsapp', icon: MessageCircle, label: t(lang, 'admin.tab.whatsapp') },
+                { key: 'loyalty',  icon: Star,          label: t(lang, 'admin.tab.loyalty') },
                 { key: 'settings', icon: Settings,      label: t(lang, 'admin.tab.settings') },
               ].map((tab) => {
                 const Icon = tab.icon;

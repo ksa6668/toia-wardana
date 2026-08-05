@@ -1,0 +1,76 @@
+// firestore.rules — وثيقة مرجعية فقط (لا تُنشر آلياً من المستودع).
+// ============================================================================
+// تُلصق يدوياً في Firebase Console → Firestore → Rules بعد المراجعة.
+//
+// الهدف: تأمين مجموعات برنامج الولاء الجديدة (أسماء وأرقام جوال عملاء) دون
+// تغيير سلوك المجموعات القائمة.
+//
+// ملاحظة مهمة عن آلية القواعد: التطابقات في Firestore تعمل بمنطق OR —
+// أي match يمنح صلاحية يتغلب على match آخر يمنعها. لذلك لا يمكن إبقاء
+// قاعدة عامة (match /{document=**} → allow if true) مع تقييد مجموعات الولاء؛
+// عُدِّدت المجموعات القائمة صراحةً بسلوكها الحالي (مفتوح كما هو اليوم)،
+// وقُيِّدت مجموعات الولاء فقط. تشديد المجموعات القائمة لاحقاً خارج نطاق
+// المرحلة 1.
+//
+// خلاصة قواعد الولاء:
+//   loyaltyMembers      قراءة/إنشاء/تحديث لأي مستخدم مسجّل — الحذف ممنوع نهائياً
+//   loyaltyTransactions قراءة/إنشاء فقط — سجل إضافي، لا تعديل ولا حذف
+//   loyaltyInvoices     قراءة/إنشاء فقط — معرّف المستند يضمن عدم تكرار الفاتورة
+//   loyaltySettings     قراءة لأي مسجّل — الكتابة للمدير فقط (role == "admin")
+// ============================================================================
+
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- دوال مساعدة ----------
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn()
+        && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // ---------- مجموعات الولاء (جديدة — المرحلة 1) ----------
+
+    match /loyaltyMembers/{memberId} {
+      allow read, create, update: if signedIn();
+      allow delete: if false; // لا حذف نهائياً — التعطيل عبر حقل status
+    }
+
+    match /loyaltyTransactions/{txId} {
+      allow read, create: if signedIn();
+      allow update, delete: if false; // سجل إضافي فقط — التصحيح بحركة عكسية
+    }
+
+    match /loyaltyInvoices/{invId} {
+      allow read, create: if signedIn();
+      allow update, delete: if false; // ضمان عدم تكرار رقم الفاتورة في المتجر
+    }
+
+    match /loyaltySettings/{store} {
+      allow read: if signedIn();
+      allow write: if isAdmin(); // الإعدادات من شاشة المدير فقط
+    }
+
+    // ---------- المجموعات القائمة (سلوكها الحالي كما هو — دون تغيير) ----------
+    // تحذير قائم منذ ما قبل هذه المرحلة: هذه المجموعات مفتوحة (if true)
+    // وتشديدها يحتاج مراجعة منفصلة حتى لا تنكسر الشاشات الحالية.
+
+    match /dailySales/{id}        { allow read, write: if true; }
+    match /expenses/{id}          { allow read, write: if true; }
+    match /fixedExpenses/{id}     { allow read, write: if true; }
+    match /whatsapp/{id}          { allow read, write: if true; }
+    match /whatsappBaseline/{id}  { allow read, write: if true; }
+    match /users/{id}             { allow read, write: if true; }
+    match /branches/{id}          { allow read, write: if true; }
+    match /categories/{id}        { allow read, write: if true; }
+    match /paymentMethods/{id}    { allow read, write: if true; }
+    match /goals/{id}             { allow read, write: if true; }
+    match /appSettings/{id}       { allow read, write: if true; }
+    match /importantDates/{id}    { allow read, write: if true; }
+  }
+}

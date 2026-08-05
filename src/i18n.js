@@ -99,6 +99,8 @@ const dict = {
   'admin.tab.whatsapp':      { ar: 'عملاء واتساب',   en: 'WhatsApp Customers' },
   'admin.tab.whatsappShort': { ar: 'واتساب',         en: 'WhatsApp' },
   'admin.tab.settings':      { ar: 'الإعدادات',      en: 'Settings' },
+  // برنامج الولاء — نفس المفتاح لتبويب المدير وتبويب الموظف
+  'admin.tab.loyalty':       { ar: 'الولاء',          en: 'Loyalty' },
   'admin.logout':            { ar: 'تسجيل الخروج',   en: 'Sign out' },
   'admin.manager':           { ar: 'المدير',         en: 'Manager' },
   'header.back':             { ar: 'رجوع',           en: 'Back' },
