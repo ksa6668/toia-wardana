@@ -101,6 +101,7 @@ export const CARD_PAYLOAD_ALLOWED_KEYS = [
   "rewards",
   "nextReward",
   "phoneMasked",
+  "expiryMonths",
 ];
 
 /**
@@ -140,6 +141,8 @@ export function buildCardPayload(member, transactions, settings, now = new Date(
     rewards,
     nextReward: next ? { label: next.label, points: Number(next.points) || 0 } : null,
     phoneMasked: maskPhone(member.phone),
+    // مدة انتهاء النقاط (شهور) — من إعدادات المتجر، لنص الشروط في البطاقة
+    expiryMonths: Number(s.expiryMonths) || 0,
   };
 }
 

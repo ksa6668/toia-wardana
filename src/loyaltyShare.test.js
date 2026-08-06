@@ -89,6 +89,13 @@ describe('payload البطاقة — القائمة البيضاء (معيار �
     expect(payload.phoneMasked).toBe('05******67');
   });
 
+  it('expiryMonths ضمن القائمة البيضاء ويُقرأ من إعدادات المتجر (لنص الشروط)', () => {
+    expect(CARD_PAYLOAD_ALLOWED_KEYS).toContain('expiryMonths');
+    expect(payload.expiryMonths).toBe(18); // الافتراضي
+    const custom = buildCardPayload(FULL_MEMBER, TXS, { ...LOYALTY_DEFAULT_SETTINGS, expiryMonths: 12 }, NOW);
+    expect(custom.expiryMonths).toBe(12); // تغيير الإعداد ينعكس مباشرة
+  });
+
   it('المكافآت: 6250 لا تفتح r50 (7500) — والمكافأة التالية هي r50', () => {
     expect(payload.rewards).toHaveLength(6);
     expect(payload.rewards.every((r) => r.unlocked === false)).toBe(true);

@@ -105,10 +105,6 @@
     .reward.locked .badge img { filter: grayscale(1); opacity: 0.35; }
     .reward.unlocked .badge { border-color: var(--primary); background: var(--surface); box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 18%, transparent); }
     .reward.unlocked .rlabel { color: var(--primary); font-weight: 800; }
-    .redeemed-counter {
-      text-align: center; font-size: 11.5px; font-weight: 700; color: var(--muted);
-      padding: 10px 0 2px;
-    }
 
     /* ===== QR ===== */
     .qr-sec { text-align: center; padding: 14px 16px 20px; }
@@ -206,8 +202,7 @@
             '</div>' +
             '<div class="member-name">' + esc(d.name) + '</div>' +
             '<div class="member-sub">عضو منذ ' + esc(d.joinedAt || '—') + '</div>' +
-            '<div class="rewards"><div class="rewards-grid">' + rewardsHtml + '</div>' +
-            '<div class="redeemed-counter">استُبدلت ' + fmtNum(d.redemptionsCount) + ' مكافأة</div></div>' +
+            '<div class="rewards"><div class="rewards-grid">' + rewardsHtml + '</div></div>' +
             '<div class="qr-sec">' +
               '<div class="qr-box" id="qr"></div>' +
               '<div class="member-no">' + esc(d.memberNo) + '</div>' +
@@ -223,12 +218,15 @@
             '</span></div>' +
             '<div class="drow"><span class="k">انتهاء النقاط</span><span class="v" dir="ltr">' + esc(d.pointsExpireAt || '—') + '</span></div>' +
             '<p class="terms">' +
-              'تُحتسب النقاط على مشترياتك من فرع ' + esc(d.storeName) + ' وتنتهي تلقائياً بعد مدة من آخر عملية شراء. ' +
-              'استبدال المكافآت يتم داخل الفرع فقط وبإبراز هذه البطاقة. البرنامج خاضع لشروط المتجر وقد تتغير المكافآت دون إشعار.' +
-              '<br/>للاستفسار: تفضّل بزيارة فرع ' + esc(d.storeName) + ' أو تواصل عبر قنوات المتجر الرسمية.' +
+              // expiryMonths من loyaltySettings عبر /api/card — لا رقم ثابت هنا
+              'تُحتسب النقاط على مشترياتك من ' + esc(d.storeName) + ' وتنتهي تلقائياً بعد ' +
+              esc(d.expiryMonths != null ? d.expiryMonths : '—') + ' شهراً من آخر عملية شراء. ' +
+              'استبدال المكافآت يتم داخل الفرع أو بالتواصل معنا على الواتساب بإبراز البطاقة أو برقم الجوال. ' +
+              'البرنامج خاضع للشروط والأحكام وقد تتغير المكافآت حسب سياسة المتجر.' +
+              '<br/>للاستفسار: تفضّل بزيارة ' + esc(d.storeName) + ' أو تواصل عبر قنوات المتجر الرسمية.' +
             '</p>' +
           '</div>' +
-          '<p class="foot">برنامج ولاء ' + esc(d.storeName) + ' — Toia &amp; Wardana</p>';
+          '<p class="foot">برنامج ولاء ' + esc(d.storeName) + '</p>';
 
         app.innerHTML = html;
 
