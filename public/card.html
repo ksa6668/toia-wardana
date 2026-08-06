@@ -244,19 +244,24 @@
         }
       }
 
+      // ثلاث حالات خطأ متمايزة: 404 (بطاقة غير موجودة) / 5xx (خطأ خادم) / فشل شبكة
       fetch('/api/card?token=' + encodeURIComponent(token))
         .then(function (res) {
-          if (res.status === 404) throw { neutral: true };
-          if (res.status === 429) throw { msg: 'طلبات كثيرة — أعد المحاولة بعد قليل' };
-          if (!res.ok) throw { msg: 'تعذّر تحميل البطاقة — حاول لاحقاً' };
+          if (res.status === 404) throw { kind: 'notfound', status: 404 };
+          if (res.status === 429) throw { kind: 'rate', status: 429 };
+          if (res.status >= 500) throw { kind: 'server', status: res.status };
+          if (!res.ok) throw { kind: 'server', status: res.status };
           return res.json();
         })
         .then(render)
         .catch(function (err) {
-          if (err && err.neutral) {
+          console.error('Card load error:', err && err.kind ? ('HTTP ' + err.status + ' (' + err.kind + ')') : err);
+          if (err && err.kind === 'notfound') {
             showError('البطاقة غير متوفرة', 'تأكد من صحة الرابط أو راجع الفرع');
-          } else if (err && err.msg) {
-            showError(err.msg, '');
+          } else if (err && err.kind === 'rate') {
+            showError('طلبات كثيرة', 'أعد المحاولة بعد قليل');
+          } else if (err && err.kind === 'server') {
+            showError('خطأ في الخادم', 'حدث خلل مؤقت لدينا — أعد المحاولة بعد قليل، وإن استمر فأبلغ الفرع');
           } else {
             showError('تعذّر الاتصال', 'تحقق من اتصالك بالإنترنت ثم أعد المحاولة');
           }
