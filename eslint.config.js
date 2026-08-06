@@ -5,7 +5,8 @@ import reactRefresh from 'eslint-plugin-react-refresh'
 import { defineConfig, globalIgnores } from 'eslint/config'
 
 export default defineConfig([
-  globalIgnores(['dist']),
+  // public/qrcode-generator.js: ملف مورّد (vendored, MIT) لصفحة البطاقة العامة — لا يُدقّق
+  globalIgnores(['dist', 'public/qrcode-generator.js']),
   {
     files: ['**/*.{js,jsx}'],
     extends: [

@@ -127,6 +127,23 @@ export function tierPointsInWindow(transactions, windowMonths, now = new Date())
   return sum;
 }
 
+// أنواع الحركات التي تدخل في حساب الرصيد. حركات "audit" (سجل التدقيق —
+// تعطيل/تفعيل/تعديل بيانات، بنقاط 0) مستثناة صراحةً من أي حساب للرصيد
+// أو لنقاط الفئة، حتى لو حملت قيمة نقاط بالخطأ.
+export const BALANCE_TX_TYPES = new Set(["earn", "redeem", "adjust", "reverse", "expire"]);
+
+/**
+ * إعادة اشتقاق الرصيد من سجل الحركات (للتحقق/التدقيق):
+ * مجموع points لكل الأنواع الرصيدية — audit مستثناة دائماً.
+ */
+export function deriveBalance(transactions) {
+  const txs = Array.isArray(transactions) ? transactions : [];
+  return txs.reduce(
+    (sum, t) => (BALANCE_TX_TYPES.has(t.type) ? sum + (Number(t.points) || 0) : sum),
+    0
+  );
+}
+
 /** إيجاد الفئة المطابقة لعدد النقاط من مصفوفة tiers ({key,name,min,max|null}) */
 export function tierForPoints(points, tiers) {
   const p = Number(points) || 0;

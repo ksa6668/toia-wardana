@@ -36,6 +36,9 @@ service cloud.firestore {
 
     // ---------- مجموعات الولاء (جديدة — المرحلة 1) ----------
 
+    // ملاحظة (المرحلة 2): البطاقة العامة /c/{token} لا تقرأ من العميل مطلقاً —
+    // تُخدم عبر /api/card بـ Firebase Admin SDK (يتجاوز القواعد بأمان على
+    // الخادم). لا حاجة — ويُمنع — فتح أي قراءة عامة هنا.
     match /loyaltyMembers/{memberId} {
       allow read, create, update: if signedIn();
       allow delete: if false; // لا حذف نهائياً — التعطيل عبر حقل status

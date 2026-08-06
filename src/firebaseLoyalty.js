@@ -42,6 +42,12 @@ import {
   randomMemberNo,
   randomCardToken,
 } from "./loyaltyMath";
+import { LOYALTY_DEFAULT_SETTINGS } from "./loyaltyShare";
+
+// المرحلة 2: الإعدادات الافتراضية انتقلت إلى loyaltyShare.js (وحدة نقية
+// يستوردها أيضاً api/card.js بلا تهيئة Firebase) — يُعاد تصديرها هنا
+// حتى تبقى الاستيرادات القائمة من '../firebase' كما هي.
+export { LOYALTY_DEFAULT_SETTINGS };
 
 // ---------- أخطاء بمعرّف code (الواجهة تترجم عند الحاجة) ----------
 function loyaltyError(code, message) {
@@ -49,42 +55,6 @@ function loyaltyError(code, message) {
   err.code = code;
   return err;
 }
-
-// ---------- الإعدادات الافتراضية (وثيقة المنطق 2.1) ----------
-export const LOYALTY_DEFAULT_SETTINGS = {
-  enabled: true,
-  pointsPerRiyal: 5,
-  vatRegistered: false,
-  pointsBasis: "gross", // "gross" | "net"
-  vatRate: 0.15,
-  expiryMonths: 18,
-  tierWindowMonths: 24,
-  largeTransactionAlert: 1000,
-  tiers: [
-    { key: "silver", name: "فضية", min: 1, max: 7500 },
-    { key: "gold", name: "ذهبية", min: 7501, max: 20000 },
-    { key: "platinum", name: "بلاتينية", min: 20001, max: null },
-  ],
-  rewards: [
-    { id: "r50", label: "باقة 50 ريال", value: 50, points: 7500, active: true },
-    { id: "r75", label: "باقة 75 ريال", value: 75, points: 11250, active: true },
-    { id: "r100", label: "باقة 100 ريال", value: 100, points: 15000, active: true },
-    { id: "r150", label: "باقة 150 ريال", value: 150, points: 22500, active: true },
-    { id: "r200", label: "باقة 200 ريال", value: 200, points: 30000, active: true },
-    { id: "r300", label: "باقة 300 ريال", value: 300, points: 45000, active: true },
-  ],
-  // مصادر التعرف — التعطيل بحقل active بدل الحذف
-  sources: [
-    { id: "maps", label: "قوقل ماب", active: true },
-    { id: "instagram", label: "انستقرام", active: true },
-    { id: "tiktok", label: "تيك توك", active: true },
-    { id: "snapchat", label: "سناب شات", active: true },
-    { id: "friend", label: "توصية صديق", active: true },
-    { id: "walkin", label: "مررت بالمحل", active: true },
-    { id: "other", label: "أخرى", active: true },
-  ],
-  welcomeMessage: "أهلاً بك في برنامج ولاء تويا ووردانة! 🌸 نقاطك تتجمع مع كل شراء.",
-};
 
 // ---------- الإعدادات ----------
 /** جلب إعدادات الولاء لمتجر. لو غير موجودة يرجع الافتراضيات (كنمط getAppSettings). */
@@ -118,6 +88,25 @@ export async function findLoyaltyMemberByPhone(store, phoneInput) {
     collection(db, "loyaltyMembers"),
     where("store", "==", store),
     where("phone", "==", phone),
+    limit(1)
+  );
+  const snap = await getDocs(q);
+  if (snap.empty) return null;
+  const d = snap.docs[0];
+  return { id: d.id, ...d.data() };
+}
+
+/**
+ * البحث برقم العضوية داخل المتجر الحالي (مسار مسح QR — رمز البطاقة يحمل memberNo).
+ * يرجع {id, ...member} أو null.
+ */
+export async function findLoyaltyMemberByMemberNo(store, memberNo) {
+  const clean = String(memberNo || "").trim().toUpperCase();
+  if (!clean) return null;
+  const q = query(
+    collection(db, "loyaltyMembers"),
+    where("store", "==", store),
+    where("memberNo", "==", clean),
     limit(1)
   );
   const snap = await getDocs(q);
@@ -529,23 +518,118 @@ export async function setLoyaltyManualTier(memberId, manualTier, { byUid = "", b
   invalidateCachePrefix("loyalty");
 }
 
-// ---------- تعطيل/تفعيل عضوية — للمدير ----------
-export async function setLoyaltyMemberStatus(memberId, status) {
-  await updateDoc(doc(db, "loyaltyMembers", memberId), {
-    status: status === "disabled" ? "disabled" : "active",
-    updatedAt: serverTimestamp(),
+// ---------- تعطيل/تفعيل عضوية — للمدير، بسبب إلزامي وسجل تدقيق ----------
+/**
+ * المرحلة 2: الحذف ممنوع بالتصميم — التعطيل هو البديل.
+ * داخل معاملة واحدة: تحديث status (+ الفاعل/السبب/التاريخ على المستند)
+ * وإنشاء حركة تدقيق type:"audit" بنقاط 0 — لا تدخل في أي حساب رصيد/فئة
+ * (مستثناة صراحةً في loyaltyMath) ولا تُعدَّل ولا تُحذف.
+ */
+export async function setLoyaltyMemberStatus(memberId, status, { reason, byUid = "", byName = "" } = {}) {
+  const newStatus = status === "disabled" ? "disabled" : "active";
+  if (!String(reason || "").trim()) throw loyaltyError("reason-required", "السبب إلزامي");
+
+  const memberRef = doc(db, "loyaltyMembers", memberId);
+  const txRef = doc(collection(db, "loyaltyTransactions"));
+
+  await runTransaction(db, async (tx) => {
+    const memberSnap = await tx.get(memberRef);
+    if (!memberSnap.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
+    const m = memberSnap.data();
+    tx.set(txRef, {
+      memberId,
+      store: m.store,
+      type: "audit",
+      action: newStatus === "disabled" ? "disable" : "enable",
+      points: 0,
+      balanceAfter: Number(m.pointsBalance) || 0,
+      oldValue: m.status || "active",
+      newValue: newStatus,
+      reason: String(reason).trim(),
+      byUid,
+      byName,
+      at: serverTimestamp(),
+    });
+    tx.update(memberRef, {
+      status: newStatus,
+      statusReason: String(reason).trim(),
+      statusChangedAt: serverTimestamp(),
+      statusBy: byName || byUid,
+      updatedAt: serverTimestamp(),
+    });
   });
   invalidateCachePrefix("loyalty");
 }
 
-// ---------- تحديث بيانات العضو الأساسية — للمدير ----------
-export async function updateLoyaltyMemberInfo(memberId, { name, marketingConsent }) {
-  const data = { updatedAt: serverTimestamp() };
-  if (name !== undefined) {
+// ---------- تعديل الجوال/الاسم — للمدير، بسبب إلزامي وسجل تدقيق ----------
+/**
+ * الجوال الجديد يمر بنفس دالة التوحيد (+9665XXXXXXXX)، ويُرفض إن كان
+ * مستخدماً في عضوية أخرى بنفس المتجر. تُسجَّل القيمة القديمة والجديدة
+ * والفاعل والسبب كحركة audit (نقاط 0).
+ */
+export async function updateLoyaltyMemberContact({
+  memberId,
+  name,
+  phone: phoneInput,
+  reason,
+  byUid = "",
+  byName = "",
+}) {
+  if (!String(reason || "").trim()) throw loyaltyError("reason-required", "السبب إلزامي");
+
+  const memberRef = doc(db, "loyaltyMembers", memberId);
+  const snap = await getDoc(memberRef);
+  if (!snap.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
+  const m = snap.data();
+
+  const changes = [];
+  const update = { updatedAt: serverTimestamp() };
+
+  if (name !== undefined && String(name).trim() !== m.name) {
     if (!String(name).trim()) throw loyaltyError("name-required", "أدخل اسم العميل");
-    data.name = String(name).trim();
+    update.name = String(name).trim();
+    changes.push({ action: "editName", oldValue: m.name || "", newValue: update.name });
   }
-  if (marketingConsent !== undefined) data.marketingConsent = !!marketingConsent;
-  await updateDoc(doc(db, "loyaltyMembers", memberId), data);
+
+  if (phoneInput !== undefined) {
+    const phone = normalizePhone(phoneInput);
+    if (!phone) throw loyaltyError("invalid-phone", "رقم الجوال غير صالح");
+    if (phone !== m.phone) {
+      // رفض التكرار داخل نفس المتجر
+      const existing = await findLoyaltyMemberByPhone(m.store, phone);
+      if (existing && existing.id !== memberId) {
+        throw loyaltyError("phone-exists", "رقم الجوال مسجّل مسبقاً في هذا المتجر");
+      }
+      update.phone = phone;
+      changes.push({ action: "editPhone", oldValue: m.phone || "", newValue: phone });
+    }
+  }
+
+  if (changes.length === 0) return { changed: false };
+
+  await runTransaction(db, async (tx) => {
+    const fresh = await tx.get(memberRef);
+    if (!fresh.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
+    const balance = Number(fresh.data().pointsBalance) || 0;
+    for (const c of changes) {
+      const txRef = doc(collection(db, "loyaltyTransactions"));
+      tx.set(txRef, {
+        memberId,
+        store: m.store,
+        type: "audit",
+        action: c.action,
+        points: 0,
+        balanceAfter: balance,
+        oldValue: c.oldValue,
+        newValue: c.newValue,
+        reason: String(reason).trim(),
+        byUid,
+        byName,
+        at: serverTimestamp(),
+      });
+    }
+    tx.update(memberRef, update);
+  });
   invalidateCachePrefix("loyalty");
+  return { changed: true };
 }
