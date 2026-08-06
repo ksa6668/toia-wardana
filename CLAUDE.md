@@ -117,3 +117,7 @@ previous day. Follow this pattern — do not introduce `toISOString()` for date 
 - Comments in this codebase are predominantly Arabic; match the surrounding language and
   comment density of the file you edit.
 - The repo contains build/snapshot zips (`toia-wardana-*.zip`) — ignore them; they are not source.
+
+## Pending branches
+
+- `refactor/dedup-safe-utils`: فرع معلّق من يونيو 2026 — توحيد `monthStr()` في شاشات الأهداف الثلاث. يُراجع بعد إطلاق برنامج الولاء.
