@@ -21,13 +21,34 @@
 import admin from "firebase-admin";
 import { buildCardPayload } from "../src/loyaltyShare.js";
 
-if (!admin.apps.length) {
-  admin.initializeApp({
-    credential: admin.credential.cert({
-      projectId: process.env.FIREBASE_PROJECT_ID,
-      clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
-    }),
+// ---------- تهيئة Admin SDK — كسولة (داخل الـ handler، ليست في نطاق الوحدة) ----------
+// نفس نمط api/admin.js حرفياً (بما فيه معالجة privateKey وحارس admin.apps.length).
+// السبب في الكسل: فشل التهيئة في نطاق الوحدة يقتل العملية قبل تشغيل أي كود،
+// فيصل للعميل 500 عام بلا رسالة — هنا يُلتقط داخل try/catch الـ handler
+// ويعيد JSON واضحاً مع تسجيل الخطأ كاملاً في Logs.
+function getAdminDb() {
+  if (!admin.apps.length) {
+    admin.initializeApp({
+      credential: admin.credential.cert({
+        projectId: process.env.FIREBASE_PROJECT_ID,
+        clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
+        privateKey: process.env.FIREBASE_PRIVATE_KEY?.replace(/\\n/g, "\n"),
+      }),
+    });
+  }
+  return admin.firestore();
+}
+
+// عند فشل تحليل المفتاح: تشخيص آمن في Logs (طول وشكل القيمة فقط — لا محتواها)
+function logKeyDiagnostics() {
+  const k = process.env.FIREBASE_PRIVATE_KEY || "";
+  console.error("FIREBASE_PRIVATE_KEY diagnostics:", {
+    present: !!k,
+    length: k.length,
+    hasLiteralBackslashN: k.includes("\\n"),
+    hasRealNewlines: k.includes("\n"),
+    startsWithQuote: k.startsWith('"') || k.startsWith("'"),
+    startsWithBegin: k.replace(/^["']/, "").startsWith("-----BEGIN"),
   });
 }
 
@@ -72,7 +93,8 @@ export default async function handler(req, res) {
   }
 
   try {
-    const db = admin.firestore();
+    // التهيئة الكسولة داخل الـ try — فشلها يعود 500 بجسم JSON واضح بدل موت العملية
+    const db = getAdminDb();
 
     // 1) العضو بالتوكن (فهرس أحادي تلقائي)
     const memberSnap = await db
@@ -111,7 +133,12 @@ export default async function handler(req, res) {
 
     return res.status(200).json(payload);
   } catch (err) {
-    console.error("Card API error:", err);
-    return res.status(500).json({ error: "تعذّر تحميل البطاقة — حاول لاحقاً" });
+    // الخطأ كاملاً في Logs (رسالة + stack + كود Firebase إن وجد)
+    console.error("Card API error:", err?.errorInfo || err?.code || "", err);
+    if (/private key/i.test(err?.message || "")) logKeyDiagnostics();
+    return res.status(500).json({
+      error: "تعذّر تحميل البطاقة — خطأ في الخادم، حاول لاحقاً",
+      code: "server-error",
+    });
   }
 }
