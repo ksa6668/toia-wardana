@@ -19,6 +19,8 @@ export default function ManagerLoyalty({ lang, user }) {
   const en = lang === 'en';
   const [store, setStore] = useState('toia');
   const [search, setSearch] = useState('');
+  // المرحلة 2: العضويات المعطّلة مخفية افتراضياً
+  const [showDisabled, setShowDisabled] = useState(false);
   // sub: 'list' | 'profile' | 'settings'
   const [sub, setSub] = useState('list');
   const [selectedMemberId, setSelectedMemberId] = useState(null);
@@ -30,8 +32,10 @@ export default function ManagerLoyalty({ lang, user }) {
   );
 
   // فلترة عند العميل: اسم / جوال / رقم عضوية (مع توحيد الأرقام العربية)
+  // + إخفاء المعطّلة ما لم يُفعَّل الفلتر
   const term = toEnglishDigits(search).trim().toLowerCase();
   const filtered = (members || []).filter((m) => {
+    if (!showDisabled && m.status === 'disabled') return false;
     if (!term) return true;
     const phoneDigits = String(m.phone || '').replace(/\D/g, '');
     const termDigits = term.replace(/\D/g, '');
@@ -94,6 +98,17 @@ export default function ManagerLoyalty({ lang, user }) {
           <Settings2 size={20} />
         </button>
       </div>
+
+      {/* فلتر المعطّلة */}
+      <label className="flex items-center gap-2 text-xs font-bold text-tw-muted cursor-pointer w-fit">
+        <input
+          type="checkbox"
+          checked={showDisabled}
+          onChange={(e) => setShowDisabled(e.target.checked)}
+          className="w-4 h-4 accent-[#005BFF]"
+        />
+        {en ? 'Show disabled memberships' : 'إظهار العضويات المعطّلة'}
+      </label>
 
       {/* البحث */}
       <div className="relative">

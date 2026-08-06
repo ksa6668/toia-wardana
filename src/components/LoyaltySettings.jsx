@@ -248,9 +248,18 @@ export default function LoyaltySettings({ store, lang, onBack }) {
       {/* الرسالة الترحيبية */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-2">
         <h4 className="font-bold text-sm text-tw-navy">{en ? 'Welcome message' : 'الرسالة الترحيبية'}</h4>
-        <textarea rows={3} value={s.welcomeMessage || ''}
+        <textarea rows={6} value={s.welcomeMessage || ''}
                   onChange={(e) => set('welcomeMessage', e.target.value)}
                   className={inputCls} style={{ resize: 'none' }} />
+        {/* المرحلة 2: تُرسل عبر واتساب مع رابط البطاقة — المتغيرات تُستبدل تلقائياً */}
+        <p className="text-[11px] text-tw-muted font-semibold leading-relaxed" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>
+          {'{name} {storeName} {memberNo} {tier} {points} {cardUrl}'}
+        </p>
+        <p className="text-[11px] text-tw-muted font-semibold">
+          {en
+            ? 'Supported variables above are replaced automatically when sending the card via WhatsApp.'
+            : 'المتغيرات أعلاه تُستبدل تلقائياً عند إرسال البطاقة عبر واتساب.'}
+        </p>
       </div>
 
       {msg && <p className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-xl p-2.5 text-center">{msg}</p>}

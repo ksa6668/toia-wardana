@@ -6,7 +6,7 @@
 // حالة "معكوسة" تُشتق من حركات reverse (reversesTxId) — السجل إضافي فقط.
 // ----------------------------------------------------------
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, Undo2, Star, ShieldOff, ShieldCheck, SlidersHorizontal } from 'lucide-react';
+import { Loader2, Undo2, Star, ShieldOff, ShieldCheck, SlidersHorizontal, Pencil, MessageCircle, AlertTriangle } from 'lucide-react';
 import {
   getLoyaltyMember,
   getLoyaltyTransactions,
@@ -15,8 +15,16 @@ import {
   adjustLoyaltyPoints,
   setLoyaltyManualTier,
   setLoyaltyMemberStatus,
+  updateLoyaltyMemberContact,
 } from '../firebase';
 import { effectiveTier, toDateSafe, addMonths } from '../loyaltyMath';
+import {
+  renderWelcomeMessage,
+  buildWhatsappUrl,
+  cardUrlFor,
+  isLocalOrigin,
+  STORE_NAMES,
+} from '../loyaltyShare';
 import { useScreenHeader } from '../context/ScreenCtx';
 import LoyaltyConfirmSheet from './LoyaltyConfirmSheet';
 
@@ -32,6 +40,15 @@ const TYPE_LABEL = {
   adjust:  { ar: 'تسوية',      en: 'Adjust' },
   reverse: { ar: 'عكس حركة',   en: 'Reverse' },
   expire:  { ar: 'انتهاء',     en: 'Expire' },
+  audit:   { ar: 'إجراء إداري', en: 'Audit' },
+};
+
+// أسماء إجراءات التدقيق (المرحلة 2)
+const AUDIT_ACTION_LABEL = {
+  disable:   { ar: 'تعطيل العضوية',  en: 'Membership disabled' },
+  enable:    { ar: 'إعادة التفعيل',  en: 'Membership re-enabled' },
+  editPhone: { ar: 'تعديل الجوال',   en: 'Phone edited' },
+  editName:  { ar: 'تعديل الاسم',    en: 'Name edited' },
 };
 
 function fmtDate(v, en) {
@@ -64,8 +81,17 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
   const [tierReason, setTierReason] = useState('');
   const [tierMonths, setTierMonths] = useState('');
   const [tierBusy, setTierBusy] = useState(false);
-  // تعطيل/تفعيل
-  const [statusBusy, setStatusBusy] = useState(false);
+  // تعطيل/تفعيل — المرحلة 2: عبر ConfirmSheet بسبب إلزامي
+  const [statusConfirm, setStatusConfirm] = useState(false);
+  // تعديل الجوال/الاسم — المرحلة 2
+  const [showEditContact, setShowEditContact] = useState(false);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editReason, setEditReason] = useState('');
+  const [editBusy, setEditBusy] = useState(false);
+  const [editError, setEditError] = useState('');
+  // تحذير واتساب (بيئة محلية / جوال غير صالح)
+  const [waWarning, setWaWarning] = useState('');
 
   useScreenHeader(en ? 'Member profile' : 'ملف العضو', onBack);
 
@@ -154,16 +180,66 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
     }
   };
 
-  const handleToggleStatus = async () => {
-    setStatusBusy(true);
+  // المرحلة 2: فتح نموذج تعديل الجوال/الاسم بقيم العضو الحالية
+  const openEditContact = () => {
+    setEditName(member?.name || '');
+    setEditPhone(member?.phone || '');
+    setEditReason('');
+    setEditError('');
+    setShowEditContact(true);
+  };
+
+  const handleSaveContact = async () => {
+    setEditError('');
+    if (!editReason.trim()) {
+      setEditError(en ? 'Reason is required' : 'السبب إلزامي');
+      return;
+    }
+    setEditBusy(true);
     try {
-      await setLoyaltyMemberStatus(memberId, disabled ? 'active' : 'disabled');
+      const res = await updateLoyaltyMemberContact({
+        memberId,
+        name: editName,
+        phone: editPhone,
+        reason: editReason,
+        ...byMeta,
+      });
+      setShowEditContact(false);
+      setNotice(res.changed
+        ? (en ? 'Contact info updated ✓' : 'تم تحديث البيانات ✓')
+        : (en ? 'No changes to save' : 'لا تغييرات للحفظ'));
       await load();
     } catch (err) {
-      setError(err?.message || (en ? 'Failed' : 'تعذّر التنفيذ'));
+      setEditError(err?.message || (en ? 'Failed' : 'تعذّر التنفيذ'));
     } finally {
-      setStatusBusy(false);
+      setEditBusy(false);
     }
+  };
+
+  // المرحلة 2: إعادة إرسال البطاقة عبر واتساب من ملف العضو
+  const handleSendWhatsapp = () => {
+    setWaWarning('');
+    const origin = window.location.origin;
+    if (isLocalOrigin(origin)) {
+      setWaWarning(en
+        ? 'Local development environment — the card link would be broken. Send from the deployed app.'
+        : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
+      return;
+    }
+    const text = renderWelcomeMessage(settings?.welcomeMessage, {
+      name: member.name,
+      storeName: STORE_NAMES[member.store] || member.store,
+      memberNo: member.memberNo,
+      tier: tierInfo?.tier?.name || 'عضو',
+      points: Number(member.pointsBalance) || 0,
+      cardUrl: cardUrlFor(origin, member.cardToken),
+    });
+    const url = buildWhatsappUrl(member.phone, text);
+    if (!url) {
+      setWaWarning(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
   };
 
   const inputCls = 'w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue';
@@ -218,6 +294,13 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
               {member.manualTier.until ? ` (${en ? 'until' : 'حتى'} ${fmtDate(member.manualTier.until, en)})` : ''}
             </p>
           )}
+          {disabled && (
+            <p className="text-tw-red font-bold">
+              {en ? 'Disabled:' : 'معطّلة:'} {member.statusReason || '—'}
+              {member.statusBy ? ` · ${member.statusBy}` : ''}
+              {member.statusChangedAt ? ` · ${fmtDate(member.statusChangedAt, en)}` : ''}
+            </p>
+          )}
         </div>
       </div>
 
@@ -225,7 +308,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
       {error && <p className="text-xs font-bold text-tw-red bg-red-50 border border-red-200 rounded-xl p-2.5 text-center">{error}</p>}
 
       {/* أزرار الإجراءات */}
-      <div className="grid grid-cols-3 gap-2">
+      <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setShowAdjust((v) => !v)}
                 className="py-2.5 rounded-xl bg-white border border-tw-line text-tw-navy text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-tw-soft">
           <SlidersHorizontal size={14} /> {en ? 'Adjust' : 'تسوية'}
@@ -234,16 +317,68 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
                 className="py-2.5 rounded-xl bg-white border border-tw-line text-tw-navy text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-tw-soft">
           <Star size={14} /> {en ? 'Manual tier' : 'ترقية يدوية'}
         </button>
-        <button type="button" onClick={handleToggleStatus} disabled={statusBusy}
-                className={`py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 disabled:opacity-60 ${
+        <button type="button" onClick={openEditContact}
+                className="py-2.5 rounded-xl bg-white border border-tw-line text-tw-navy text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-tw-soft">
+          <Pencil size={14} /> {en ? 'Edit contact' : 'تعديل البيانات'}
+        </button>
+        {/* المرحلة 2: تعطيل/تفعيل عبر ConfirmSheet بسبب إلزامي — الحذف ممنوع بالتصميم */}
+        <button type="button" onClick={() => setStatusConfirm(true)}
+                className={`py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 ${
                   disabled
                     ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100'
                     : 'bg-red-50 border-red-200 text-tw-red hover:bg-red-100'
                 }`}>
-          {statusBusy ? <Loader2 size={14} className="animate-spin" /> : (disabled ? <ShieldCheck size={14} /> : <ShieldOff size={14} />)}
-          {disabled ? (en ? 'Enable' : 'تفعيل') : (en ? 'Disable' : 'تعطيل')}
+          {disabled ? <ShieldCheck size={14} /> : <ShieldOff size={14} />}
+          {disabled ? (en ? 'Re-enable' : 'إعادة التفعيل') : (en ? 'Disable membership' : 'تعطيل العضوية')}
         </button>
       </div>
+
+      {/* إعادة إرسال البطاقة عبر واتساب */}
+      {!disabled && (
+        <>
+          <button
+            type="button"
+            onClick={handleSendWhatsapp}
+            className="w-full py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+          >
+            <MessageCircle size={15} />
+            {en ? 'Resend card via WhatsApp' : 'إرسال البطاقة عبر واتساب'}
+          </button>
+          {waWarning && (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-center gap-2">
+              <AlertTriangle size={14} className="text-amber-600 flex-shrink-0" />
+              <p className="text-[11px] font-bold text-amber-700">{waWarning}</p>
+            </div>
+          )}
+        </>
+      )}
+
+      {/* نموذج تعديل الجوال/الاسم — سبب إلزامي وسجل تدقيق */}
+      {showEditContact && (
+        <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-blue/30 space-y-2">
+          <h4 className="font-bold text-sm text-tw-navy">{en ? 'Edit contact info' : 'تعديل بيانات العضو'}</h4>
+          <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
+                 placeholder={en ? 'Name' : 'الاسم'} className={inputCls} />
+          <input type="tel" inputMode="tel" dir="ltr" value={editPhone}
+                 onChange={(e) => setEditPhone(e.target.value)}
+                 placeholder={en ? 'Phone' : 'رقم الجوال'}
+                 className={`${inputCls} text-center font-mono`} />
+          <input type="text" value={editReason} onChange={(e) => setEditReason(e.target.value)}
+                 placeholder={en ? 'Reason (required)' : 'السبب (إلزامي)'} className={inputCls} />
+          {editError && <p className="text-xs font-bold text-tw-red">{editError}</p>}
+          <div className="flex gap-2">
+            <button type="button" onClick={() => setShowEditContact(false)} disabled={editBusy}
+                    className="flex-1 py-2.5 rounded-xl bg-white border border-tw-line text-tw-navy text-sm font-bold">
+              {en ? 'Cancel' : 'إلغاء'}
+            </button>
+            <button type="button" onClick={handleSaveContact} disabled={editBusy}
+                    className="flex-1 py-2.5 rounded-xl bg-tw-blue text-white text-sm font-bold disabled:opacity-60 flex items-center justify-center gap-2">
+              {editBusy && <Loader2 size={14} className="animate-spin" />}
+              {en ? 'Save' : 'حفظ'}
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* نموذج التسوية */}
       {showAdjust && (
@@ -347,7 +482,11 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         {txs.map((x) => {
           const reversed = reversedIds.has(x.id);
           const p = Number(x.points) || 0;
-          const label = TYPE_LABEL[x.type] ? TYPE_LABEL[x.type][en ? 'en' : 'ar'] : x.type;
+          const isAudit = x.type === 'audit';
+          // حركات audit (المرحلة 2): إجراء إداري بنقاط 0 — خارج حسابات الرصيد والفئة
+          const label = isAudit
+            ? (AUDIT_ACTION_LABEL[x.action]?.[en ? 'en' : 'ar'] || TYPE_LABEL.audit[en ? 'en' : 'ar'])
+            : (TYPE_LABEL[x.type] ? TYPE_LABEL[x.type][en ? 'en' : 'ar'] : x.type);
           const canReverse = ['redeem', 'adjust'].includes(x.type) && !reversed;
           return (
             <div key={x.id} className={`flex items-center gap-2 p-3 border-b border-tw-line/50 last:border-b-0 ${reversed ? 'opacity-60' : ''}`}>
@@ -358,14 +497,22 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
                   {x.invoiceNo ? ` — ${x.invoiceNo}` : ''}
                   {reversed && <span className="text-tw-red mx-1.5">({en ? 'reversed' : 'معكوسة'})</span>}
                 </p>
+                {isAudit && (x.action === 'editPhone' || x.action === 'editName') && (
+                  <p className="text-[10px] text-tw-muted font-semibold truncate" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>
+                    {x.oldValue} ← {x.newValue}
+                  </p>
+                )}
                 {x.reason && <p className="text-[10px] text-tw-muted font-semibold truncate">{x.reason}</p>}
                 <p className="text-[10px] text-tw-muted font-semibold">
-                  {fmtDate(x.at, en)} · {x.byName || '—'} · {en ? 'balance after:' : 'الرصيد بعدها:'} {(Number(x.balanceAfter) || 0).toLocaleString('en-US')}
+                  {fmtDate(x.at, en)} · {x.byName || '—'}
+                  {!isAudit && <> · {en ? 'balance after:' : 'الرصيد بعدها:'} {(Number(x.balanceAfter) || 0).toLocaleString('en-US')}</>}
                 </p>
               </div>
-              <span className={`text-xs font-extrabold flex-shrink-0 ${p >= 0 ? 'text-green-700' : 'text-tw-red'}`}>
-                {p >= 0 ? '+' : ''}{p.toLocaleString('en-US')}
-              </span>
+              {!isAudit && (
+                <span className={`text-xs font-extrabold flex-shrink-0 ${p >= 0 ? 'text-green-700' : 'text-tw-red'}`}>
+                  {p >= 0 ? '+' : ''}{p.toLocaleString('en-US')}
+                </span>
+              )}
               {canReverse && (
                 <button type="button" onClick={() => setReverseTx(x)}
                         title={en ? 'Reverse' : 'عكس'}
@@ -399,6 +546,33 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
           await load();
         }}
         onClose={() => setReverseTx(null)}
+      />
+
+      {/* تأكيد التعطيل/التفعيل — سبب إلزامي وسجل تدقيق (الحذف ممنوع بالتصميم) */}
+      <LoyaltyConfirmSheet
+        open={statusConfirm}
+        variant={disabled ? 'redeem' : 'reverse'}
+        lang={lang}
+        requireReason
+        title={disabled
+          ? (en ? 'Re-enable this membership?' : 'إعادة تفعيل العضوية؟')
+          : (en ? 'Disable this membership?' : 'تعطيل العضوية؟')}
+        message={disabled
+          ? (en
+              ? 'Earning and redemption will work again, and the public card will be available.'
+              : 'سيعود كسب النقاط والاستبدال للعمل، وستتاح البطاقة العامة من جديد.')
+          : (en
+              ? 'Earning and redemption will stop and the public card returns 404. All records stay intact — nothing is deleted.'
+              : 'سيتوقف كسب النقاط والاستبدال وتصبح البطاقة العامة غير متاحة. كل السجلات تبقى كما هي — لا يُحذف شيء.')}
+        confirmLabel={disabled ? (en ? 'Re-enable' : 'إعادة التفعيل') : (en ? 'Disable' : 'تعطيل')}
+        onConfirm={async (reason) => {
+          await setLoyaltyMemberStatus(memberId, disabled ? 'active' : 'disabled', { reason, ...byMeta });
+          setNotice(disabled
+            ? (en ? 'Membership re-enabled ✓' : 'تمت إعادة التفعيل ✓')
+            : (en ? 'Membership disabled ✓' : 'تم تعطيل العضوية ✓'));
+          await load();
+        }}
+        onClose={() => setStatusConfirm(false)}
       />
     </div>
   );

@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizePhone,
   toEnglishDigits,
+  deriveBalance,
   countedAmount,
   computeEarnPoints,
   addMonths,
@@ -128,6 +129,46 @@ describe('نقاط الفئة من سجل الحركات (نافذة 24 شهرا
   it('الاستبدال لا يغيّر الفئة (معيار قبول)', () => {
     const before = tierPointsInWindow(txs.filter((t) => t.type !== 'redeem'), 24, now);
     expect(tierPointsInWindow(txs, 24, now)).toBe(before);
+  });
+
+  it('حركات audit مستثناة من نقاط الفئة حتى لو حملت نقاطاً بالخطأ (شرط المرحلة 2)', () => {
+    const withAudit = [
+      ...txs,
+      { id: 'x1', type: 'audit', points: 0, at: new Date(2026, 6, 10) },
+      { id: 'x2', type: 'audit', points: 9999, at: new Date(2026, 6, 11) }, // قيمة خاطئة متعمدة
+    ];
+    expect(tierPointsInWindow(withAudit, 24, now)).toBe(tierPointsInWindow(txs, 24, now));
+  });
+});
+
+describe('إعادة اشتقاق الرصيد من السجل — audit مستثناة دائماً', () => {
+  const ledger = [
+    { type: 'earn', points: 5000 },
+    { type: 'earn', points: 3000 },
+    { type: 'reverse', points: -3000, reversesTxId: 'b' },
+    { type: 'redeem', points: -1000 },
+    { type: 'expire', points: -500 },
+    { type: 'adjust', points: 200 },
+  ];
+
+  it('الرصيد = مجموع الأنواع الرصيدية الخمسة', () => {
+    expect(deriveBalance(ledger)).toBe(3700);
+  });
+
+  it('حركات audit لا تدخل في الرصيد إطلاقاً حتى لو حملت نقاطاً بالخطأ', () => {
+    const withAudit = [
+      ...ledger,
+      { type: 'audit', points: 0, action: 'disable' },
+      { type: 'audit', points: -9999, action: 'editPhone' }, // قيمة خاطئة متعمدة
+      { type: 'audit', points: 5000, action: 'enable' },     // قيمة خاطئة متعمدة
+    ];
+    expect(deriveBalance(withAudit)).toBe(deriveBalance(ledger));
+    expect(deriveBalance(withAudit)).toBe(3700);
+  });
+
+  it('سجل فارغ → 0', () => {
+    expect(deriveBalance([])).toBe(0);
+    expect(deriveBalance(null)).toBe(0);
   });
 });
 

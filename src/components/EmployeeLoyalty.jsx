@@ -9,18 +9,27 @@
 // ملاحظة: زر مسح QR مؤجل للمرحلة 2 — البحث بالجوال هو الوسيلة الوحيدة.
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { Search, Loader2, UserPlus, Star, Gift, ReceiptText, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Search, Loader2, UserPlus, Star, Gift, ReceiptText, CheckCircle2, AlertTriangle, QrCode, MessageCircle } from 'lucide-react';
 import {
   getLoyaltySettings,
   findLoyaltyMemberByPhone,
+  findLoyaltyMemberByMemberNo,
   createLoyaltyMember,
   getLoyaltyMember,
   getLoyaltyTransactions,
   earnLoyaltyPoints,
   redeemLoyaltyReward,
 } from '../firebase';
-import { effectiveTier, normalizePhone } from '../loyaltyMath';
+import { effectiveTier, normalizePhone, storeLetter } from '../loyaltyMath';
+import {
+  renderWelcomeMessage,
+  buildWhatsappUrl,
+  cardUrlFor,
+  isLocalOrigin,
+  STORE_NAMES,
+} from '../loyaltyShare';
 import LoyaltyConfirmSheet from './LoyaltyConfirmSheet';
+import QrScanSheet from './QrScanSheet';
 
 // ألوان شارات الفئات
 const TIER_STYLE = {
@@ -60,6 +69,10 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
 
   // استبدال
   const [confirmReward, setConfirmReward] = useState(null);
+
+  // المرحلة 2: مسح QR + إرسال واتساب
+  const [showScan, setShowScan] = useState(false);
+  const [waWarning, setWaWarning] = useState('');
 
   // إعدادات المتجر الحالي
   useEffect(() => {
@@ -176,6 +189,67 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     }
   };
 
+  // المرحلة 2: نتيجة مسح QR — الرمز يحمل رقم العضوية (مثل T-48271)
+  const handleScanResult = async (code) => {
+    setShowScan(false);
+    setSearchError('');
+    setEarnMsg('');
+    const clean = String(code || '').trim().toUpperCase();
+    if (!/^[TW]-\d{5}$/.test(clean)) {
+      setSearchError(en ? 'Invalid QR code' : 'رمز غير صالح — ليست بطاقة ولاء');
+      return;
+    }
+    if (!clean.startsWith(storeLetter(branchId))) {
+      setSearchError(en
+        ? 'This card belongs to the other store'
+        : 'هذه البطاقة تخص المتجر الآخر — كل متجر بعضوياته المستقلة');
+      return;
+    }
+    setSearchBusy(true);
+    try {
+      const found = await findLoyaltyMemberByMemberNo(branchId, clean);
+      if (!found) {
+        setSearchError(en ? 'No membership found for this code' : 'لا توجد عضوية بهذا الرمز في هذا المتجر');
+        return;
+      }
+      setPhoneInput(found.phone || '');
+      await reloadMember(found.id);
+      setStage('member');
+    } catch (err) {
+      setSearchError(err?.message || (en ? 'Search failed' : 'تعذّر البحث'));
+    } finally {
+      setSearchBusy(false);
+    }
+  };
+
+  // المرحلة 2: إرسال البطاقة عبر واتساب (يدوي — يفتح wa.me بنص جاهز)
+  const handleSendWhatsapp = () => {
+    setWaWarning('');
+    const origin = window.location.origin;
+    // شرط: من أصل تطوير محلي لا نبني رابطاً معطلاً — تحذير واضح بدل الإرسال
+    if (isLocalOrigin(origin)) {
+      setWaWarning(en
+        ? 'Local development environment — the card link would be broken. Send from the deployed app.'
+        : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
+      return;
+    }
+    const tierInfo2 = settings ? effectiveTier(member, txs, settings) : null;
+    const text = renderWelcomeMessage(settings?.welcomeMessage, {
+      name: member.name,
+      storeName: STORE_NAMES[branchId] || branchId,
+      memberNo: member.memberNo,
+      tier: tierInfo2?.tier?.name || 'عضو',
+      points: Number(member.pointsBalance) || 0,
+      cardUrl: cardUrlFor(origin, member.cardToken),
+    });
+    const url = buildWhatsappUrl(member.phone, text);
+    if (!url) {
+      setWaWarning(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
+  };
+
   const handleRedeem = async () => {
     if (!confirmReward) return;
     await redeemLoyaltyReward({
@@ -230,6 +304,17 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
           >
             {searchBusy ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             {en ? 'Search' : 'بحث'}
+          </button>
+          {/* المرحلة 2: مسح QR من بطاقة العميل — البحث بالجوال يبقى الأساس */}
+          <button
+            type="button"
+            onClick={() => setShowScan(true)}
+            disabled={searchBusy}
+            title={en ? 'Scan QR' : 'مسح QR'}
+            aria-label={en ? 'Scan QR' : 'مسح QR'}
+            className="px-3 rounded-xl bg-white border border-tw-line text-tw-blue hover:bg-tw-soft disabled:opacity-60"
+          >
+            <QrCode size={18} />
           </button>
         </div>
         {searchError && <p className="text-xs font-bold text-tw-red">{searchError}</p>}
@@ -375,6 +460,26 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             </div>
           )}
 
+          {/* المرحلة 2: إرسال البطاقة عبر واتساب — بعد أول عملية شراء */}
+          {member.lastPurchaseAt && member.status !== 'disabled' && (
+            <div className="space-y-2">
+              <button
+                type="button"
+                onClick={handleSendWhatsapp}
+                className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
+              >
+                <MessageCircle size={17} />
+                {en ? 'Send card via WhatsApp' : 'إرسال البطاقة عبر واتساب'}
+              </button>
+              {waWarning && (
+                <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
+                  <AlertTriangle size={16} className="text-amber-600 flex-shrink-0" />
+                  <p className="text-xs font-bold text-amber-700">{waWarning}</p>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ===== إضافة نقاط ===== */}
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-3">
             <div className="flex items-center gap-2">
@@ -471,6 +576,15 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
         onConfirm={handleRedeem}
         onClose={() => setConfirmReward(null)}
       />
+
+      {/* شيت مسح QR — يُركَّب عند الفتح فقط؛ الكاميرا تتوقف حتماً عند unmount */}
+      {showScan && (
+        <QrScanSheet
+          lang={lang}
+          onResult={handleScanResult}
+          onClose={() => setShowScan(false)}
+        />
+      )}
     </div>
   );
 }
