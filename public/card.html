@@ -91,7 +91,6 @@
       text-align: center; font-size: 22px; font-weight: 800;
       padding: 20px 16px 4px;
     }
-    .member-sub { text-align: center; font-size: 12px; color: var(--muted); font-weight: 600; }
 
     /* ===== شبكة المكافآت 2×3 ===== */
     .rewards { padding: 16px 16px 4px; }
@@ -114,9 +113,11 @@
       mask-repeat: no-repeat; mask-position: center; mask-size: contain;
     }
     .reward .rlabel { font-size: 10.5px; font-weight: 700; color: var(--muted); line-height: 1.3; }
-    /* مقفلة: خلفية رمادية متوسطة + الشعار يبقى بقاعدتي grayscale/opacity — رمادي باهت */
-    .reward.locked .badge { background: #B9C2CF; border-color: #B9C2CF; }
-    .reward.locked .badge .blogo { filter: grayscale(1); opacity: 0.35; }
+    /* مقفلة: خلفية رمادية فاتحة وشعار رمادي متوسط صريح — الشكل مقروء بوضوح
+       والحالة تبقى «غير متاحة» بتمايز إضاءة لا لون (خلفية رمادية مقابل بيضاء،
+       حلقة فاتحة مقابل داكنة، شعار رمادي مقابل مشبع داكن) */
+    .reward.locked .badge { background: #E4E8EE; border-color: #C7CEDA; }
+    .reward.locked .badge .blogo { background-color: #64748B; opacity: 0.9; }
     /* متاحة: الخلفية الفاتحة كما هي + حلقة رفيعة بلون الهوية، والشعار بلون الهوية */
     .reward.unlocked .badge { border-color: var(--primary); }
     .reward.unlocked .rlabel { color: var(--primary); font-weight: 800; }
@@ -218,7 +219,6 @@
               '<div class="top-store"><span class="sname">' + esc(d.storeName) + '</span><img src="' + logo + '" alt="' + esc(d.storeName) + '" /></div>' +
             '</div>' +
             '<div class="member-name">' + esc(d.name) + '</div>' +
-            '<div class="member-sub">عضو منذ ' + esc(d.joinedAt || '—') + '</div>' +
             '<div class="rewards"><div class="rewards-grid">' + rewardsHtml + '</div></div>' +
             '<div class="qr-sec">' +
               '<div class="qr-box" id="qr"></div>' +
