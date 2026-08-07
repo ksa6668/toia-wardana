@@ -24,6 +24,7 @@ import { useScreenHeader } from '../context/ScreenCtx';
 // نستخدم دوال التاريخ المشتركة (ميلادية صراحةً) بدل toLocaleDateString('ar-SA')
 // التي تُظهر التقويم الهجري افتراضياً على شاشة عملاء الواتساب.
 import { todayLocal, dateLabelFor } from '../utils/dateHelpers';
+import { toLatinDigits } from '../utils/digits';
 
 export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
   useScreenHeader(lang === 'en' ? 'WhatsApp Customers' : 'عملاء الواتساب', onBack);
@@ -254,7 +255,7 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
               <span>{lang === 'en' ? 'WhatsApp customers' : 'عدد عملاء واتساب'}</span>
             </label>
             <input type="number" inputMode="numeric" placeholder="0"
-              value={customers} onChange={(e) => setCustomers(e.target.value)} dir="ltr" />
+              value={customers} onChange={(e) => setCustomers(toLatinDigits(e.target.value))} dir="ltr" />
             <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
           </div>
 
@@ -264,7 +265,7 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
               <span>{lang === 'en' ? 'New customers' : 'العملاء الجدد'}</span>
             </label>
             <input type="number" inputMode="numeric" placeholder="0"
-              value={newCustomers} onChange={(e) => setNewCustomers(e.target.value)} dir="ltr" />
+              value={newCustomers} onChange={(e) => setNewCustomers(toLatinDigits(e.target.value))} dir="ltr" />
             <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
           </div>
 
@@ -274,7 +275,7 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
               <span>{lang === 'en' ? 'Buyers' : 'عدد المشترين'}</span>
             </label>
             <input type="number" inputMode="numeric" placeholder="0"
-              value={buyers} onChange={(e) => setBuyers(e.target.value)} dir="ltr" />
+              value={buyers} onChange={(e) => setBuyers(toLatinDigits(e.target.value))} dir="ltr" />
             <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
           </div>
         </div>
@@ -369,7 +370,7 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
                 inputMode="numeric"
                 placeholder="0"
                 value={toiaBaseline}
-                onChange={(e) => setToiaBaseline(e.target.value)}
+                onChange={(e) => setToiaBaseline(toLatinDigits(e.target.value))}
                 className="flex-1 text-sm font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50 min-w-0"
                 dir="ltr"
               />
@@ -394,7 +395,7 @@ export default function ManageWhatsappBaseline({ onBack, lang = 'ar' }) {
                 inputMode="numeric"
                 placeholder="0"
                 value={wardanaBaseline}
-                onChange={(e) => setWardanaBaseline(e.target.value)}
+                onChange={(e) => setWardanaBaseline(toLatinDigits(e.target.value))}
                 className="flex-1 text-sm font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50 min-w-0"
                 dir="ltr"
               />

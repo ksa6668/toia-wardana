@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import { login } from '../firebase';
 import { t } from '../i18n';
+import { toLatinDigits } from '../utils/digits';
 
 export default function LoginView({ onLoginSuccess, lang, setLang }) {
   const [username, setUsername] = useState(() => {
@@ -150,7 +151,7 @@ export default function LoginView({ onLoginSuccess, lang, setLang }) {
             inputMode="numeric"
             maxLength={4}
             value={pin}
-            onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+            onChange={(e) => setPin(toLatinDigits(e.target.value).replace(/\D/g, ''))}
             onKeyDown={(e) => e.key === 'Enter' && handleSubmit()}
             placeholder="••••"
             className="w-full px-4 py-3.5 rounded-2xl outline-none text-center transition-all"

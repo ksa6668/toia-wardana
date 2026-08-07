@@ -12,6 +12,7 @@ import {
 import { useScreenHeader } from '../context/ScreenCtx';
 import { t, translateBranch } from '../i18n';
 import EditSheet from './EditSheet';
+import { toLatinDigits } from '../utils/digits';
 
 export default function ManageUsers({ onBack, lang = 'ar' }) {
   // نفس نص label في ITEMS بشاشة الإعدادات (Batch 84)
@@ -171,7 +172,7 @@ export default function ManageUsers({ onBack, lang = 'ar' }) {
               onChange={(e) => setDisplayName(e.target.value)}
               className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue" />
             <input type="password" inputMode="numeric" maxLength={4} placeholder={lang === 'en' ? 'PIN (4 digits)' : 'الرمز (4 أرقام)'} value={pin}
-              onChange={(e) => setPin(e.target.value.replace(/\D/g, ''))}
+              onChange={(e) => setPin(toLatinDigits(e.target.value).replace(/\D/g, ''))}
               className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue text-center tracking-[0.4em] font-mono" />
             <div className="flex gap-2">
               {[
@@ -311,7 +312,7 @@ export default function ManageUsers({ onBack, lang = 'ar' }) {
                 maxLength={4}
                 placeholder="••••"
                 value={editPin}
-                onChange={(e) => setEditPin(e.target.value.replace(/\D/g, ''))}
+                onChange={(e) => setEditPin(toLatinDigits(e.target.value).replace(/\D/g, ''))}
                 className="w-full p-3.5 bg-tw-soft/40 border border-tw-line rounded-xl text-base font-bold text-tw-navy text-center tracking-[0.4em] font-mono outline-none focus:border-tw-blue"
               />
             </div>

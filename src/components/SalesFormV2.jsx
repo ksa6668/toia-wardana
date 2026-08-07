@@ -23,6 +23,7 @@ import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
 import { useScreenHeader } from '../context/ScreenCtx';
 import { todayLocal, dateLabelFor } from '../utils/dateHelpers';
+import { toLatinDigits } from '../utils/digits';
 
 export default function SalesFormV2({
   setView,
@@ -190,7 +191,7 @@ export default function SalesFormV2({
               <span>{labelFor('Cash', t(lang, 'sales.cash'))}</span>
             </label>
             <input type="number" inputMode="decimal" placeholder="0" min="0"
-              value={cash} onChange={(e) => setCash(e.target.value.replace('-', ''))} dir="ltr" />
+              value={cash} onChange={(e) => setCash(toLatinDigits(e.target.value).replace('-', ''))} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
 
@@ -200,7 +201,7 @@ export default function SalesFormV2({
               <span>{labelFor('Mada', t(lang, 'sales.mada'))}</span>
             </label>
             <input type="number" inputMode="decimal" placeholder="0" min="0"
-              value={mada} onChange={(e) => setMada(e.target.value.replace('-', ''))} dir="ltr" />
+              value={mada} onChange={(e) => setMada(toLatinDigits(e.target.value).replace('-', ''))} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
 
@@ -210,7 +211,7 @@ export default function SalesFormV2({
               <span>{labelFor('Transfer', t(lang, 'sales.transfer'))}</span>
             </label>
             <input type="number" inputMode="decimal" placeholder="0" min="0"
-              value={transfer} onChange={(e) => setTransfer(e.target.value.replace('-', ''))} dir="ltr" />
+              value={transfer} onChange={(e) => setTransfer(toLatinDigits(e.target.value).replace('-', ''))} dir="ltr" />
             <div className="unit">{t(lang, 'sales.currency')}</div>
           </div>
         </div>

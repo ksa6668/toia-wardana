@@ -19,6 +19,7 @@ import BottomSheet from './BottomSheet';
 import DeleteConfirmSheet from './DeleteConfirmSheet';
 import SarSymbol from './SarSymbol';
 import { useScreenHeader } from '../context/ScreenCtx';
+import { toLatinDigits } from '../utils/digits';
 
 const APP_VERSION = '1.0.0';
 const APP_BUILD = '2026.05';
@@ -232,7 +233,7 @@ export default function ManagerGeneralSettings({ onBack, lang = 'ar' }) {
                 <input
                   type="tel"
                   value={contactPhone}
-                  onChange={(e) => setContactPhone(e.target.value)}
+                  onChange={(e) => setContactPhone(toLatinDigits(e.target.value))}
                   placeholder="+966 5XX XXX XXXX"
                   className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue"
                   dir="ltr"

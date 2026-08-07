@@ -33,6 +33,7 @@ import {
   toCsvString,
 } from '../loyaltyStats';
 import { toDateSafe } from '../loyaltyMath';
+import { toLatinDigits } from '../utils/digits';
 
 const PERIODS = [
   { key: 'week', ar: 'هذا الأسبوع', en: 'This week' },
@@ -352,7 +353,7 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
         <label className="flex items-center gap-2 text-[11px] font-bold text-tw-muted">
           {en ? 'No purchase since' : 'بلا شراء منذ'}
           <input type="number" inputMode="numeric" min="1" value={idleDays}
-                 onChange={(e) => setIdleDays(e.target.value)}
+                 onChange={(e) => setIdleDays(toLatinDigits(e.target.value))}
                  className="w-16 p-1.5 bg-tw-soft/40 border border-tw-line rounded-lg text-center font-mono text-xs" />
           {en ? 'days' : 'يوماً'}
         </label>

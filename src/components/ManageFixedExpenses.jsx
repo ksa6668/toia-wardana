@@ -11,6 +11,7 @@ import { monthStr } from '../utils/dateHelpers';
 import { useScreenHeader } from '../context/ScreenCtx';
 import SarSymbol from './SarSymbol';
 import BottomSheet from './BottomSheet';
+import { toLatinDigits } from '../utils/digits';
 
 export default function ManageFixedExpenses({ onBack, lang = 'ar' }) {
   // نفس نص label في ITEMS بشاشة الإعدادات (Batch 84)
@@ -122,7 +123,7 @@ export default function ManageFixedExpenses({ onBack, lang = 'ar' }) {
               inputMode="decimal"
               placeholder="0"
               value={data[field.key]}
-              onChange={(e) => setData({ ...data, [field.key]: e.target.value })}
+              onChange={(e) => setData({ ...data, [field.key]: toLatinDigits(e.target.value) })}
               className="flex-1 text-base font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
               dir="ltr"
             />

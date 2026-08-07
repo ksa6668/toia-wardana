@@ -15,6 +15,7 @@ import {
 } from "firebase/auth";
 import { auth, db } from "./firebaseCore";
 import { pinToPassword } from "./firebaseAuth";
+import { toLatinDigits } from "./utils/digits";
 
 // قائمة كل المستخدمين (للمدير — شاشة إدارة المستخدمين)
 export async function getUsers() {
@@ -32,10 +33,11 @@ export async function saveUserLanguage(uid, language) {
 // تغيير رمز المستخدم الحالي (لنفسه) — يحتاج الرمز الحالي
 export async function changeMyPin(currentPin, newPin) {
   if (!auth.currentUser) throw new Error("مطلوب تسجيل دخول");
-  if (!/^\d{4}$/.test(String(currentPin || "").trim())) {
+  // Batch 94: توحيد الأرقام الهندية قبل التحقق — \d تطابق ASCII فقط
+  if (!/^\d{4}$/.test(toLatinDigits(String(currentPin || "")).trim())) {
     throw new Error("الرمز الحالي يجب أن يكون 4 أرقام");
   }
-  if (!/^\d{4}$/.test(String(newPin || "").trim())) {
+  if (!/^\d{4}$/.test(toLatinDigits(String(newPin || "")).trim())) {
     throw new Error("الرمز الجديد يجب أن يكون 4 أرقام");
   }
   // إعادة مصادقة بالرمز الحالي

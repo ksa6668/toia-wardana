@@ -14,6 +14,7 @@ import BranchPickerSheet from './BranchPickerSheet';
 import DateSheet from './DateSheet';
 import { useScreenHeader } from '../context/ScreenCtx';
 import { todayLocal, dateLabelFor } from '../utils/dateHelpers';
+import { toLatinDigits } from '../utils/digits';
 
 export default function WhatsappFormV2({
   setView,
@@ -177,7 +178,7 @@ export default function WhatsappFormV2({
               <span>{lang === 'en' ? 'WhatsApp customers' : 'عدد عملاء واتساب'}</span>
             </label>
             <input type="number" inputMode="numeric" placeholder="0"
-              value={customers} onChange={(e) => setCustomers(e.target.value)} dir="ltr" />
+              value={customers} onChange={(e) => setCustomers(toLatinDigits(e.target.value))} dir="ltr" />
             <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
           </div>
 
@@ -187,7 +188,7 @@ export default function WhatsappFormV2({
               <span>{lang === 'en' ? 'New customers' : 'العملاء الجدد'}</span>
             </label>
             <input type="number" inputMode="numeric" placeholder="0"
-              value={newCustomers} onChange={(e) => setNewCustomers(e.target.value)} dir="ltr" />
+              value={newCustomers} onChange={(e) => setNewCustomers(toLatinDigits(e.target.value))} dir="ltr" />
             <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
           </div>
 
@@ -197,7 +198,7 @@ export default function WhatsappFormV2({
               <span>{lang === 'en' ? 'Buyers' : 'عدد المشترين'}</span>
             </label>
             <input type="number" inputMode="numeric" placeholder="0"
-              value={buyers} onChange={(e) => setBuyers(e.target.value)} dir="ltr" />
+              value={buyers} onChange={(e) => setBuyers(toLatinDigits(e.target.value))} dir="ltr" />
             <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
           </div>
         </div>
