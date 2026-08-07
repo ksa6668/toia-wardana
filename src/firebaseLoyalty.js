@@ -548,7 +548,8 @@ export async function setLoyaltyManualTier(memberId, manualTier, { byUid = "", b
  */
 export async function setLoyaltyMemberStatus(memberId, status, { reason, byUid = "", byName = "" } = {}) {
   const newStatus = status === "disabled" ? "disabled" : "active";
-  if (!String(reason || "").trim()) throw loyaltyError("reason-required", "السبب إلزامي");
+  // Batch 92.1: السبب اختياري — التعطيل قابل للاسترجاع (إعادة التفعيل)
+  // ولا يمنح امتيازاً. يُحفظ إن كُتب، وحركة الـ audit تُنشأ دائماً.
 
   const memberRef = doc(db, "loyaltyMembers", memberId);
   const txRef = doc(collection(db, "loyaltyTransactions"));
@@ -566,14 +567,14 @@ export async function setLoyaltyMemberStatus(memberId, status, { reason, byUid =
       balanceAfter: Number(m.pointsBalance) || 0,
       oldValue: m.status || "active",
       newValue: newStatus,
-      reason: String(reason).trim(),
+      reason: String(reason || "").trim(),
       byUid,
       byName,
       at: serverTimestamp(),
     });
     tx.update(memberRef, {
       status: newStatus,
-      statusReason: String(reason).trim(),
+      statusReason: String(reason || "").trim(),
       statusChangedAt: serverTimestamp(),
       statusBy: byName || byUid,
       updatedAt: serverTimestamp(),
@@ -597,7 +598,9 @@ export async function updateLoyaltyMemberContact({
   byUid = "",
   byName = "",
 }) {
-  if (!String(reason || "").trim()) throw loyaltyError("reason-required", "السبب إلزامي");
+  // Batch 92.1: السبب اختياري — تعديل البيانات الأساسية قابل للاسترجاع
+  // ولا يمس الرصيد. يُحفظ إن كُتب، وحركات audit (قديم→جديد) تُنشأ دائماً.
+  // تأكيد تغيير الجوال يتم في الواجهة (نافذة قديم/جديد) لا هنا.
 
   const memberRef = doc(db, "loyaltyMembers", memberId);
   const snap = await getDoc(memberRef);
@@ -653,7 +656,7 @@ export async function updateLoyaltyMemberContact({
         balanceAfter: balance,
         oldValue: c.oldValue,
         newValue: c.newValue,
-        reason: String(reason).trim(),
+        reason: String(reason || "").trim(),
         byUid,
         byName,
         at: serverTimestamp(),

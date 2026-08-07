@@ -12,6 +12,7 @@ export default function LoyaltyConfirmSheet({
   message,
   confirmLabel,
   requireReason = false,   // عكس/تسوية: سبب إلزامي
+  optionalReason = false,  // Batch 92.1: حقل السبب ظاهر ويُحفظ إن كُتب — بلا منع
   confirmText = '',        // المرحلة 5: تأكيد مزدوج — زر التأكيد معطّل
                            // حتى يُكتب هذا النص حرفياً (مثل رقم العضوية)
   onConfirm,               // async (reason) => void
@@ -109,11 +110,13 @@ export default function LoyaltyConfirmSheet({
               />
             </div>
           )}
-          {requireReason && (
+          {(requireReason || optionalReason) && (
             <textarea
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              placeholder={lang === 'en' ? 'Reason (required)...' : 'السبب (إلزامي)...'}
+              placeholder={requireReason
+                ? (lang === 'en' ? 'Reason (required)...' : 'السبب (إلزامي)...')
+                : (lang === 'en' ? 'Reason (optional)...' : 'السبب (اختياري)...')}
               rows={2}
               disabled={busy}
               className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue mb-3"
