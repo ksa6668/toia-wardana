@@ -15,6 +15,9 @@ import {
   maskPhone,
   renderWelcomeMessage,
   buildPointsMessage,
+  findUnknownVars,
+  POINTS_NOTIFY_TEMPLATE,
+  POINTS_MESSAGE_VARS,
   buildWhatsappUrl,
   cardUrlFor,
   isLocalOrigin,
@@ -212,6 +215,38 @@ describe('إشعار النقاط المعاملاتي (Batch 92)', () => {
   it('قالب محفوظ قديم بلا متغيرات يبقى حرفياً (حماية رجعية قائمة)', () => {
     const legacy = 'أهلاً بك في برنامج الولاء!';
     expect(renderWelcomeMessage(legacy, vars)).toBe(legacy);
+  });
+
+  // ===== Batch 92.2: القالب قابل للتعديل من الإعدادات =====
+
+  it('قالب مخصص من الإعدادات يتقدم على الثابت', () => {
+    const custom = 'شكراً {name}! +{points} نقطة، رصيدك {balance}. — {storeName}';
+    const msg = buildPointsMessage(vars, custom);
+    expect(msg).toBe('شكراً أحمد! +500 نقطة، رصيدك 6250. — وردانة');
+    expect(msg).not.toContain('بطاقتك'); // نص القالب الثابت لم يُستخدم
+  });
+
+  it('فارغ / مسافات / غير ممرر → السقوط على القالب الثابت (توافق رجعي)', () => {
+    const fromConstant = buildPointsMessage(vars);
+    expect(buildPointsMessage(vars, '')).toBe(fromConstant);
+    expect(buildPointsMessage(vars, '   \n  ')).toBe(fromConstant);
+    expect(buildPointsMessage(vars, undefined)).toBe(fromConstant);
+    expect(fromConstant).toContain('نسعد بخدمتك — وردانة');
+  });
+
+  it('الافتراضيات: pointsMessage في الإعدادات يساوي القالب الثابت', () => {
+    expect(LOYALTY_DEFAULT_SETTINGS.pointsMessage).toBe(POINTS_NOTIFY_TEMPLATE);
+  });
+
+  it('findUnknownVars: يكشف الغريب ويتجاهل الخمسة المسموحة', () => {
+    expect(findUnknownVars(POINTS_NOTIFY_TEMPLATE)).toEqual([]);
+    expect(findUnknownVars('مرحبا {name} {foo} و{bar} و{points}')).toEqual(['foo', 'bar']);
+    expect(findUnknownVars('نص بلا أقواس إطلاقاً')).toEqual([]);
+    expect(findUnknownVars('')).toEqual([]);
+    // {memberNo} و{tier} معروفان للمُستبدِل لكن رسالة النقاط لا تمرر
+    // قيمتيهما (فراغ صامت) — يُعدّان غير معروفين في هذا السياق تحديداً
+    expect(findUnknownVars('عضويتك {memberNo} فئة {tier}')).toEqual(['memberNo', 'tier']);
+    expect(POINTS_MESSAGE_VARS).toEqual(['name', 'points', 'balance', 'cardUrl', 'storeName']);
   });
 });
 

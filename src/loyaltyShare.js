@@ -22,6 +22,23 @@ import {
 // ---------- أسماء المتاجر (للبطاقة والرسائل — عربية دائماً) ----------
 export const STORE_NAMES = { toia: "تويا", wardana: "وردانة" };
 
+// ---------- قالب إشعار النقاط الافتراضي (Batch 92 → قابل للتعديل في 92.2) ----------
+// رسالة معاملاتية بحتة — بلا محتوى تسويقي، لا تخضع لـ marketingConsent
+// ولا لأي حد يومي ولا تُسجَّل في أي مجموعة. بلا «اليوم» عمداً: صياغة
+// صحيحة للإرسال الفوري وإعادة الإرسال معاً.
+// يُعرَّف قبل LOYALTY_DEFAULT_SETTINGS لأنه قيمتها الافتراضية لحقل pointsMessage.
+export const POINTS_NOTIFY_TEMPLATE =
+  "مرحبًا {name} 🌸\n" +
+  "أُضيفت لك {points} نقطة على مشترياتك.\n" +
+  "رصيدك الآن: {balance} نقطة.\n\n" +
+  "بطاقتك: {cardUrl}\n\n" +
+  "نسعد بخدمتك — {storeName}";
+
+// المتغيرات المتاحة لرسالة النقاط تحديداً — {memberNo} و{tier} يستبدلهما
+// المُستبدِل عموماً لكن رسالة النقاط لا تمرر قيمتيهما (فراغ صامت)،
+// لذلك يُعدّان «غير معروفين» في تحذير محرر هذا الحقل.
+export const POINTS_MESSAGE_VARS = ["name", "points", "balance", "cardUrl", "storeName"];
+
 // ---------- الإعدادات الافتراضية (وثيقة المنطق 2.1 + قالب المرحلة 2) ----------
 export const LOYALTY_DEFAULT_SETTINGS = {
   enabled: true,
@@ -63,6 +80,8 @@ export const LOYALTY_DEFAULT_SETTINGS = {
     "رصيدك الحالي: {points} نقطة\n\n" +
     "بطاقتك الرقمية:\n{cardUrl}\n\n" +
     "اعرض الرمز عند الدفع لتجميع نقاطك واستبدال مكافآتك.",
+  // Batch 92.2: قالب إشعار النقاط — يحرَّر من شاشة الإعدادات كالترحيبي
+  pointsMessage: POINTS_NOTIFY_TEMPLATE,
 };
 
 // ---------- تقنيع الجوال ----------
@@ -163,24 +182,35 @@ export function renderWelcomeMessage(template, vars = {}) {
   return out;
 }
 
-// ---------- إشعار النقاط المعاملاتي (Batch 92) ----------
-// رسالة معاملاتية بحتة — بلا محتوى تسويقي، لا تخضع لـ marketingConsent
-// ولا لأي حد يومي ولا تُسجَّل في أي مجموعة. القالب ثابت (ليس من الإعدادات)،
-// بلا «اليوم» عمداً: صياغة صحيحة للإرسال الفوري وإعادة الإرسال معاً.
-export const POINTS_NOTIFY_TEMPLATE =
-  "مرحبًا {name} 🌸\n" +
-  "أُضيفت لك {points} نقطة على مشترياتك.\n" +
-  "رصيدك الآن: {balance} نقطة.\n\n" +
-  "بطاقتك: {cardUrl}\n\n" +
-  "نسعد بخدمتك — {storeName}";
-
+// ---------- إشعار النقاط المعاملاتي (Batch 92 / 92.2) ----------
 /**
  * نص إشعار النقاط — نفس آلية الرسالة الترحيبية (renderWelcomeMessage).
  * {points} و{balance} تأتيان من الحركة نفسها (points/balanceAfter) لا من
  * قراءة جديدة — حتى تكون إعادة الإرسال دقيقة تاريخياً.
+ *
+ * Batch 92.2: template اختياري (من loyaltySettings.pointsMessage) —
+ * إن كان غير ممرر أو فارغاً بعد trim يُستخدم القالب الثابت.
+ * الاستدعاء بلا وسيط ثانٍ = السلوك السابق حرفياً (توافق رجعي كامل).
  */
-export function buildPointsMessage(vars = {}) {
-  return renderWelcomeMessage(POINTS_NOTIFY_TEMPLATE, vars);
+export function buildPointsMessage(vars = {}, template) {
+  const effective = String(template || "").trim() ? template : POINTS_NOTIFY_TEMPLATE;
+  return renderWelcomeMessage(effective, vars);
+}
+
+/**
+ * Batch 92.2: يكشف المتغيرات {...} غير المعروفة في قالب — لتحذير غير مانع
+ * في محرر الإعدادات. allowed هي قائمة المسموح لهذا الحقل تحديداً.
+ * يرجع مصفوفة أسماء فريدة (بلا أقواس)، فارغة إن كان القالب نظيفاً.
+ */
+export function findUnknownVars(template, allowed = POINTS_MESSAGE_VARS) {
+  const found = new Set();
+  const allowedSet = new Set(allowed);
+  const re = /\{([^{}\s]+)\}/g;
+  let m;
+  while ((m = re.exec(String(template || ""))) !== null) {
+    if (!allowedSet.has(m[1])) found.add(m[1]);
+  }
+  return [...found];
 }
 
 /**
