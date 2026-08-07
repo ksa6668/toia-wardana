@@ -153,13 +153,34 @@ export function buildCardPayload(member, transactions, settings, now = new Date(
  * متغير بلا قيمة → يُستبدل بنص فارغ.
  */
 export function renderWelcomeMessage(template, vars = {}) {
-  const known = ["name", "storeName", "memberNo", "tier", "points", "cardUrl"];
+  // balance أُضيف لإشعار النقاط (Batch 92) — القالب الترحيبي لا يحويه فلا يتأثر
+  const known = ["name", "storeName", "memberNo", "tier", "points", "cardUrl", "balance"];
   let out = String(template || "");
   for (const key of known) {
     const value = vars[key] == null ? "" : String(vars[key]);
     out = out.split(`{${key}}`).join(value);
   }
   return out;
+}
+
+// ---------- إشعار النقاط المعاملاتي (Batch 92) ----------
+// رسالة معاملاتية بحتة — بلا محتوى تسويقي، لا تخضع لـ marketingConsent
+// ولا لأي حد يومي ولا تُسجَّل في أي مجموعة. القالب ثابت (ليس من الإعدادات)،
+// بلا «اليوم» عمداً: صياغة صحيحة للإرسال الفوري وإعادة الإرسال معاً.
+export const POINTS_NOTIFY_TEMPLATE =
+  "مرحبًا {name} 🌸\n" +
+  "أُضيفت لك {points} نقطة على مشترياتك.\n" +
+  "رصيدك الآن: {balance} نقطة.\n\n" +
+  "بطاقتك: {cardUrl}\n\n" +
+  "نسعد بخدمتك — {storeName}";
+
+/**
+ * نص إشعار النقاط — نفس آلية الرسالة الترحيبية (renderWelcomeMessage).
+ * {points} و{balance} تأتيان من الحركة نفسها (points/balanceAfter) لا من
+ * قراءة جديدة — حتى تكون إعادة الإرسال دقيقة تاريخياً.
+ */
+export function buildPointsMessage(vars = {}) {
+  return renderWelcomeMessage(POINTS_NOTIFY_TEMPLATE, vars);
 }
 
 /**

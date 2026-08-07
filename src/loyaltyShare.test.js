@@ -14,6 +14,7 @@ import {
   buildCardPayload,
   maskPhone,
   renderWelcomeMessage,
+  buildPointsMessage,
   buildWhatsappUrl,
   cardUrlFor,
   isLocalOrigin,
@@ -168,6 +169,49 @@ describe('رسالة واتساب الترحيبية', () => {
 
   it('متغير بلا قيمة → نص فارغ (لا يبقى {placeholder})', () => {
     expect(renderWelcomeMessage('مرحبا {name}', {})).toBe('مرحبا ');
+  });
+});
+
+describe('إشعار النقاط المعاملاتي (Batch 92)', () => {
+  const vars = {
+    name: 'أحمد',
+    points: 500,          // من الحركة نفسها (tx.points)
+    balance: 6250,        // من الحركة نفسها (tx.balanceAfter)
+    cardUrl: 'https://toia.example/c/AbC123',
+    storeName: 'وردانة',
+  };
+
+  it('يستبدل الخمسة كلها بالقيم الحرفية من الحركة ولا يترك أي placeholder', () => {
+    const msg = buildPointsMessage(vars);
+    expect(msg).toContain('مرحبًا أحمد 🌸');
+    expect(msg).toContain('أُضيفت لك 500 نقطة على مشترياتك.');
+    expect(msg).toContain('رصيدك الآن: 6250 نقطة.');
+    expect(msg).toContain('بطاقتك: https://toia.example/c/AbC123');
+    expect(msg).toContain('نسعد بخدمتك — وردانة');
+    expect(msg).not.toMatch(/\{[a-zA-Z]+\}/);
+    expect(msg).not.toContain('اليوم'); // حُذفت عمداً — قالب واحد للفوري وإعادة الإرسال
+  });
+
+  it('الرسالة كاملة عبر wa.me: فك الترميز يعيد النص بأسطره والرقم بلا +', () => {
+    const msg = buildPointsMessage(vars);
+    const url = buildWhatsappUrl('+966501234567', msg);
+    expect(url.startsWith('https://wa.me/966501234567?text=')).toBe(true);
+    expect(decodeURIComponent(url.split('?text=')[1])).toBe(msg);
+    expect(url).not.toContain('+');
+  });
+
+  it('إضافة balance للمتغيرات لا تكسر القالب الترحيبي القديم', () => {
+    // قالب ترحيبي بلا {balance} — يبقى حرفياً كما هو
+    const out = renderWelcomeMessage(LOYALTY_DEFAULT_SETTINGS.welcomeMessage, {
+      name: 'أحمد', storeName: 'تويا', memberNo: 'T-1', tier: 'فضية', points: 10, cardUrl: 'x',
+    });
+    expect(out).not.toContain('{balance}');
+    expect(out).toContain('رصيدك الحالي: 10 نقطة');
+  });
+
+  it('قالب محفوظ قديم بلا متغيرات يبقى حرفياً (حماية رجعية قائمة)', () => {
+    const legacy = 'أهلاً بك في برنامج الولاء!';
+    expect(renderWelcomeMessage(legacy, vars)).toBe(legacy);
   });
 });
 

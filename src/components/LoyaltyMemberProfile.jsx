@@ -18,10 +18,12 @@ import {
   updateLoyaltyMemberContact,
   loyaltyAnonymizeMember,
   loyaltyDeleteMemberWithArchive,
+  markLoyaltyWelcomeSent,
 } from '../firebase';
 import { effectiveTier, toDateSafe, addMonths } from '../loyaltyMath';
 import {
   renderWelcomeMessage,
+  buildPointsMessage,
   buildWhatsappUrl,
   cardUrlFor,
   isLocalOrigin,
@@ -258,6 +260,38 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
       return;
     }
     window.open(url, '_blank', 'noopener');
+    // يسجّل «فتح تبويب wa.me» لا «الإرسال الفعلي داخل واتساب» — غرضه
+    // الوحيد تبديل نص الزر لمنع التكرار؛ لا يُبنى عليه أي تقرير وصول
+    if (!member.welcomeSentAt) {
+      markLoyaltyWelcomeSent(memberId).catch(() => { /* أفضل جهد */ });
+      setMember((prev) => (prev ? { ...prev, welcomeSentAt: new Date() } : prev));
+    }
+  };
+
+  // Batch 92: إعادة إرسال إشعار نقاط لحركة earn — القيم من الحركة نفسها
+  // (points/balanceAfter المخزّنان فيها) لا من قراءة جديدة: دقة تاريخية
+  const handleSendPointsNotify = (tx) => {
+    setWaWarning('');
+    const origin = window.location.origin;
+    if (isLocalOrigin(origin)) {
+      setWaWarning(en
+        ? 'Local development environment — the card link would be broken. Send from the deployed app.'
+        : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
+      return;
+    }
+    const text = buildPointsMessage({
+      name: member.name,
+      points: Number(tx.points) || 0,
+      balance: Number(tx.balanceAfter) || 0,
+      cardUrl: cardUrlFor(origin, member.cardToken),
+      storeName: STORE_NAMES[member.store] || member.store,
+    });
+    const url = buildWhatsappUrl(member.phone, text);
+    if (!url) {
+      setWaWarning(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
   };
 
   const inputCls = 'w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue';
@@ -378,7 +412,9 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
             className="w-full py-2.5 rounded-xl bg-[#25D366] text-white text-xs font-bold flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
           >
             <MessageCircle size={15} />
-            {en ? 'Resend card via WhatsApp' : 'إرسال البطاقة عبر واتساب'}
+            {member.welcomeSentAt
+              ? (en ? 'Resend welcome message' : 'إعادة إرسال الترحيب')
+              : (en ? 'Send card via WhatsApp' : 'إرسال البطاقة عبر واتساب')}
           </button>
           {waWarning && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-center gap-2">
@@ -537,6 +573,15 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
               <span className="text-xs font-extrabold text-green-700 flex-shrink-0">
                 +{(Number(x.points) || 0).toLocaleString('en-US')}
               </span>
+              {/* Batch 92: إعادة إرسال إشعار النقاط — للحركات غير المعكوسة
+                  ولعضوية فعّالة غير مخفاة فقط */}
+              {!reversed && !disabled && !anonymized && (
+                <button type="button" onClick={() => handleSendPointsNotify(x)}
+                        title={en ? 'Send points notification' : 'إرسال إشعار النقاط'}
+                        className="p-1.5 rounded-lg text-[#128C4A] hover:bg-green-50 flex-shrink-0">
+                  <MessageCircle size={15} />
+                </button>
+              )}
               {!reversed && (
                 <button type="button" onClick={() => setReverseTx(x)}
                         title={en ? 'Reverse' : 'عكس'}

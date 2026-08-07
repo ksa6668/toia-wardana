@@ -19,10 +19,12 @@ import {
   getLoyaltyTransactions,
   earnLoyaltyPoints,
   redeemLoyaltyReward,
+  markLoyaltyWelcomeSent,
 } from '../firebase';
 import { effectiveTier, normalizePhone, storeLetter } from '../loyaltyMath';
 import {
   renderWelcomeMessage,
+  buildPointsMessage,
   buildWhatsappUrl,
   cardUrlFor,
   isLocalOrigin,
@@ -74,6 +76,9 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
   // المرحلة 2: مسح QR + إرسال واتساب
   const [showScan, setShowScan] = useState(false);
   const [waWarning, setWaWarning] = useState('');
+  // Batch 92: آخر عملية إضافة نقاط ناجحة — {points, balanceAfter} من نتيجة
+  // المعاملة نفسها (لا قراءة جديدة). زر الإشعار يظهر بعدها مباشرة فقط.
+  const [lastEarn, setLastEarn] = useState(null);
 
   // إعدادات المتجر الحالي
   useEffect(() => {
@@ -93,6 +98,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     setStage('search');
     setMember(null);
     setTxs([]);
+    setLastEarn(null);
     setSearchError('');
     setRegName(''); setRegGender(''); setRegSource(''); setRegSourceOther(''); setRegConsent(false); setRegError('');
     setInvoiceNo(''); setAmount(''); setEarnError(''); setEarnMsg('');
@@ -112,6 +118,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
   const handleSearch = async () => {
     setSearchError('');
     setEarnMsg('');
+    setLastEarn(null); // زر الإشعار خاص بآخر عملية للعضو المعروض فقط
     if (!normalizePhone(phoneInput)) {
       setSearchError(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
       return;
@@ -184,6 +191,8 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
       setEarnMsg(en
         ? `+${res.points.toLocaleString('en-US')} points added ✓`
         : `تمت إضافة ${res.points.toLocaleString('en-US')} نقطة ✓`);
+      // قيم الإشعار من نتيجة المعاملة نفسها — دقيقة حتى مع عمليات لاحقة
+      setLastEarn({ points: res.points, balanceAfter: res.balanceAfter });
       await reloadMember(member.id);
     } catch (err) {
       // duplicate-invoice تصل برسالتها العربية من طبقة البيانات
@@ -200,6 +209,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     setShowScan(false);
     setSearchError('');
     setEarnMsg('');
+    setLastEarn(null);
     const clean = String(code || '').trim().toUpperCase();
     if (!/^[TW]-\d{5}$/.test(clean)) {
       setSearchError(en ? 'Invalid QR code' : 'رمز غير صالح — ليست بطاقة ولاء');
@@ -247,6 +257,38 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
       tier: tierInfo2?.tier?.name || 'عضو',
       points: Number(member.pointsBalance) || 0,
       cardUrl: cardUrlFor(origin, member.cardToken),
+    });
+    const url = buildWhatsappUrl(member.phone, text);
+    if (!url) {
+      setWaWarning(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
+      return;
+    }
+    window.open(url, '_blank', 'noopener');
+    // يسجّل «فتح تبويب wa.me» لا «الإرسال الفعلي داخل واتساب» — غرضه
+    // الوحيد تبديل نص الزر لمنع التكرار؛ لا يُبنى عليه أي تقرير وصول
+    if (!member.welcomeSentAt) {
+      markLoyaltyWelcomeSent(member.id).catch(() => { /* أفضل جهد */ });
+      setMember((prev) => (prev ? { ...prev, welcomeSentAt: new Date() } : prev));
+    }
+  };
+
+  // Batch 92: إشعار النقاط المعاملاتي — من قيم آخر عملية (lastEarn) حصراً
+  const handleSendPointsNotify = () => {
+    if (!lastEarn || !member) return;
+    setWaWarning('');
+    const origin = window.location.origin;
+    if (isLocalOrigin(origin)) {
+      setWaWarning(en
+        ? 'Local development environment — the card link would be broken. Send from the deployed app.'
+        : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
+      return;
+    }
+    const text = buildPointsMessage({
+      name: member.name,
+      points: lastEarn.points,
+      balance: lastEarn.balanceAfter,
+      cardUrl: cardUrlFor(origin, member.cardToken),
+      storeName: STORE_NAMES[branchId] || branchId,
     });
     const url = buildWhatsappUrl(member.phone, text);
     if (!url) {
@@ -489,6 +531,20 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             </div>
           )}
 
+          {/* Batch 92: إشعار النقاط — يظهر مباشرة بعد نجاح الإضافة فقط (ليس دائماً) */}
+          {lastEarn && member.status !== 'disabled' && (
+            <button
+              type="button"
+              onClick={handleSendPointsNotify}
+              className="w-full py-2.5 rounded-xl bg-[#25D366]/15 border border-[#25D366]/40 text-[#128C4A] font-bold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
+            >
+              <MessageCircle size={15} />
+              {en
+                ? `Send points notification (+${Number(lastEarn.points).toLocaleString('en-US')})`
+                : `إرسال إشعار النقاط عبر واتساب (+${Number(lastEarn.points).toLocaleString('en-US')})`}
+            </button>
+          )}
+
           {/* المرحلة 2: إرسال البطاقة عبر واتساب — بعد أول عملية شراء */}
           {member.lastPurchaseAt && member.status !== 'disabled' && (
             <div className="space-y-2">
@@ -498,7 +554,9 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
                 className="w-full py-3 rounded-xl bg-[#25D366] text-white font-bold text-sm flex items-center justify-center gap-2 active:scale-[0.98] transition-transform"
               >
                 <MessageCircle size={17} />
-                {en ? 'Send card via WhatsApp' : 'إرسال البطاقة عبر واتساب'}
+                {member.welcomeSentAt
+                  ? (en ? 'Resend welcome message' : 'إعادة إرسال الترحيب')
+                  : (en ? 'Send card via WhatsApp' : 'إرسال البطاقة عبر واتساب')}
               </button>
               {waWarning && (
                 <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
