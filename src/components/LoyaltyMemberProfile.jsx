@@ -20,7 +20,7 @@ import {
   loyaltyDeleteMemberWithArchive,
   markLoyaltyWelcomeSent,
 } from '../firebase';
-import { effectiveTier, toDateSafe, addMonths } from '../loyaltyMath';
+import { effectiveTier, toDateSafe, addMonths, normalizePhone } from '../loyaltyMath';
 import {
   renderWelcomeMessage,
   buildPointsMessage,
@@ -105,6 +105,8 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
   // درجات الحذف — المرحلة 5
   const [anonConfirm, setAnonConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
+  // Batch 92.1: تأكيد تغيير الجوال — {oldPhone, newPhone} أو null
+  const [phoneConfirm, setPhoneConfirm] = useState(null);
   // تحذير واتساب (بيئة محلية / جوال غير صالح)
   const [waWarning, setWaWarning] = useState('');
 
@@ -207,28 +209,40 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
     setShowEditContact(true);
   };
 
+  // التنفيذ الفعلي للحفظ — يُستدعى مباشرة أو من نافذة تأكيد الجوال
+  const performSaveContact = async () => {
+    const res = await updateLoyaltyMemberContact({
+      memberId,
+      name: editName,
+      phone: editPhone,
+      // لا نمرر gender إلا إذا اختير — القدامى بلا الحقل يبقون «غير مسجّل»
+      ...(editGender ? { gender: editGender } : {}),
+      reason: editReason, // Batch 92.1: اختياري — يُحفظ إن كُتب
+      ...byMeta,
+    });
+    setShowEditContact(false);
+    setNotice(res.changed
+      ? (en ? 'Contact info updated ✓' : 'تم تحديث البيانات ✓')
+      : (en ? 'No changes to save' : 'لا تغييرات للحفظ'));
+    await load();
+  };
+
   const handleSaveContact = async () => {
     setEditError('');
-    if (!editReason.trim()) {
-      setEditError(en ? 'Reason is required' : 'السبب إلزامي');
+    const newPhone = normalizePhone(editPhone);
+    if (!newPhone) {
+      setEditError(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
+      return;
+    }
+    // Batch 92.1: تغيير الجوال يمر بنافذة تأكيد تعرض القديم والجديد معاً
+    // (بدل إلزام السبب) — تعديل الاسم/الجنس وحده يُحفظ مباشرة
+    if (newPhone !== member.phone) {
+      setPhoneConfirm({ oldPhone: member.phone || '—', newPhone });
       return;
     }
     setEditBusy(true);
     try {
-      const res = await updateLoyaltyMemberContact({
-        memberId,
-        name: editName,
-        phone: editPhone,
-        // لا نمرر gender إلا إذا اختير — القدامى بلا الحقل يبقون «غير مسجّل»
-        ...(editGender ? { gender: editGender } : {}),
-        reason: editReason,
-        ...byMeta,
-      });
-      setShowEditContact(false);
-      setNotice(res.changed
-        ? (en ? 'Contact info updated ✓' : 'تم تحديث البيانات ✓')
-        : (en ? 'No changes to save' : 'لا تغييرات للحفظ'));
-      await load();
+      await performSaveContact();
     } catch (err) {
       setEditError(err?.message || (en ? 'Failed' : 'تعذّر التنفيذ'));
     } finally {
@@ -456,7 +470,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
             )}
           </div>
           <input type="text" value={editReason} onChange={(e) => setEditReason(e.target.value)}
-                 placeholder={en ? 'Reason (required)' : 'السبب (إلزامي)'} className={inputCls} />
+                 placeholder={en ? 'Reason (optional)' : 'السبب (اختياري)'} className={inputCls} />
           {editError && <p className="text-xs font-bold text-tw-red">{editError}</p>}
           <div className="flex gap-2">
             <button type="button" onClick={() => setShowEditContact(false)} disabled={editBusy}
@@ -671,12 +685,13 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         onClose={() => setReverseTx(null)}
       />
 
-      {/* تأكيد التعطيل/التفعيل — سبب إلزامي وسجل تدقيق (الحذف ممنوع بالتصميم) */}
+      {/* تأكيد التعطيل/التفعيل — السبب اختياري (Batch 92.1: قابل للاسترجاع
+          ولا يمنح امتيازاً)، وحركة التدقيق تُنشأ دائماً */}
       <LoyaltyConfirmSheet
         open={statusConfirm}
         variant={disabled ? 'redeem' : 'reverse'}
         lang={lang}
-        requireReason
+        optionalReason
         title={disabled
           ? (en ? 'Re-enable this membership?' : 'إعادة تفعيل العضوية؟')
           : (en ? 'Disable this membership?' : 'تعطيل العضوية؟')}
@@ -696,6 +711,25 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
           await load();
         }}
         onClose={() => setStatusConfirm(false)}
+      />
+
+      {/* Batch 92.1: تأكيد تغيير رقم الجوال — يعرض القديم والجديد معاً
+          (بديل إلزام السبب؛ السبب الاختياري يأتي من نموذج التعديل نفسه) */}
+      <LoyaltyConfirmSheet
+        open={!!phoneConfirm}
+        variant="redeem"
+        lang={lang}
+        title={en ? 'Confirm phone number change?' : 'تأكيد تغيير رقم الجوال؟'}
+        message={phoneConfirm
+          ? (en
+              ? `Old: ${phoneConfirm.oldPhone}\nNew: ${phoneConfirm.newPhone}`
+              : `القديم: ${phoneConfirm.oldPhone}\nالجديد: ${phoneConfirm.newPhone}`)
+          : ''}
+        confirmLabel={en ? 'Confirm & save' : 'تأكيد الحفظ'}
+        onConfirm={async () => {
+          await performSaveContact();
+        }}
+        onClose={() => setPhoneConfirm(null)}
       />
 
       {/* المرحلة 5: تأكيد إخفاء الهوية — سبب إلزامي */}
