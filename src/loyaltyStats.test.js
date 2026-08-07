@@ -206,6 +206,26 @@ describe('توزيع الجنس والخاملون', () => {
   });
 });
 
+describe('التكامل مع الكاش — بيانات مرّت بـ JSON round-trip (خلل الأصفار Batch 91.3)', () => {
+  it('نفس النتائج للبيانات الحية والمُحياة من الكاش (متوسطات وفترة شهرية)', () => {
+    const liveTs = {
+      seconds: Math.floor(new Date(2026, 7, 3).getTime() / 1000),
+      nanoseconds: 0,
+      toDate() { return new Date(this.seconds * 1000); },
+    };
+    const liveTxs = [{ id: 't1', type: 'earn', memberId: 'm1', amount: 100, points: 500, at: liveTs }];
+    const revivedTxs = JSON.parse(JSON.stringify(liveTxs)); // ما يعيده كاش sessionStorage فعلاً
+    const range = periodRange('month', new Date(2026, 7, 15));
+
+    const live = purchaseAverages(liveTxs, range);
+    const revived = purchaseAverages(revivedTxs, range);
+    expect(revived.avgInvoice).toBe(live.avgInvoice);   // كانت 0 مقابل 100 قبل الإصلاح
+    expect(revived.avgInvoice).toBe(100);
+    expect(revived.buyers).toBe(1);
+    expect(monthlyPoints(revivedTxs, range)).toEqual(monthlyPoints(liveTxs, range));
+  });
+});
+
 describe('أعلى المنفقين وCSV', () => {
   const range = periodRange('all', NOW);
   it('يجمع مبالغ earn غير المعكوسة ويستبعد غير المحسوبين', () => {
