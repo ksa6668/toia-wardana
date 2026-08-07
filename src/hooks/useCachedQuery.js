@@ -118,6 +118,26 @@ export function clearAllCache() {
   } catch { /* ignore */ }
 }
 
+// ----- قرار استراتيجية الكاش (نقي — قابل للاختبار بـ vitest) -----
+
+/**
+ * Batch 91.2: يحدد تعامل الاستعلام مع حالة الكاش:
+ *   'no-cache'   لا كاش → جلب مع loading
+ *   'fresh'      كاش أحدث من TTL → يُعرض فوراً بلا جلب (بلا تغيير)
+ *   'stale-swr'  كاش أقدم من TTL والخيار معطّل → يُعرض + تجديد صامت
+ *                (السلوك التاريخي — افتراضي كل الشاشات القائمة)
+ *   'stale-wait' كاش أقدم من TTL وfreshWhenStale مفعّل → loading وجلب
+ *                غير صامت — اللقطة القديمة لا تُعرض إطلاقاً.
+ *                السبب: الكتابة من جهاز آخر (مثل جوال الموظف) لا تصل
+ *                إبطالاتها إلى sessionStorage هذا المتصفح، فتُعرض لقطة
+ *                قديمة (أصفار) كأنها نتيجة نهائية ثم تُصحّح بصمت.
+ */
+export function resolveCacheStrategy({ hasCache, ageMs, ttl, freshWhenStale }) {
+  if (!hasCache) return 'no-cache';
+  if (ageMs < ttl) return 'fresh';
+  return freshWhenStale ? 'stale-wait' : 'stale-swr';
+}
+
 // ----- الـ Hook الرئيسي -----
 
 /**
@@ -127,22 +147,34 @@ export function clearAllCache() {
  * @param {number} options.ttl - مدة الـ cache بالـ milliseconds (افتراضي: 60 ثانية)
  * @param {boolean} options.enabled - هل نُشغّل الاستعلام؟ (افتراضي: true)
  * @param {*} options.defaultData - القيمة الأولية قبل وصول البيانات (افتراضي: null)
+ * @param {boolean} options.freshWhenStale - Batch 91.2 (افتراضي false = السلوك
+ *   التاريخي حرفياً): عند التفعيل، الكاش الأقدم من TTL يُعامل كتحميل
+ *   (loading=true وجلب غير صامت) بدل عرض اللقطة القديمة وتصحيحها بصمت.
+ *   للشاشات التي تعرض أرقاماً محسوبة يضللها القديم (إحصائيات الولاء).
  */
 export function useCachedQuery(keyArray, fetcher, options = {}) {
-  const { ttl = 60 * 1000, enabled = true, defaultData = null } = options;
+  const { ttl = 60 * 1000, enabled = true, defaultData = null, freshWhenStale = false } = options;
   const cacheKey = getCacheKey(keyArray);
   // version token من البادئة الأولى (مثلاً 'sales')
   const versionPrefix = VERSION_PREFIX + keyArray[0];
 
   // محاولة قراءة من cache في البداية
   const cached = readCache(cacheKey);
-  const initialData = cached ? cached.data : defaultData;
-  const initialFresh = cached
-    ? (Date.now() - cached.timestamp) < ttl
-    : false;
+  const initialStrategy = resolveCacheStrategy({
+    hasCache: !!cached,
+    ageMs: cached ? Date.now() - cached.timestamp : Infinity,
+    ttl,
+    freshWhenStale,
+  });
+  // stale-wait: لا تُعرض اللقطة القديمة حتى كقيمة أولية
+  const initialData = cached && initialStrategy !== 'stale-wait' ? cached.data : defaultData;
 
   const [data, setData] = useState(initialData);
-  const [loading, setLoading] = useState(!cached || !enabled ? enabled : false);
+  // مطابق حرفياً للسلوك القديم عند freshWhenStale=false:
+  // loading يبدأ true فقط بلا كاش (أو الآن: مع كاش قديم في وضع stale-wait)
+  const [loading, setLoading] = useState(
+    enabled ? (initialStrategy === 'no-cache' || initialStrategy === 'stale-wait') : false
+  );
   const [error, setError] = useState('');
 
   // نحفظ آخر key للحماية من race conditions
@@ -187,17 +219,27 @@ export function useCachedQuery(keyArray, fetcher, options = {}) {
 
     const fresh = readCache(cacheKey);
     if (fresh && !versionChanged) {
-      const age = Date.now() - fresh.timestamp;
-      if (age < ttl) {
+      const strategy = resolveCacheStrategy({
+        hasCache: true,
+        ageMs: Date.now() - fresh.timestamp,
+        ttl,
+        freshWhenStale,
+      });
+      if (strategy === 'fresh') {
         // cache طازج → استخدمه ولا تجلب
         setData(fresh.data);
         setLoading(false);
         return;
       }
-      // cache قديم → اعرض القيم القديمة + جدّد في الخلفية
-      setData(fresh.data);
-      setLoading(false);
-      doFetch(true); // silent fetch
+      if (strategy === 'stale-swr') {
+        // cache قديم → اعرض القيم القديمة + جدّد في الخلفية (السلوك التاريخي)
+        setData(fresh.data);
+        setLoading(false);
+        doFetch(true); // silent fetch
+        return;
+      }
+      // stale-wait (Batch 91.2): جلب غير صامت — لا عرض للقطة القديمة
+      doFetch(false);
       return;
     }
     // لا cache → اجلب طبيعياً

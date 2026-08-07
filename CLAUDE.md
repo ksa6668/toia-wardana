@@ -76,6 +76,9 @@ Key domain rules baked into firebase.js:
 ### Caching layer (sessionStorage, custom — not a library)
 - `useCachedQuery(keyArray, fetcher, { ttl })` (`src/hooks/useCachedQuery.js`) is a small
   stale-while-revalidate cache backed by `sessionStorage` (`tw_cache_` prefix).
+- Opt-in `freshWhenStale: true` makes stale-cache (older than ttl) render as `loading`
+  with a non-silent refetch instead of flashing the old snapshot — use it for screens
+  showing computed aggregates (e.g. loyalty stats); default `false` keeps SWR behavior.
 - After any mutation, the corresponding cache **must be invalidated**. firebase.js mutations
   already call an internal `_invalidateCachePrefix('sales' | 'expenses' | ...)`; components
   can call `invalidateCache(prefix)`. Forgetting this leaves stale reports.

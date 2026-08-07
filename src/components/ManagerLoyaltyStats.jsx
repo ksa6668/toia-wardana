@@ -8,7 +8,7 @@
 // العد الأساسي مع مفتاح إظهارهم.
 // ----------------------------------------------------------
 import { useState } from 'react';
-import { Loader2, Download, Users2, Wallet, Repeat2, ReceiptText, UserRound, ChevronLeft } from 'lucide-react';
+import { Download, Users2, Wallet, Repeat2, ReceiptText, UserRound, ChevronLeft, AlertTriangle, RefreshCw } from 'lucide-react';
 import {
   getLoyaltyMembers,
   getLoyaltyTransactionsByStore,
@@ -134,24 +134,78 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
   const [includeHidden, setIncludeHidden] = useState(false);
   const [idleDays, setIdleDays] = useState(90);
 
-  const { data: members, loading: l1 } = useCachedQuery(
+  // Batch 91.2: freshWhenStale — الكاش الأقدم من TTL يعامَل كتحميل بدل عرض
+  // لقطة قديمة (أصفار مضللة) ثم تصحيحها بصمت. الكتابات تأتي غالباً من جهاز
+  // الموظف فلا يصل إبطالها إلى sessionStorage هذا المتصفح.
+  const qOpts = { ttl: 60 * 1000, freshWhenStale: true };
+  const { data: members, loading: l1, error: e1, refresh: r1 } = useCachedQuery(
     ['loyalty', 'members', store], () => getLoyaltyMembers(store),
-    { ttl: 60 * 1000, defaultData: [] });
-  const { data: txs, loading: l2 } = useCachedQuery(
+    { ...qOpts, defaultData: [] });
+  const { data: txs, loading: l2, error: e2, refresh: r2 } = useCachedQuery(
     ['loyalty', 'txs', store], () => getLoyaltyTransactionsByStore(store),
-    { ttl: 60 * 1000, defaultData: [] });
-  const { data: settings, loading: l3 } = useCachedQuery(
+    { ...qOpts, defaultData: [] });
+  const { data: settings, loading: l3, error: e3, refresh: r3 } = useCachedQuery(
     ['loyalty', 'settings', store], () => getLoyaltySettings(store),
-    { ttl: 60 * 1000, defaultData: null });
+    { ...qOpts, defaultData: null });
 
-  if (l1 || l2 || l3 || !settings) {
+  const anyError = e1 || e2 || e3;
+  const loading = l1 || l2 || l3 || (!settings && !anyError);
+
+  // الحالة 2: خطأ — بطاقة خطأ بنص عربي وزر إعادة المحاولة (يعيد الجلبات الثلاث)
+  if (anyError && !loading) {
     return (
-      <div className="flex items-center justify-center gap-2 py-14 text-tw-muted">
-        <Loader2 size={20} className="animate-spin" />
-        <span className="text-sm font-bold">{en ? 'Loading…' : 'جارٍ التحميل…'}</span>
+      <div className="bg-white border border-red-200 rounded-2xl p-6 text-center space-y-3">
+        <AlertTriangle size={28} className="mx-auto text-tw-red" />
+        <p className="text-sm font-bold text-tw-navy">
+          {en ? 'Failed to load statistics' : 'تعذّر تحميل الإحصائيات'}
+        </p>
+        <p className="text-xs font-semibold text-tw-muted">{String(anyError)}</p>
+        <button
+          type="button"
+          onClick={() => { r1(); r2(); r3(); }}
+          className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-tw-blue text-white text-sm font-bold"
+        >
+          <RefreshCw size={14} /> {en ? 'Retry' : 'إعادة المحاولة'}
+        </button>
       </div>
     );
   }
+
+  // الحالة 1: تحميل — هيكل animate-pulse على نمط ManagerMonthly
+  // (لا أرقام صفرية مضللة ولا رسائل «لا بيانات» قبل اكتمال جلب موثوق)
+  if (loading) {
+    return (
+      <div className="space-y-3" aria-hidden="true">
+        <div className="flex gap-1.5">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="h-7 w-20 bg-tw-soft rounded-full animate-pulse" />
+          ))}
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {[1, 2, 3, 4, 5].map((i) => (
+            <div key={i} className="bg-white border border-tw-line rounded-2xl p-3 animate-pulse">
+              <div className="h-2.5 w-16 bg-tw-soft rounded mb-2" />
+              <div className="h-5 w-24 bg-tw-soft rounded mb-1.5" />
+              <div className="h-2 w-20 bg-tw-soft rounded" />
+            </div>
+          ))}
+        </div>
+        {[1, 2, 3].map((i) => (
+          <div key={i} className="bg-white border border-tw-line rounded-2xl p-4 space-y-2.5 animate-pulse">
+            <div className="h-3.5 w-32 bg-tw-soft rounded" />
+            {[1, 2, 3].map((j) => (
+              <div key={j} className="space-y-1">
+                <div className="h-2.5 w-full bg-tw-soft rounded" />
+                <div className="h-2 w-2/3 bg-tw-soft rounded-full" />
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    );
+  }
+  // الحالة 3 (فارغ فعلاً): تصل هنا فقط بعد جلب مكتمل موثوق —
+  // رسائل «لا بيانات/لا أحد حالياً» أدناه صادقة الآن
 
   const opts = { includeHidden };
   const range = periodRange(period);
