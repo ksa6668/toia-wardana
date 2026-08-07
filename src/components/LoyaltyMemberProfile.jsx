@@ -6,7 +6,7 @@
 // حالة "معكوسة" تُشتق من حركات reverse (reversesTxId) — السجل إضافي فقط.
 // ----------------------------------------------------------
 import { useState, useEffect, useCallback } from 'react';
-import { Loader2, Undo2, Star, ShieldOff, ShieldCheck, SlidersHorizontal, Pencil, MessageCircle, AlertTriangle } from 'lucide-react';
+import { Loader2, Undo2, Star, ShieldOff, ShieldCheck, SlidersHorizontal, Pencil, MessageCircle, AlertTriangle, UserX, Trash2 } from 'lucide-react';
 import {
   getLoyaltyMember,
   getLoyaltyTransactions,
@@ -16,6 +16,8 @@ import {
   setLoyaltyManualTier,
   setLoyaltyMemberStatus,
   updateLoyaltyMemberContact,
+  loyaltyAnonymizeMember,
+  loyaltyDeleteMemberWithArchive,
 } from '../firebase';
 import { effectiveTier, toDateSafe, addMonths } from '../loyaltyMath';
 import {
@@ -43,12 +45,19 @@ const TYPE_LABEL = {
   audit:   { ar: 'إجراء إداري', en: 'Audit' },
 };
 
-// أسماء إجراءات التدقيق (المرحلة 2)
+// أسماء إجراءات التدقيق (المرحلة 2 + المرحلة 5)
 const AUDIT_ACTION_LABEL = {
-  disable:   { ar: 'تعطيل العضوية',  en: 'Membership disabled' },
-  enable:    { ar: 'إعادة التفعيل',  en: 'Membership re-enabled' },
-  editPhone: { ar: 'تعديل الجوال',   en: 'Phone edited' },
-  editName:  { ar: 'تعديل الاسم',    en: 'Name edited' },
+  disable:    { ar: 'تعطيل العضوية',  en: 'Membership disabled' },
+  enable:     { ar: 'إعادة التفعيل',  en: 'Membership re-enabled' },
+  editPhone:  { ar: 'تعديل الجوال',   en: 'Phone edited' },
+  editName:   { ar: 'تعديل الاسم',    en: 'Name edited' },
+  editGender: { ar: 'تعديل الجنس',    en: 'Gender edited' },
+  anonymize:  { ar: 'إخفاء الهوية',   en: 'Anonymized' },
+};
+
+const GENDER_LABEL = {
+  male:   { ar: 'ذكر',  en: 'Male' },
+  female: { ar: 'أنثى', en: 'Female' },
 };
 
 function fmtDate(v, en) {
@@ -83,13 +92,17 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
   const [tierBusy, setTierBusy] = useState(false);
   // تعطيل/تفعيل — المرحلة 2: عبر ConfirmSheet بسبب إلزامي
   const [statusConfirm, setStatusConfirm] = useState(false);
-  // تعديل الجوال/الاسم — المرحلة 2
+  // تعديل الجوال/الاسم — المرحلة 2 (+ الجنس — المرحلة 5)
   const [showEditContact, setShowEditContact] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
+  const [editGender, setEditGender] = useState('');
   const [editReason, setEditReason] = useState('');
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState('');
+  // درجات الحذف — المرحلة 5
+  const [anonConfirm, setAnonConfirm] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState(false);
   // تحذير واتساب (بيئة محلية / جوال غير صالح)
   const [waWarning, setWaWarning] = useState('');
 
@@ -139,6 +152,8 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
   const reversedIds = new Set(txs.filter((x) => x.type === 'reverse' && x.reversesTxId).map((x) => x.reversesTxId));
   const purchases = txs.filter((x) => x.type === 'earn');
   const disabled = member.status === 'disabled';
+  // المرحلة 5: مخفي الهوية — تُعرض سجلاته للتقارير، وتُخفى إجراءات التشغيل
+  const anonymized = !!member.anonymized;
 
   const handleAdjust = async () => {
     const p = Math.round(Number(adjPoints));
@@ -184,6 +199,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
   const openEditContact = () => {
     setEditName(member?.name || '');
     setEditPhone(member?.phone || '');
+    setEditGender(member?.gender || '');
     setEditReason('');
     setEditError('');
     setShowEditContact(true);
@@ -201,6 +217,8 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         memberId,
         name: editName,
         phone: editPhone,
+        // لا نمرر gender إلا إذا اختير — القدامى بلا الحقل يبقون «غير مسجّل»
+        ...(editGender ? { gender: editGender } : {}),
         reason: editReason,
         ...byMeta,
       });
@@ -287,7 +305,11 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         </div>
         <div className="text-[11px] text-tw-muted font-semibold space-y-0.5 pt-1">
           <p>{en ? 'Joined:' : 'الانضمام:'} {fmtDate(member.joinedAt, en)} · {en ? 'Last purchase:' : 'آخر شراء:'} {fmtDate(member.lastPurchaseAt, en)}</p>
-          <p>{en ? 'Points expire:' : 'انتهاء النقاط:'} {fmtDate(member.pointsExpireAt, en)} · {en ? 'Marketing consent:' : 'موافقة تسويقية:'} {member.marketingConsent ? '✓' : '✗'}</p>
+          <p>
+            {en ? 'Points expire:' : 'انتهاء النقاط:'} {fmtDate(member.pointsExpireAt, en)}
+            {' · '}{en ? 'Gender:' : 'الجنس:'} {GENDER_LABEL[member.gender]?.[en ? 'en' : 'ar'] || (en ? 'Unregistered' : 'غير مسجّل')}
+            {' · '}{en ? 'Marketing consent:' : 'موافقة تسويقية:'} {member.marketingConsent ? '✓' : '✗'}
+          </p>
           {tierInfo?.manual && member.manualTier && (
             <p className="text-[#9A7000]">
               {en ? 'Manual tier:' : 'ترقية يدوية:'} {member.manualTier.reason}
@@ -307,7 +329,20 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
       {notice && <p className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-xl p-2.5 text-center">{notice}</p>}
       {error && <p className="text-xs font-bold text-tw-red bg-red-50 border border-red-200 rounded-xl p-2.5 text-center">{error}</p>}
 
-      {/* أزرار الإجراءات */}
+      {/* حالة مخفي الهوية */}
+      {anonymized && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 flex items-center gap-2">
+          <UserX size={16} className="text-amber-600 flex-shrink-0" />
+          <p className="text-xs font-bold text-amber-700">
+            {en
+              ? 'This membership is anonymized — records are kept for reports only. Available action: full delete with archive.'
+              : 'هذه العضوية مخفاة الهوية — السجلات محفوظة للتقارير فقط. المتاح: الحذف الكامل مع الأرشفة.'}
+          </p>
+        </div>
+      )}
+
+      {/* أزرار الإجراءات — تُخفى لمخفي الهوية */}
+      {!anonymized && (
       <div className="grid grid-cols-2 gap-2">
         <button type="button" onClick={() => setShowAdjust((v) => !v)}
                 className="py-2.5 rounded-xl bg-white border border-tw-line text-tw-navy text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-tw-soft">
@@ -332,9 +367,10 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
           {disabled ? (en ? 'Re-enable' : 'إعادة التفعيل') : (en ? 'Disable membership' : 'تعطيل العضوية')}
         </button>
       </div>
+      )}
 
       {/* إعادة إرسال البطاقة عبر واتساب */}
-      {!disabled && (
+      {!disabled && !anonymized && (
         <>
           <button
             type="button"
@@ -363,6 +399,26 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
                  onChange={(e) => setEditPhone(e.target.value)}
                  placeholder={en ? 'Phone' : 'رقم الجوال'}
                  className={`${inputCls} text-center font-mono`} />
+          {/* المرحلة 5: تعديل الجنس — للمدير فقط، يُسجَّل بحركة audit */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-tw-muted flex-shrink-0">{en ? 'Gender:' : 'الجنس:'}</span>
+            {[
+              { v: 'male', label: en ? 'Male' : 'ذكر' },
+              { v: 'female', label: en ? 'Female' : 'أنثى' },
+            ].map((g) => (
+              <button key={g.v} type="button" onClick={() => setEditGender(g.v)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+                        editGender === g.v
+                          ? 'bg-tw-blue text-white border-tw-blue'
+                          : 'bg-tw-soft/40 text-tw-navy border-tw-line'
+                      }`}>
+                {g.label}
+              </button>
+            ))}
+            {!member.gender && !editGender && (
+              <span className="text-[10px] font-bold text-tw-muted">({en ? 'unregistered' : 'غير مسجّل'})</span>
+            )}
+          </div>
           <input type="text" value={editReason} onChange={(e) => setEditReason(e.target.value)}
                  placeholder={en ? 'Reason (required)' : 'السبب (إلزامي)'} className={inputCls} />
           {editError && <p className="text-xs font-bold text-tw-red">{editError}</p>}
@@ -436,6 +492,28 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
           </button>
         </div>
       )}
+
+      {/* المرحلة 5: درجات الحذف — الحذف ممنوع مباشرة؛ إخفاء هوية أو حذف كامل مع أرشفة */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-red-200 space-y-2">
+        <h4 className="font-bold text-sm text-tw-red">{en ? 'Danger zone' : 'إجراءات حساسة'}</h4>
+        <div className="grid grid-cols-2 gap-2">
+          {!anonymized && (
+            <button type="button" onClick={() => setAnonConfirm(true)}
+                    className="py-2.5 rounded-xl bg-amber-50 border border-amber-200 text-amber-700 text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-amber-100">
+              <UserX size={14} /> {en ? 'Anonymize' : 'إخفاء الهوية'}
+            </button>
+          )}
+          <button type="button" onClick={() => setDeleteConfirm(true)}
+                  className={`py-2.5 rounded-xl bg-red-50 border border-red-200 text-tw-red text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-red-100 ${anonymized ? 'col-span-2' : ''}`}>
+            <Trash2 size={14} /> {en ? 'Full delete + archive' : 'حذف كامل مع أرشفة'}
+          </button>
+        </div>
+        <p className="text-[10px] text-tw-muted font-semibold leading-relaxed">
+          {en
+            ? 'Anonymize: clears name/phone/gender and kills the card link, keeps all records for reports. Full delete: archives the member and all transactions then removes them — invoice locks are never deleted.'
+            : 'إخفاء الهوية: يمسح الاسم والجوال والجنس ويبطل رابط البطاقة مع بقاء كل السجلات للتقارير. الحذف الكامل: يؤرشف العضوية وكل حركاتها ثم يحذفها — قيود أرقام الفواتير لا تُحذف أبداً.'}
+        </p>
+      </div>
 
       {/* سجل المشتريات */}
       <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
@@ -573,6 +651,49 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
           await load();
         }}
         onClose={() => setStatusConfirm(false)}
+      />
+
+      {/* المرحلة 5: تأكيد إخفاء الهوية — سبب إلزامي */}
+      <LoyaltyConfirmSheet
+        open={anonConfirm}
+        variant="reverse"
+        lang={lang}
+        requireReason
+        title={en ? 'Anonymize this membership?' : 'إخفاء هوية العضوية؟'}
+        message={en
+          ? 'Name, phone and gender will be cleared ("Deleted member") and the public card link dies. All transactions stay for reports. This cannot be undone.'
+          : 'سيُمسح الاسم والجوال والجنس («عضو محذوف») ويبطل رابط البطاقة العامة. كل الحركات تبقى للتقارير. لا يمكن التراجع.'}
+        confirmLabel={en ? 'Anonymize' : 'إخفاء الهوية'}
+        onConfirm={async (reason) => {
+          await loyaltyAnonymizeMember({ memberId, reason });
+          setNotice(en ? 'Membership anonymized ✓' : 'تم إخفاء الهوية ✓');
+          await load();
+        }}
+        onClose={() => setAnonConfirm(false)}
+      />
+
+      {/* المرحلة 5: تأكيد الحذف الكامل — سبب إلزامي + كتابة رقم العضوية */}
+      <LoyaltyConfirmSheet
+        open={deleteConfirm}
+        variant="reverse"
+        lang={lang}
+        requireReason
+        confirmText={member.memberNo || ''}
+        title={en ? 'Full delete with archive?' : 'حذف كامل مع أرشفة؟'}
+        message={en
+          ? 'The member and all transactions are copied to the archive first, then removed. Invoice locks are never deleted. If any step fails, nothing is removed.'
+          : 'تُنسخ العضوية وكل حركاتها إلى الأرشيف أولاً ثم تُحذف. قيود أرقام الفواتير لا تُحذف أبداً. إن فشلت أي خطوة لا يُحذف شيء.'}
+        confirmLabel={en ? 'Delete permanently' : 'حذف نهائي'}
+        onConfirm={async (reason, typedMemberNo) => {
+          await loyaltyDeleteMemberWithArchive({
+            memberId,
+            reason,
+            // ما كتبه المدير بيده — يُتحقق منه خادمياً مرة ثانية
+            confirmMemberNo: typedMemberNo,
+          });
+          onBack?.(); // العضوية لم تعد موجودة — عودة للقائمة
+        }}
+        onClose={() => setDeleteConfirm(false)}
       />
     </div>
   );

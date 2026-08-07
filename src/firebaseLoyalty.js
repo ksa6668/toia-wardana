@@ -31,7 +31,7 @@ import {
   runTransaction,
   serverTimestamp,
 } from "firebase/firestore";
-import { db } from "./firebaseCore";
+import { db, auth } from "./firebaseCore";
 import { invalidateCachePrefix } from "./firebaseCache";
 import {
   normalizePhone,
@@ -135,6 +135,18 @@ export async function getLoyaltyTransactions(memberId) {
   return rows;
 }
 
+/**
+ * المرحلة 5: كل حركات متجر في جلبة واحدة — لصفحة الإحصائيات.
+ * التجميع (فترات/شهور/موظفون) يتم محلياً في loyaltyStats بدل استعلامات
+ * متعددة، والنتيجة تمر عبر useCachedQuery في الشاشة.
+ * حد معروف: تكبر مع السنين — مقبولة لحجم متجرين حالياً.
+ */
+export async function getLoyaltyTransactionsByStore(store) {
+  const q = query(collection(db, "loyaltyTransactions"), where("store", "==", store));
+  const snap = await getDocs(q);
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
 // ---------- إنشاء عضوية ----------
 async function isMemberNoTaken(memberNo) {
   const q = query(collection(db, "loyaltyMembers"), where("memberNo", "==", memberNo), limit(1));
@@ -154,6 +166,7 @@ export async function createLoyaltyMember({
   store,
   phone: phoneInput,
   name,
+  gender,
   source = "",
   sourceOther = "",
   marketingConsent = false,
@@ -163,6 +176,11 @@ export async function createLoyaltyMember({
   const phone = normalizePhone(phoneInput);
   if (!phone) throw loyaltyError("invalid-phone", "رقم الجوال غير صالح");
   if (!String(name || "").trim()) throw loyaltyError("name-required", "أدخل اسم العميل");
+  // المرحلة 5: الجنس إلزامي عند التسجيل — خياران فقط لا ثالث لهما.
+  // (الأعضاء القدامى بلا الحقل يبقون كما هم — شريحة «غير مسجّل» في التقارير)
+  if (gender !== "male" && gender !== "female") {
+    throw loyaltyError("gender-required", "حدّد جنس العميل");
+  }
 
   // منع تكرار الجوال داخل نفس المتجر
   const existing = await findLoyaltyMemberByPhone(store, phone);
@@ -191,6 +209,7 @@ export async function createLoyaltyMember({
     cardToken,
     phone,
     name: String(name).trim(),
+    gender,
     source: source || "",
     sourceOther: source === "other" ? String(sourceOther || "").trim() : "",
     marketingConsent: !!marketingConsent,
@@ -289,6 +308,7 @@ export async function earnLoyaltyPoints({
     if (!memberSnap.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
     const m = memberSnap.data();
     if (m.status === "disabled") throw loyaltyError("member-disabled", "هذه العضوية معطّلة");
+    if (m.anonymized) throw loyaltyError("member-anonymized", "هذه العضوية محذوفة (مخفاة الهوية)");
 
     const balance = Number(m.pointsBalance) || 0;
     const balanceAfter = balance + points;
@@ -355,6 +375,7 @@ export async function redeemLoyaltyReward({
     if (!memberSnap.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
     const m = memberSnap.data();
     if (m.status === "disabled") throw loyaltyError("member-disabled", "هذه العضوية معطّلة");
+    if (m.anonymized) throw loyaltyError("member-anonymized", "هذه العضوية محذوفة (مخفاة الهوية)");
 
     const balance = Number(m.pointsBalance) || 0;
     if (balance < 0) {
@@ -571,6 +592,7 @@ export async function updateLoyaltyMemberContact({
   memberId,
   name,
   phone: phoneInput,
+  gender,
   reason,
   byUid = "",
   byName = "",
@@ -605,6 +627,15 @@ export async function updateLoyaltyMemberContact({
     }
   }
 
+  // المرحلة 5: تعديل الجنس — للمدير فقط، بحركة audit
+  if (gender !== undefined && gender !== (m.gender || "")) {
+    if (gender !== "male" && gender !== "female") {
+      throw loyaltyError("gender-invalid", "قيمة الجنس غير صالحة");
+    }
+    update.gender = gender;
+    changes.push({ action: "editGender", oldValue: m.gender || "غير مسجّل", newValue: gender });
+  }
+
   if (changes.length === 0) return { changed: false };
 
   await runTransaction(db, async (tx) => {
@@ -632,4 +663,43 @@ export async function updateLoyaltyMemberContact({
   });
   invalidateCachePrefix("loyalty");
   return { changed: true };
+}
+
+// ---------- درجات الحذف عبر /api/loyaltyAdmin (المرحلة 5) ----------
+// نفس نمط adminChangeUserPin في firebaseUsers.js: توكن المدير + POST.
+// قواعد Firestore فيها allow delete: if false — الحذف/الإخفاء يمران
+// حصراً عبر Admin SDK على الخادم.
+async function callLoyaltyAdmin(body, fallbackMsg) {
+  if (!auth.currentUser) throw loyaltyError("auth-required", "مطلوب تسجيل دخول");
+  const token = await auth.currentUser.getIdToken();
+  const res = await fetch("/api/loyaltyAdmin", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}));
+    throw loyaltyError("admin-api", err.error || fallbackMsg);
+  }
+  invalidateCachePrefix("loyalty");
+  return res.json();
+}
+
+/** إخفاء هوية عضو: يمسح الاسم/الجوال/الجنس ويبطل البطاقة — السجلات تبقى كاملة */
+export async function loyaltyAnonymizeMember({ memberId, reason }) {
+  return callLoyaltyAdmin(
+    { action: "anonymize", memberId, reason },
+    "تعذّر إخفاء الهوية"
+  );
+}
+
+/** حذف كامل مع أرشفة — يتطلب كتابة رقم العضوية للتأكيد (يُتحقق منه خادمياً أيضاً) */
+export async function loyaltyDeleteMemberWithArchive({ memberId, reason, confirmMemberNo }) {
+  return callLoyaltyAdmin(
+    { action: "deleteWithArchive", memberId, reason, confirmMemberNo },
+    "تعذّر الحذف الكامل"
+  );
 }

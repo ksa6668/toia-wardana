@@ -12,18 +12,22 @@ export default function LoyaltyConfirmSheet({
   message,
   confirmLabel,
   requireReason = false,   // عكس/تسوية: سبب إلزامي
+  confirmText = '',        // المرحلة 5: تأكيد مزدوج — زر التأكيد معطّل
+                           // حتى يُكتب هذا النص حرفياً (مثل رقم العضوية)
   onConfirm,               // async (reason) => void
   onClose,
   lang = 'ar',
 }) {
   const [busy, setBusy] = useState(false);
   const [reason, setReason] = useState('');
+  const [typed, setTyped] = useState('');
   const [error, setError] = useState('');
 
   // الإغلاق يعيد ضبط الحالة الداخلية — حتى تُفتح الـ sheet نظيفة في المرة التالية
   const close = () => {
     setBusy(false);
     setReason('');
+    setTyped('');
     setError('');
     onClose?.();
   };
@@ -44,7 +48,11 @@ export default function LoyaltyConfirmSheet({
   const color = isReverse ? 'var(--tw-red)' : 'var(--color-tw-blue, #005BFF)';
   const bg = isReverse ? 'rgba(240,68,68,.12)' : 'rgba(0,91,255,.12)';
 
+  const confirmTextOk = !confirmText
+    || typed.trim().toUpperCase() === String(confirmText).trim().toUpperCase();
+
   const handleConfirm = async () => {
+    if (!confirmTextOk) return; // الزر معطّل أصلاً — حارس إضافي
     if (requireReason && !reason.trim()) {
       setError(lang === 'en' ? 'Reason is required' : 'السبب إلزامي');
       return;
@@ -52,7 +60,9 @@ export default function LoyaltyConfirmSheet({
     setBusy(true);
     setError('');
     try {
-      await onConfirm?.(reason.trim());
+      // النص المكتوب يُمرَّر للمستدعي — التحقق الخادمي يستقبل ما كتبه
+      // المدير فعلاً لا قيمة مبرمجة (تأكيد مزدوج حقيقي)
+      await onConfirm?.(reason.trim(), typed.trim());
       close();
     } catch (err) {
       setError(err?.message || (lang === 'en' ? 'Operation failed' : 'تعذّر تنفيذ العملية'));
@@ -80,6 +90,24 @@ export default function LoyaltyConfirmSheet({
             <p style={{ textAlign: 'center', fontSize: 13, color: 'var(--tw-muted)', margin: '0 0 14px', fontWeight: 500, whiteSpace: 'pre-line' }}>
               {message}
             </p>
+          )}
+          {confirmText && (
+            <div style={{ marginBottom: 12 }}>
+              <p style={{ fontSize: 12, fontWeight: 700, color: 'var(--tw-muted)', marginBottom: 6, textAlign: 'center' }}>
+                {lang === 'en'
+                  ? <>Type <b dir="ltr">{confirmText}</b> to confirm</>
+                  : <>اكتب <b dir="ltr">{confirmText}</b> للتأكيد</>}
+              </p>
+              <input
+                type="text"
+                dir="ltr"
+                value={typed}
+                onChange={(e) => setTyped(e.target.value)}
+                disabled={busy}
+                className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue text-center font-mono"
+                style={{ fontFamily: 'inherit' }}
+              />
+            </div>
           )}
           {requireReason && (
             <textarea
@@ -114,12 +142,12 @@ export default function LoyaltyConfirmSheet({
             <button
               type="button"
               onClick={handleConfirm}
-              disabled={busy}
+              disabled={busy || !confirmTextOk}
               style={{
                 flex: 1, padding: 12, borderRadius: 12,
-                fontWeight: 800, fontSize: 13, cursor: busy ? 'not-allowed' : 'pointer',
+                fontWeight: 800, fontSize: 13, cursor: (busy || !confirmTextOk) ? 'not-allowed' : 'pointer',
                 background: color, color: '#fff', border: 'none',
-                opacity: busy ? 0.6 : 1, fontFamily: 'inherit',
+                opacity: (busy || !confirmTextOk) ? 0.5 : 1, fontFamily: 'inherit',
                 display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 6,
               }}
             >
