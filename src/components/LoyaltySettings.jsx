@@ -5,8 +5,14 @@
 // المكافآت، الفئات، المصادر (تعطيل بدل حذف)، والرسالة الترحيبية.
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { Loader2, Plus } from 'lucide-react';
+import { Loader2, Plus, RotateCcw, AlertTriangle } from 'lucide-react';
 import { getLoyaltySettings, setLoyaltySettings } from '../firebase';
+import {
+  buildPointsMessage,
+  findUnknownVars,
+  POINTS_NOTIFY_TEMPLATE,
+  STORE_NAMES,
+} from '../loyaltyShare';
 import { useScreenHeader } from '../context/ScreenCtx';
 import { translateBranch } from '../i18n';
 
@@ -110,6 +116,8 @@ export default function LoyaltySettings({ store, lang, onBack }) {
         })),
         sources: s.sources || [],
         welcomeMessage: s.welcomeMessage || '',
+        // Batch 92.2: قالب إشعار النقاط — فارغ = السقوط على الثابت وقت الإرسال
+        pointsMessage: s.pointsMessage || '',
       };
       await setLoyaltySettings(store, clean);
       setMsg(en ? 'Saved ✓' : 'تم الحفظ ✓');
@@ -260,6 +268,58 @@ export default function LoyaltySettings({ store, lang, onBack }) {
             ? 'Supported variables above are replaced automatically when sending the card via WhatsApp.'
             : 'المتغيرات أعلاه تُستبدل تلقائياً عند إرسال البطاقة عبر واتساب.'}
         </p>
+      </div>
+
+      {/* Batch 92.2: رسالة إشعار النقاط — نفس نمط الترحيبية، بمعاينة حيّة */}
+      <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-2">
+        <div className="flex items-center justify-between gap-2">
+          <h4 className="font-bold text-sm text-tw-navy">{en ? 'Points notification message' : 'رسالة إشعار النقاط'}</h4>
+          <button
+            type="button"
+            onClick={() => set('pointsMessage', POINTS_NOTIFY_TEMPLATE)}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-tw-soft text-tw-blue text-[10px] font-bold hover:bg-tw-soft/70 flex-shrink-0"
+          >
+            <RotateCcw size={12} /> {en ? 'Restore default' : 'استعادة النص الافتراضي'}
+          </button>
+        </div>
+        <textarea rows={6} value={s.pointsMessage || ''}
+                  onChange={(e) => set('pointsMessage', e.target.value)}
+                  className={inputCls} style={{ resize: 'none' }} />
+        <p className="text-[11px] text-tw-muted font-semibold leading-relaxed" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>
+          {'{name} {points} {balance} {cardUrl} {storeName}'}
+        </p>
+        <p className="text-[11px] text-tw-muted font-semibold">
+          {en
+            ? 'Sent after adding points. Empty field = the built-in default text.'
+            : 'تُرسل بعد إضافة النقاط. الحقل الفارغ = النص الافتراضي المدمج.'}
+        </p>
+        {/* تحذير غير مانع للحفظ — متغيرات {...} خارج الخمسة أعلاه */}
+        {(() => {
+          const unknown = findUnknownVars(s.pointsMessage || '');
+          if (!unknown.length) return null;
+          return (
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-2">
+              <AlertTriangle size={14} className="text-amber-600 flex-shrink-0 mt-0.5" />
+              <p className="text-[11px] font-bold text-amber-700">
+                {en ? 'Unknown variables (left as-is when sending): ' : 'متغيرات غير معروفة (ستُترك كما هي عند الإرسال): '}
+                <span dir="ltr">{unknown.map((u) => `{${u}}`).join(' ')}</span>
+              </p>
+            </div>
+          );
+        })()}
+        {/* معاينة حيّة ببيانات وهمية ثابتة */}
+        <div className="bg-tw-soft/40 border border-tw-line rounded-xl p-3">
+          <p className="text-[10px] font-bold text-tw-muted mb-1.5">{en ? 'Live preview' : 'معاينة حيّة'}</p>
+          <p className="text-xs font-semibold text-tw-navy whitespace-pre-line leading-relaxed">
+            {buildPointsMessage({
+              name: 'أحمد',
+              points: 500,
+              balance: 6250,
+              cardUrl: 'https://example.com/c/xxxxxxxx',
+              storeName: STORE_NAMES[store] || store,
+            }, s.pointsMessage)}
+          </p>
+        </div>
       </div>
 
       {msg && <p className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-xl p-2.5 text-center">{msg}</p>}

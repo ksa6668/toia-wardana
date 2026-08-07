@@ -293,13 +293,14 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
       return;
     }
+    // Batch 92.2: القالب من إعدادات المتجر — فارغ/غير محمّل → الثابت تلقائياً
     const text = buildPointsMessage({
       name: member.name,
       points: Number(tx.points) || 0,
       balance: Number(tx.balanceAfter) || 0,
       cardUrl: cardUrlFor(origin, member.cardToken),
       storeName: STORE_NAMES[member.store] || member.store,
-    });
+    }, settings?.pointsMessage);
     const url = buildWhatsappUrl(member.phone, text);
     if (!url) {
       setWaWarning(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
