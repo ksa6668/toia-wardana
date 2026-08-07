@@ -129,7 +129,7 @@ export default function LoginView({ onLoginSuccess, lang, setLang }) {
               background: '#FFFFFF',
               border: '1px solid #E6ECF6',
               boxShadow: '0 1px 3px rgba(8, 39, 101, 0.04)',
-              fontSize: '15px',
+              fontSize: '16px', // Batch 93: كان 15px — أقل من 16px يفعّل تكبير iOS عند التركيز
               color: '#071A3D',
               fontWeight: 600,
             }}
