@@ -1530,3 +1530,35 @@ body {
 }
 
 
+
+/* =================================================================
+   Batch 93: منع تكبير iOS التلقائي عند التركيز على الحقول
+   =================================================================
+   Safari على iOS يكبّر الصفحة عند التركيز على أي حقل خطه أقل من 16px
+   ولا يعيدها. الحل: رفع خط الحقول إلى 16px على iOS فقط — بلا
+   maximum-scale ولا user-scalable (نُبقي التصغير اليدوي متاحاً).
+
+   نرفع فقط المصادر المجرودة الأصغر من 16px — الحقول المقصودة بخط
+   أكبر (text-lg=18px وحقل PIN الدخول) لا تطابق أي محدد هنا فلا
+   تُصغَّر. checkbox/radio لا تطابق شيئاً أيضاً.
+
+   ملاحظة أولوية: قواعد هذا الملف خارج طبقات Tailwind فتتغلب على
+   text-sm/text-xs (داخل @layer utilities) بلا !important. أما
+   .tw-field و.tw-payment-row (14px أعلاه) فتُقهران بأولوية مساوية
+   وترتيب لاحق. !important الوحيد لحقل التاريخ ذي النمط المضمّن
+   (DateSheet) — لا يُقهر inline بغيره. */
+@supports (-webkit-touch-callout: none) {
+  /* الكلاسان المخصصان 14px في هذا الملف */
+  .tw-field input, .tw-field select, .tw-field textarea,
+  .tw-payment-row input,
+  /* كلاسات Tailwind الأصغر من 16px على عناصر الإدخال */
+  input.text-xs, input.text-sm,
+  select.text-xs, select.text-sm,
+  textarea.text-xs, textarea.text-sm {
+    font-size: 16px;
+  }
+  /* DateSheet: نمط مضمّن 14px — والثاني (المهام) 16px أصلاً فلا يتغير */
+  input[type="date"] {
+    font-size: 16px !important;
+  }
+}
