@@ -8,7 +8,7 @@
 // العد الأساسي مع مفتاح إظهارهم.
 // ----------------------------------------------------------
 import { useState } from 'react';
-import { Loader2, Download, Users2, Wallet, Repeat2, ReceiptText, UserRound } from 'lucide-react';
+import { Loader2, Download, Users2, Wallet, Repeat2, ReceiptText, UserRound, ChevronLeft } from 'lucide-react';
 import {
   getLoyaltyMembers,
   getLoyaltyTransactionsByStore,
@@ -95,6 +95,30 @@ function StatCard({ icon: Icon, label, value, sub }) {
   );
 }
 
+// صف عميل قابل للنقر — يفتح ملف العضو داخل التطبيق (Batch 91.1):
+// الاسم + رقم العضوية (الأسماء تتكرر، الرقم هو المميز)، هدف لمس ≥44px،
+// وسهم كمؤشر بصري. children = المحتوى الإضافي في نهاية الصف.
+function MemberRow({ m, en, onOpen, children }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onOpen?.(m.id)}
+      className="w-full flex items-center gap-2 text-start px-1 py-1.5 border-b border-tw-line/40 last:border-b-0 hover:bg-tw-soft/40 active:bg-tw-soft/60 rounded-lg transition-colors"
+      style={{ minHeight: 44 }}
+    >
+      <span className="flex-1 min-w-0">
+        <span className="block text-[12px] font-bold text-tw-navy truncate">{m.name}</span>
+        <span className="block text-[10px] font-semibold text-tw-muted" dir="ltr"
+              style={{ textAlign: en ? 'left' : 'right' }}>
+          {m.memberNo}
+        </span>
+      </span>
+      {children}
+      <ChevronLeft size={14} className={`text-tw-muted flex-shrink-0 ${en ? 'rotate-180' : ''}`} />
+    </button>
+  );
+}
+
 function ExportBtn({ onClick, lang }) {
   return (
     <button type="button" onClick={onClick}
@@ -104,7 +128,7 @@ function ExportBtn({ onClick, lang }) {
   );
 }
 
-export default function ManagerLoyaltyStats({ store, lang }) {
+export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
   const en = lang === 'en';
   const [period, setPeriod] = useState('month');
   const [includeHidden, setIncludeHidden] = useState(false);
@@ -266,8 +290,9 @@ export default function ManagerLoyaltyStats({ store, lang }) {
         {headRow(
           en ? `Idle customers (${idle.length})` : `العملاء الخاملون (${idle.length})`,
           () => downloadCsv(`idle-${store}.csv`, [
-            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Phone' : 'الجوال', en ? 'Last purchase' : 'آخر شراء', en ? 'Balance' : 'الرصيد'],
-            ...idle.map((m) => [m.name, m.memberNo, m.phone, fmtDate(m.lastPurchaseAt, true), m.pointsBalance]),
+            // بلا رقم جوال — رقم العضوية هو المميز (Batch 91.1)
+            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Last purchase' : 'آخر شراء', en ? 'Balance' : 'الرصيد'],
+            ...idle.map((m) => [m.name, m.memberNo, fmtDate(m.lastPurchaseAt, true), m.pointsBalance]),
           ])
         )}
         <label className="flex items-center gap-2 text-[11px] font-bold text-tw-muted">
@@ -278,10 +303,11 @@ export default function ManagerLoyaltyStats({ store, lang }) {
           {en ? 'days' : 'يوماً'}
         </label>
         {idle.slice(0, 10).map((m) => (
-          <div key={m.id} className="flex items-center justify-between text-[11px] font-bold border-b border-tw-line/40 last:border-b-0 py-1">
-            <span className="text-tw-navy truncate">{m.name}</span>
-            <span className="text-tw-muted flex-shrink-0" dir="ltr">{fmtDate(m.lastPurchaseAt, en) || '—'}</span>
-          </div>
+          <MemberRow key={m.id} m={m} en={en} onOpen={onOpenMember}>
+            <span className="text-[11px] font-bold text-tw-muted flex-shrink-0" dir="ltr">
+              {fmtDate(m.lastPurchaseAt, en) || '—'}
+            </span>
+          </MemberRow>
         ))}
         {idle.length > 10 && (
           <p className="text-[10px] text-tw-muted font-bold text-center">
@@ -295,12 +321,21 @@ export default function ManagerLoyaltyStats({ store, lang }) {
         {headRow(
           en ? `Near a reward 80–99% (${near.length})` : `القريبون من مكافأة 80–99% (${near.length})`,
           () => downloadCsv(`near-reward-${store}.csv`, [
-            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Phone' : 'الجوال', en ? 'Balance' : 'الرصيد', en ? 'Next reward' : 'المكافأة التالية', '%'],
-            ...near.map((m) => [m.name, m.memberNo, m.phone, m.pointsBalance, m.nextRewardLabel, m.progressPct]),
+            // بلا رقم جوال — رقم العضوية هو المميز (Batch 91.1)
+            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Balance' : 'الرصيد', en ? 'Next reward' : 'المكافأة التالية', '%'],
+            ...near.map((m) => [m.name, m.memberNo, m.pointsBalance, m.nextRewardLabel, m.progressPct]),
           ])
         )}
         {near.slice(0, 10).map((m) => (
-          <Bar key={m.id} label={`${m.name} — ${m.nextRewardLabel}`} value={m.progressPct} max={100} suffix="%" />
+          <MemberRow key={m.id} m={m} en={en} onOpen={onOpenMember}>
+            <span className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 90 }}>
+              <span className="text-[10px] font-bold text-tw-muted truncate">{m.nextRewardLabel}</span>
+              <span className="w-full h-1.5 bg-tw-soft rounded-full overflow-hidden">
+                <span className="block h-full rounded-full bg-tw-blue" style={{ width: `${m.progressPct}%`, background: 'var(--color-tw-blue, #005BFF)' }} />
+              </span>
+              <span className="text-[10px] font-extrabold text-tw-navy">{m.progressPct}%</span>
+            </span>
+          </MemberRow>
         ))}
         {near.length === 0 && <p className="text-xs text-tw-muted font-bold text-center py-1">{en ? 'None currently' : 'لا أحد حالياً'}</p>}
       </div>
@@ -316,11 +351,16 @@ export default function ManagerLoyaltyStats({ store, lang }) {
         )}
         {top.length === 0 && <p className="text-xs text-tw-muted font-bold text-center py-1">{en ? 'No purchases in period' : 'لا مشتريات في الفترة'}</p>}
         {top.map((m, i) => (
-          <div key={m.id} className="flex items-center gap-2 text-[11px] font-bold border-b border-tw-line/40 last:border-b-0 py-1">
-            <span className="text-tw-muted w-5 flex-shrink-0">{i + 1}.</span>
-            <span className="text-tw-navy truncate flex-1">{m.name}</span>
-            <span className="text-tw-navy flex-shrink-0">{fmt(m.spendAmount)} {en ? 'SAR' : 'ريال'}</span>
-            <span className="text-tw-muted flex-shrink-0">({fmt(m.spendInvoices)})</span>
+          <div key={m.id} className="flex items-center gap-1.5">
+            <span className="text-[11px] font-bold text-tw-muted w-5 flex-shrink-0">{i + 1}.</span>
+            <div className="flex-1 min-w-0">
+              <MemberRow m={m} en={en} onOpen={onOpenMember}>
+                <span className="text-[11px] font-bold text-tw-navy flex-shrink-0">
+                  {fmt(m.spendAmount)} {en ? 'SAR' : 'ريال'}
+                </span>
+                <span className="text-[10px] font-bold text-tw-muted flex-shrink-0">({fmt(m.spendInvoices)})</span>
+              </MemberRow>
+            </div>
           </div>
         ))}
       </div>

@@ -120,8 +120,16 @@ export default function ManagerLoyalty({ lang, user }) {
         </button>
       </div>
 
-      {/* تبويب الإحصائيات (المرحلة 5) */}
-      {tab === 'stats' && <ManagerLoyaltyStats store={store} lang={lang} />}
+      {/* تبويب الإحصائيات (المرحلة 5) — صفوف القوائم تفتح ملف العضو
+          بنفس آلية sub='profile'، والرجوع يعود لتبويب الإحصائيات
+          (حالة tab محفوظة أثناء عرض الملف) */}
+      {tab === 'stats' && (
+        <ManagerLoyaltyStats
+          store={store}
+          lang={lang}
+          onOpenMember={(id) => { setSelectedMemberId(id); setSub('profile'); }}
+        />
+      )}
 
       {tab === 'members' && (<>
       {/* فلتر المعطّلة ومخفية الهوية */}
