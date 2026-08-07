@@ -67,11 +67,26 @@ export function computeEarnPoints(amount, settings = {}) {
 }
 
 // ---------- التواريخ ----------
-/** تحويل آمن لأي قيمة تاريخ (Firestore Timestamp / Date / string / ms) إلى Date أو null */
+/**
+ * تحويل آمن لأي قيمة تاريخ (Firestore Timestamp / Date / string / ms) إلى Date أو null.
+ *
+ * Batch 91.3 — الحالة الحرجة: طبقة كاش sessionStorage تمر بـ JSON.stringify،
+ * فيتحول Timestamp الحي إلى كائن عادي {seconds, nanoseconds} بلا toDate() —
+ * وكانت هذه القيم ترجع null فتسقط من كل الحسابات الزمنية بصمت (أصفار
+ * الإحصائيات). كل قراءة تاريخ من بيانات مكاشة يجب أن تمر من هنا.
+ */
 export function toDateSafe(v) {
   if (!v) return null;
-  if (typeof v.toDate === 'function') return v.toDate(); // Firestore Timestamp
+  if (typeof v.toDate === 'function') return v.toDate(); // Firestore Timestamp حي
   if (v instanceof Date) return v;
+  // Timestamp مُحيا من JSON (كاش sessionStorage) — شكل client SDK
+  if (typeof v.seconds === 'number') {
+    return new Date(v.seconds * 1000 + Math.round((v.nanoseconds || 0) / 1e6));
+  }
+  // نفس الشكل من Admin SDK بعد التسلسل (احتياطاً)
+  if (typeof v._seconds === 'number') {
+    return new Date(v._seconds * 1000 + Math.round((v._nanoseconds || 0) / 1e6));
+  }
   const d = new Date(v);
   return Number.isNaN(d.getTime()) ? null : d;
 }

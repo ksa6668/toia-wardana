@@ -20,7 +20,7 @@ notification/Telegram content stay Arabic.
 npm run dev       # Vite dev server (HMR)
 npm run build     # production build to dist/
 npm run preview   # serve the production build locally
-npm run lint      # ESLint over the whole repo
+npm run lint      # ESLint over the whole repo — baseline: 39 problems, do not exceed
 ```
 
 There is **no test suite or test runner** — verification is manual (see the QA-style
@@ -79,6 +79,10 @@ Key domain rules baked into firebase.js:
 - Opt-in `freshWhenStale: true` makes stale-cache (older than ttl) render as `loading`
   with a non-silent refetch instead of flashing the old snapshot — use it for screens
   showing computed aggregates (e.g. loyalty stats); default `false` keeps SWR behavior.
+- **Permanent rule:** the cache layer round-trips data through `JSON.stringify`, which
+  kills Firestore `Timestamp` objects (they lose `.toDate()` and become plain
+  `{seconds, nanoseconds}`) — every date read from cached data MUST go through
+  `toDateSafe()` (`src/loyaltyMath.js`), which revives that shape.
 - After any mutation, the corresponding cache **must be invalidated**. firebase.js mutations
   already call an internal `_invalidateCachePrefix('sales' | 'expenses' | ...)`; components
   can call `invalidateCache(prefix)`. Forgetting this leaves stale reports.

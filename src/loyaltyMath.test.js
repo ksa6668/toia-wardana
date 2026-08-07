@@ -8,6 +8,7 @@ import { describe, it, expect } from 'vitest';
 import {
   normalizePhone,
   toEnglishDigits,
+  toDateSafe,
   deriveBalance,
   countedAmount,
   computeEarnPoints,
@@ -193,6 +194,40 @@ describe('الترقية اليدوية والفئة الفعلية', () => {
   it('بلا until → سارية دائماً حتى الإلغاء', () => {
     expect(isManualTierActive({ tier: 'gold', until: null }, now)).toBe(true);
     expect(isManualTierActive(null, now)).toBe(false);
+  });
+});
+
+describe('toDateSafe — نجاة التواريخ من كاش sessionStorage (Batch 91.3)', () => {
+  const when = new Date(2026, 7, 3, 10, 30);
+  // Firestore Timestamp حي (كما يصل من الشبكة)
+  const liveTs = {
+    seconds: Math.floor(when.getTime() / 1000),
+    nanoseconds: 0,
+    toDate() { return new Date(this.seconds * 1000); },
+  };
+
+  it('Timestamp حي → toDate()', () => {
+    expect(toDateSafe(liveTs).getTime()).toBe(liveTs.toDate().getTime());
+  });
+
+  it('Timestamp مُحيا من JSON (شكل client SDK: seconds/nanoseconds) → Date صحيح لا null', () => {
+    const revived = JSON.parse(JSON.stringify(liveTs)); // ما يخزّنه ويعيده الكاش فعلاً
+    expect(typeof revived.toDate).toBe('undefined');
+    const d = toDateSafe(revived);
+    expect(d).not.toBe(null);
+    expect(d.getTime()).toBe(liveTs.toDate().getTime());
+  });
+
+  it('شكل Admin SDK المتسلسل (_seconds/_nanoseconds) → Date صحيح', () => {
+    const d = toDateSafe({ _seconds: Math.floor(when.getTime() / 1000), _nanoseconds: 500000000 });
+    expect(d).not.toBe(null);
+    expect(Math.abs(d.getTime() - (when.getTime() - when.getMilliseconds()))).toBeLessThanOrEqual(500);
+  });
+
+  it('القيم غير الصالحة تبقى null', () => {
+    expect(toDateSafe(null)).toBe(null);
+    expect(toDateSafe({ foo: 1 })).toBe(null);
+    expect(toDateSafe('ليس تاريخاً')).toBe(null);
   });
 });
 
