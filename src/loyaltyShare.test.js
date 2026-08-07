@@ -31,6 +31,7 @@ const FULL_MEMBER = {
   source: 'maps',
   sourceOther: '',
   marketingConsent: true,
+  gender: 'male', // المرحلة 5 — يجب ألا يتسرب إلى البطاقة العامة إطلاقاً
   joinedAt: new Date(2026, 0, 15),
   pointsBalance: 6250,
   redemptionsCount: 3,
@@ -68,6 +69,9 @@ describe('payload البطاقة — القائمة البيضاء (معيار �
     expect(payload).not.toHaveProperty('createdBy');
     expect(payload).not.toHaveProperty('statusReason');
     expect(payload).not.toHaveProperty('marketingConsent');
+    expect(payload).not.toHaveProperty('gender'); // المرحلة 5: الجنس لا يظهر إطلاقاً
+    expect(CARD_PAYLOAD_ALLOWED_KEYS).not.toContain('gender');
+    expect(JSON.stringify(payload)).not.toContain('gender');
     // ولا تتسرب القيم نفسها في أي مكان بالمحتوى المتسلسل
     const json = JSON.stringify(payload);
     expect(json).not.toContain('abc123docid');

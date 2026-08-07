@@ -5,13 +5,14 @@
 // وزر إعدادات الولاء لكل متجر.
 // ----------------------------------------------------------
 import { useState } from 'react';
-import { Loader2, Search, Settings2, Users, ChevronLeft } from 'lucide-react';
+import { Loader2, Search, Settings2, Users, ChevronLeft, BarChart3 } from 'lucide-react';
 import { getLoyaltyMembers } from '../firebase';
 import { useCachedQuery } from '../hooks/useCachedQuery';
 import { toEnglishDigits } from '../loyaltyMath';
 import { translateBranch } from '../i18n';
 import LoyaltyMemberProfile from './LoyaltyMemberProfile';
 import LoyaltySettings from './LoyaltySettings';
+import ManagerLoyaltyStats from './ManagerLoyaltyStats';
 
 const STORES = ['toia', 'wardana'];
 
@@ -19,8 +20,10 @@ export default function ManagerLoyalty({ lang, user }) {
   const en = lang === 'en';
   const [store, setStore] = useState('toia');
   const [search, setSearch] = useState('');
-  // المرحلة 2: العضويات المعطّلة مخفية افتراضياً
+  // المرحلة 2: المعطّلة (+ المرحلة 5: مخفية الهوية) مخفية افتراضياً
   const [showDisabled, setShowDisabled] = useState(false);
+  // المرحلة 5: تبويب فرعي — الأعضاء / الإحصائيات
+  const [tab, setTab] = useState('members');
   // sub: 'list' | 'profile' | 'settings'
   const [sub, setSub] = useState('list');
   const [selectedMemberId, setSelectedMemberId] = useState(null);
@@ -35,7 +38,7 @@ export default function ManagerLoyalty({ lang, user }) {
   // + إخفاء المعطّلة ما لم يُفعَّل الفلتر
   const term = toEnglishDigits(search).trim().toLowerCase();
   const filtered = (members || []).filter((m) => {
-    if (!showDisabled && m.status === 'disabled') return false;
+    if (!showDisabled && (m.status === 'disabled' || m.anonymized)) return false;
     if (!term) return true;
     const phoneDigits = String(m.phone || '').replace(/\D/g, '');
     const termDigits = term.replace(/\D/g, '');
@@ -73,6 +76,24 @@ export default function ManagerLoyalty({ lang, user }) {
       className="min-h-full px-4 pt-3 pb-8 space-y-3"
       style={{ fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif' }}
     >
+      {/* المرحلة 5: التبويب الفرعي — الأعضاء / الإحصائيات */}
+      <div className="flex bg-white border border-tw-line rounded-xl p-1 gap-1">
+        {[
+          { key: 'members', icon: Users, label: en ? 'Members' : 'الأعضاء' },
+          { key: 'stats', icon: BarChart3, label: en ? 'Statistics' : 'الإحصائيات' },
+        ].map((t) => {
+          const Icon = t.icon;
+          return (
+            <button key={t.key} type="button" onClick={() => setTab(t.key)}
+                    className={`flex-1 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-1.5 transition-colors ${
+                      tab === t.key ? 'bg-tw-blue text-white shadow-sm' : 'text-tw-navy hover:bg-tw-soft'
+                    }`}>
+              <Icon size={15} /> {t.label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* اختيار المتجر + الإعدادات */}
       <div className="flex items-center gap-2">
         <div className="flex flex-1 bg-white border border-tw-line rounded-xl p-1 gap-1">
@@ -99,7 +120,11 @@ export default function ManagerLoyalty({ lang, user }) {
         </button>
       </div>
 
-      {/* فلتر المعطّلة */}
+      {/* تبويب الإحصائيات (المرحلة 5) */}
+      {tab === 'stats' && <ManagerLoyaltyStats store={store} lang={lang} />}
+
+      {tab === 'members' && (<>
+      {/* فلتر المعطّلة ومخفية الهوية */}
       <label className="flex items-center gap-2 text-xs font-bold text-tw-muted cursor-pointer w-fit">
         <input
           type="checkbox"
@@ -107,7 +132,7 @@ export default function ManagerLoyalty({ lang, user }) {
           onChange={(e) => setShowDisabled(e.target.checked)}
           className="w-4 h-4 accent-[#005BFF]"
         />
-        {en ? 'Show disabled memberships' : 'إظهار العضويات المعطّلة'}
+        {en ? 'Show disabled & anonymized memberships' : 'إظهار العضويات المعطّلة ومخفية الهوية'}
       </label>
 
       {/* البحث */}
@@ -161,6 +186,11 @@ export default function ManagerLoyalty({ lang, user }) {
                         ({en ? 'disabled' : 'معطّلة'})
                       </span>
                     )}
+                    {m.anonymized && (
+                      <span className="text-[10px] font-extrabold text-amber-600 mx-1.5">
+                        ({en ? 'anonymized' : 'مخفاة الهوية'})
+                      </span>
+                    )}
                   </p>
                   <p className="text-[11px] text-tw-muted font-mono" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>
                     {m.memberNo} · {m.phone}
@@ -183,6 +213,7 @@ export default function ManagerLoyalty({ lang, user }) {
           {filtered.length.toLocaleString('en-US')} {en ? 'member(s)' : 'عضو'} — {translateBranch(lang, store, store)}
         </p>
       )}
+      </>)}
     </div>
   );
 }

@@ -54,6 +54,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
 
   // نموذج التسجيل
   const [regName, setRegName] = useState('');
+  const [regGender, setRegGender] = useState(''); // المرحلة 5: إلزامي — male | female
   const [regSource, setRegSource] = useState('');
   const [regSourceOther, setRegSourceOther] = useState('');
   const [regConsent, setRegConsent] = useState(false);
@@ -93,7 +94,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     setMember(null);
     setTxs([]);
     setSearchError('');
-    setRegName(''); setRegSource(''); setRegSourceOther(''); setRegConsent(false); setRegError('');
+    setRegName(''); setRegGender(''); setRegSource(''); setRegSourceOther(''); setRegConsent(false); setRegError('');
     setInvoiceNo(''); setAmount(''); setEarnError(''); setEarnMsg('');
   };
 
@@ -134,6 +135,10 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
   const handleRegister = async () => {
     setRegError('');
     if (!regName.trim()) { setRegError(en ? 'Enter the customer name' : 'أدخل اسم العميل'); return; }
+    if (regGender !== 'male' && regGender !== 'female') {
+      setRegError(en ? 'Select the customer gender' : 'حدّد جنس العميل');
+      return;
+    }
     if (regSource === 'other' && !regSourceOther.trim()) {
       setRegError(en ? 'Specify the source' : 'حدّد المصدر');
       return;
@@ -144,6 +149,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
         store: branchId,
         phone: phoneInput,
         name: regName,
+        gender: regGender,
         source: regSource,
         sourceOther: regSourceOther,
         marketingConsent: regConsent,
@@ -348,6 +354,29 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             onChange={(e) => setRegName(e.target.value)}
             className={inputCls}
           />
+          {/* المرحلة 5: الجنس — إلزامي، خياران فقط، بنفس نمط أزرار المصدر */}
+          <div>
+            <p className="text-xs font-bold text-tw-muted mb-1.5">{en ? 'Gender (required)' : 'الجنس (إلزامي)'}</p>
+            <div className="flex gap-1.5">
+              {[
+                { v: 'male', label: en ? 'Male' : 'ذكر' },
+                { v: 'female', label: en ? 'Female' : 'أنثى' },
+              ].map((g) => (
+                <button
+                  key={g.v}
+                  type="button"
+                  onClick={() => setRegGender(g.v)}
+                  className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+                    regGender === g.v
+                      ? 'bg-tw-blue text-white border-tw-blue'
+                      : 'bg-tw-soft/40 text-tw-navy border-tw-line'
+                  }`}
+                >
+                  {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
           {/* مصدر التعرف — أزرار سريعة */}
           <div>
             <p className="text-xs font-bold text-tw-muted mb-1.5">{en ? 'How did they hear about us?' : 'مصدر التعرف علينا'}</p>
