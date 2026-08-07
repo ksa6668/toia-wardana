@@ -32,6 +32,7 @@ import {
 } from '../loyaltyShare';
 import LoyaltyConfirmSheet from './LoyaltyConfirmSheet';
 import QrScanSheet from './QrScanSheet';
+import { toLatinDigits } from '../utils/digits';
 
 // ألوان شارات الفئات
 const TIER_STYLE = {
@@ -341,7 +342,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             dir="ltr"
             placeholder={en ? 'Phone e.g. 05XXXXXXXX' : 'رقم الجوال مثال 05XXXXXXXX'}
             value={phoneInput}
-            onChange={(e) => setPhoneInput(e.target.value)}
+            onChange={(e) => setPhoneInput(toLatinDigits(e.target.value))}
             onKeyDown={(e) => { if (e.key === 'Enter') handleSearch(); }}
             className={`${inputCls} text-center font-mono`}
           />
@@ -579,7 +580,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
                 type="text"
                 placeholder={en ? 'Invoice no. (required)' : 'رقم الفاتورة (إلزامي)'}
                 value={invoiceNo}
-                onChange={(e) => setInvoiceNo(e.target.value)}
+                onChange={(e) => setInvoiceNo(toLatinDigits(e.target.value))}
                 className={inputCls}
               />
               <input
@@ -588,7 +589,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
                 min="0"
                 placeholder={en ? 'Amount (SAR)' : 'المبلغ (ريال)'}
                 value={amount}
-                onChange={(e) => setAmount(e.target.value)}
+                onChange={(e) => setAmount(toLatinDigits(e.target.value))}
                 className={inputCls}
               />
             </div>

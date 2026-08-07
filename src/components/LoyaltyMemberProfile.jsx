@@ -31,6 +31,7 @@ import {
 } from '../loyaltyShare';
 import { useScreenHeader } from '../context/ScreenCtx';
 import LoyaltyConfirmSheet from './LoyaltyConfirmSheet';
+import { toLatinDigits } from '../utils/digits';
 
 const TIER_STYLE = {
   silver:   { bg: '#EDF1F7', color: '#5A6B85' },
@@ -447,7 +448,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
           <input type="text" value={editName} onChange={(e) => setEditName(e.target.value)}
                  placeholder={en ? 'Name' : 'الاسم'} className={inputCls} />
           <input type="tel" inputMode="tel" dir="ltr" value={editPhone}
-                 onChange={(e) => setEditPhone(e.target.value)}
+                 onChange={(e) => setEditPhone(toLatinDigits(e.target.value))}
                  placeholder={en ? 'Phone' : 'رقم الجوال'}
                  className={`${inputCls} text-center font-mono`} />
           {/* المرحلة 5: تعديل الجنس — للمدير فقط، يُسجَّل بحركة audit */}
@@ -492,7 +493,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-blue/30 space-y-2">
           <h4 className="font-bold text-sm text-tw-navy">{en ? 'Points adjustment' : 'تسوية نقاط'}</h4>
           <input type="number" inputMode="numeric" value={adjPoints}
-                 onChange={(e) => setAdjPoints(e.target.value)}
+                 onChange={(e) => setAdjPoints(toLatinDigits(e.target.value))}
                  placeholder={en ? 'Points (+ or −)' : 'النقاط (+ أو −)'} className={inputCls} />
           <input type="text" value={adjReason} onChange={(e) => setAdjReason(e.target.value)}
                  placeholder={en ? 'Reason (required)' : 'السبب (إلزامي)'} className={inputCls} />
@@ -530,7 +531,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
               <input type="text" value={tierReason} onChange={(e) => setTierReason(e.target.value)}
                      placeholder={en ? 'Reason (required)' : 'السبب (إلزامي)'} className={inputCls} />
               <input type="number" inputMode="numeric" min="0" value={tierMonths}
-                     onChange={(e) => setTierMonths(e.target.value)}
+                     onChange={(e) => setTierMonths(toLatinDigits(e.target.value))}
                      placeholder={en ? 'Duration in months (empty = until cancelled)' : 'المدة بالشهور (فارغ = حتى الإلغاء)'}
                      className={inputCls} />
             </>

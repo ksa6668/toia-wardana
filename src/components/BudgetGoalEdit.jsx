@@ -10,6 +10,7 @@ import { useScreenHeader } from '../context/ScreenCtx';
 import BottomSheet from './BottomSheet';
 import SarSymbol from './SarSymbol';
 import { formatMonthLabel, getMonthsFrom } from '../utils/periodHelpers';
+import { toLatinDigits } from '../utils/digits';
 
 export default function BudgetGoalEdit({ onBack, branchId, branchName, lang = 'ar' }) {
   const title = lang === 'en'
@@ -118,7 +119,7 @@ export default function BudgetGoalEdit({ onBack, branchId, branchName, lang = 'a
                 inputMode="decimal"
                 placeholder="0"
                 value={budget}
-                onChange={(e) => setBudget(e.target.value)}
+                onChange={(e) => setBudget(toLatinDigits(e.target.value))}
                 className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                 dir="ltr"
               />

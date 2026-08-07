@@ -4,6 +4,7 @@
 import { useState, useEffect } from 'react';
 import { Gift, Undo2, Loader2 } from 'lucide-react';
 import SheetPortal from './SheetPortal';
+import { toLatinDigits } from '../utils/digits';
 
 export default function LoyaltyConfirmSheet({
   open,
@@ -103,7 +104,7 @@ export default function LoyaltyConfirmSheet({
                 type="text"
                 dir="ltr"
                 value={typed}
-                onChange={(e) => setTyped(e.target.value)}
+                onChange={(e) => setTyped(toLatinDigits(e.target.value))}
                 disabled={busy}
                 className="w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue text-center font-mono"
                 style={{ fontFamily: 'inherit' }}

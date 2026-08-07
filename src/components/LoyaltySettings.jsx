@@ -15,6 +15,7 @@ import {
 } from '../loyaltyShare';
 import { useScreenHeader } from '../context/ScreenCtx';
 import { translateBranch } from '../i18n';
+import { toLatinDigits } from '../utils/digits';
 
 // صف إعداد (تسمية + حقل) — خارج المكوّن حتى لا يفقد الحقل التركيز عند كل render
 function Row({ label, children }) {
@@ -156,7 +157,7 @@ export default function LoyaltySettings({ store, lang, onBack }) {
         </label>
         <Row label={en ? 'Points per riyal' : 'النقاط لكل ريال'}>
           <input type="number" inputMode="decimal" min="0" value={s.pointsPerRiyal}
-                 onChange={(e) => setNum('pointsPerRiyal', e.target.value)} className={numCls} />
+                 onChange={(e) => setNum('pointsPerRiyal', toLatinDigits(e.target.value))} className={numCls} />
         </Row>
         <label className="flex items-center justify-between gap-3 cursor-pointer">
           <span className="text-xs font-bold text-tw-navy">{en ? 'VAT registered' : 'منشأة مسجلة بالضريبة'}</span>
@@ -169,7 +170,7 @@ export default function LoyaltySettings({ store, lang, onBack }) {
         {s.vatRegistered && (
           <Row label={en ? 'VAT rate' : 'نسبة الضريبة'}>
             <input type="number" inputMode="decimal" min="0" step="0.01" value={s.vatRate}
-                   onChange={(e) => setNum('vatRate', e.target.value)} className={numCls} />
+                   onChange={(e) => setNum('vatRate', toLatinDigits(e.target.value))} className={numCls} />
           </Row>
         )}
         <p className="text-[11px] text-tw-muted font-semibold">
@@ -179,15 +180,15 @@ export default function LoyaltySettings({ store, lang, onBack }) {
         </p>
         <Row label={en ? 'Points expiry (months)' : 'انتهاء النقاط (شهور)'}>
           <input type="number" inputMode="numeric" min="0" value={s.expiryMonths}
-                 onChange={(e) => setNum('expiryMonths', e.target.value)} className={numCls} />
+                 onChange={(e) => setNum('expiryMonths', toLatinDigits(e.target.value))} className={numCls} />
         </Row>
         <Row label={en ? 'Tier window (months)' : 'نافذة الفئة (شهور)'}>
           <input type="number" inputMode="numeric" min="0" value={s.tierWindowMonths}
-                 onChange={(e) => setNum('tierWindowMonths', e.target.value)} className={numCls} />
+                 onChange={(e) => setNum('tierWindowMonths', toLatinDigits(e.target.value))} className={numCls} />
         </Row>
         <Row label={en ? 'Large purchase alert (SAR)' : 'تنبيه شراء كبير (ريال)'}>
           <input type="number" inputMode="numeric" min="0" value={s.largeTransactionAlert}
-                 onChange={(e) => setNum('largeTransactionAlert', e.target.value)} className={numCls} />
+                 onChange={(e) => setNum('largeTransactionAlert', toLatinDigits(e.target.value))} className={numCls} />
         </Row>
       </div>
 
@@ -201,10 +202,10 @@ export default function LoyaltySettings({ store, lang, onBack }) {
           <div key={tr.key} className="grid grid-cols-[1fr_5rem_5rem] gap-2">
             <input type="text" value={tr.name} onChange={(e) => setTier(i, 'name', e.target.value)} className={inputCls} />
             <input type="number" inputMode="numeric" value={tr.min}
-                   onChange={(e) => setTier(i, 'min', e.target.value === '' ? '' : Number(e.target.value))} className={numCls} />
+                   onChange={(e) => setTier(i, 'min', e.target.value === '' ? '' : Number(toLatinDigits(e.target.value)))} className={numCls} />
             <input type="number" inputMode="numeric" value={tr.max == null ? '' : tr.max}
                    placeholder="∞"
-                   onChange={(e) => setTier(i, 'max', e.target.value === '' ? null : Number(e.target.value))} className={numCls} />
+                   onChange={(e) => setTier(i, 'max', e.target.value === '' ? null : Number(toLatinDigits(e.target.value)))} className={numCls} />
           </div>
         ))}
       </div>
@@ -219,9 +220,9 @@ export default function LoyaltySettings({ store, lang, onBack }) {
           <div key={r.id} className="grid grid-cols-[1fr_4.5rem_5.5rem_2rem] gap-2 items-center">
             <input type="text" value={r.label} onChange={(e) => setReward(i, 'label', e.target.value)} className={inputCls} />
             <input type="number" inputMode="numeric" value={r.value}
-                   onChange={(e) => setReward(i, 'value', e.target.value === '' ? '' : Number(e.target.value))} className={numCls} />
+                   onChange={(e) => setReward(i, 'value', e.target.value === '' ? '' : Number(toLatinDigits(e.target.value)))} className={numCls} />
             <input type="number" inputMode="numeric" value={r.points}
-                   onChange={(e) => setReward(i, 'points', e.target.value === '' ? '' : Number(e.target.value))} className={numCls} />
+                   onChange={(e) => setReward(i, 'points', e.target.value === '' ? '' : Number(toLatinDigits(e.target.value)))} className={numCls} />
             <input type="checkbox" checked={r.active !== false}
                    onChange={(e) => setReward(i, 'active', e.target.checked)}
                    title={en ? 'Active' : 'مفعّلة'} className="w-4 h-4 accent-[#005BFF] justify-self-center" />

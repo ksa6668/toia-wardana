@@ -13,6 +13,7 @@ import { translateBranch } from '../i18n';
 import LoyaltyMemberProfile from './LoyaltyMemberProfile';
 import LoyaltySettings from './LoyaltySettings';
 import ManagerLoyaltyStats from './ManagerLoyaltyStats';
+import { toLatinDigits } from '../utils/digits';
 
 const STORES = ['toia', 'wardana'];
 
@@ -149,7 +150,7 @@ export default function ManagerLoyalty({ lang, user }) {
         <input
           type="text"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => setSearch(toLatinDigits(e.target.value))}
           placeholder={en ? 'Search: name / phone / member no.' : 'بحث: اسم / جوال / رقم عضوية'}
           className="w-full p-3 bg-white border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue"
           style={{ paddingInlineStart: 36 }}

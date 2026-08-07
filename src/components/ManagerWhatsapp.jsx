@@ -23,6 +23,7 @@ import {
   formatMonthLabel,
   formatDayShort,
 } from '../utils/periodHelpers';
+import { toLatinDigits } from '../utils/digits';
 
 export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
   // Batch 45/46: حفظ اختيارات المستخدم
@@ -417,7 +418,7 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
                 </label>
                 <input type="number" inputMode="numeric" placeholder="0" dir="ltr"
                   value={editRow.customers}
-                  onChange={(e) => setEditRow((r) => ({ ...r, customers: e.target.value }))} />
+                  onChange={(e) => setEditRow((r) => ({ ...r, customers: toLatinDigits(e.target.value) }))} />
                 <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
               </div>
 
@@ -428,7 +429,7 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
                 </label>
                 <input type="number" inputMode="numeric" placeholder="0" dir="ltr"
                   value={editRow.newCustomers}
-                  onChange={(e) => setEditRow((r) => ({ ...r, newCustomers: e.target.value }))} />
+                  onChange={(e) => setEditRow((r) => ({ ...r, newCustomers: toLatinDigits(e.target.value) }))} />
                 <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
               </div>
 
@@ -439,7 +440,7 @@ export default function ManagerWhatsapp({ lang = 'ar', onOpenBuyersMonthly }) {
                 </label>
                 <input type="number" inputMode="numeric" placeholder="0" dir="ltr"
                   value={editRow.buyers}
-                  onChange={(e) => setEditRow((r) => ({ ...r, buyers: e.target.value }))} />
+                  onChange={(e) => setEditRow((r) => ({ ...r, buyers: toLatinDigits(e.target.value) }))} />
                 <div className="unit" style={{ fontSize: 11 }}>{lang === 'en' ? 'cust.' : 'عميل'}</div>
               </div>
             </div>

@@ -20,6 +20,7 @@ import {
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "./firebaseCore";
 import { clearUserNameCache } from "./firebaseTelegram";
+import { toLatinDigits } from "./utils/digits";
 
 // ========== Batch 56: ثبات الجلسة + خمول 30 يوم ==========
 const LAST_ACTIVE_KEY = 'tw_last_active';
@@ -60,8 +61,10 @@ function usernameToEmail(username) {
 
 // يحوّل الرمز (4 أرقام) إلى كلمة مرور صالحة (6+ أحرف)
 // S1: مُصدّرة ليستخدمها firebaseUsers.js (changeMyPin) — نفس المنطق.
+// Batch 94: حصانة دفاعية — توحيد الأرقام الهندية/الفارسية قبل البناء،
+// حتى لو وصل الرمز من مسار لم يُوحَّد عند الكتابة.
 export function pinToPassword(pin) {
-  return `${String(pin).trim()}${PIN_SUFFIX}`;
+  return `${toLatinDigits(String(pin)).trim()}${PIN_SUFFIX}`;
 }
 
 // ========== المصادقة ==========
@@ -70,7 +73,8 @@ export function pinToPassword(pin) {
 // يرجّع ملف المستخدم من مجموعة users (فيه role و branchId)
 export async function login(username, pin) {
   if (!username || !pin) throw new Error("أدخل اسم المستخدم والرمز");
-  if (!/^\d{4}$/.test(String(pin).trim())) {
+  // Batch 94: \d تطابق ASCII فقط — نوحّد الأرقام الهندية أولاً كي لا يُرفض رمز صحيح
+  if (!/^\d{4}$/.test(toLatinDigits(String(pin)).trim())) {
     throw new Error("الرمز يجب أن يكون 4 أرقام");
   }
   const email = usernameToEmail(username);
@@ -121,7 +125,8 @@ export function watchAuth(callback) {
 // يُستخدم من شاشة الإعدادات لإضافة موظف/مدير جديد.
 // ينشئ حساب Auth + ملف users بنفس الـ UID.
 export async function createStaffUser({ username, pin, role, branchId, displayName }) {
-  if (!/^\d{4}$/.test(String(pin).trim())) {
+  // Batch 94: توحيد الأرقام الهندية قبل التحقق (كما في login)
+  if (!/^\d{4}$/.test(toLatinDigits(String(pin)).trim())) {
     throw new Error("الرمز يجب أن يكون 4 أرقام");
   }
   const email = usernameToEmail(username);

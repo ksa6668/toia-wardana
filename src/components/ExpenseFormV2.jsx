@@ -24,6 +24,7 @@ import BottomSheet from './BottomSheet';
 import { useScreenHeader } from '../context/ScreenCtx';
 import { todayLocal, dateLabelFor } from '../utils/dateHelpers';
 import { compressImage } from '../utils/imageCompress';
+import { toLatinDigits } from '../utils/digits';
 
 const PRIMARY_TYPES = ['flower', 'delivery', 'customerOrders', 'supplies'];
 
@@ -403,7 +404,7 @@ export default function ExpenseFormV2({
           <label>{t(lang, 'expense.amount')}</label>
           <div className="tw-field">
             <input type="number" inputMode="decimal" placeholder="0" min="0"
-              value={amount} onChange={(e) => setAmount(e.target.value.replace('-', ''))} dir="ltr" />
+              value={amount} onChange={(e) => setAmount(toLatinDigits(e.target.value).replace('-', ''))} dir="ltr" />
             <span className="tw-field-suffix">{t(lang, 'sales.currency')}</span>
           </div>
 

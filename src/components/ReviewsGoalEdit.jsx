@@ -10,6 +10,7 @@ import { getMonthlyGoal, setMonthlyGoal } from '../firebase';
 import { useScreenHeader } from '../context/ScreenCtx';
 import BottomSheet from './BottomSheet';
 import { formatMonthLabel, getMonthsFrom } from '../utils/periodHelpers';
+import { toLatinDigits } from '../utils/digits';
 
 export default function ReviewsGoalEdit({ onBack, branchId, branchName, lang = 'ar' }) {
   const title = lang === 'en'
@@ -121,7 +122,7 @@ export default function ReviewsGoalEdit({ onBack, branchId, branchName, lang = '
                 inputMode="numeric"
                 placeholder="0"
                 value={achieved}
-                onChange={(e) => setAchieved(e.target.value)}
+                onChange={(e) => setAchieved(toLatinDigits(e.target.value))}
                 className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                 dir="ltr"
               />
@@ -150,7 +151,7 @@ export default function ReviewsGoalEdit({ onBack, branchId, branchName, lang = '
                 inputMode="numeric"
                 placeholder="0"
                 value={target}
-                onChange={(e) => setTarget(e.target.value)}
+                onChange={(e) => setTarget(toLatinDigits(e.target.value))}
                 className="flex-1 text-lg font-bold text-tw-navy outline-none bg-transparent placeholder:text-tw-muted/50"
                 dir="ltr"
               />

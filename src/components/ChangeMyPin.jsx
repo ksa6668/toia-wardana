@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Loader2, Key, CheckCircle2 } from 'lucide-react';
 import { changeMyPin } from '../firebase';
 import { useScreenHeader } from '../context/ScreenCtx';
+import { toLatinDigits } from '../utils/digits';
 
 export default function ChangeMyPin({ onBack }) {
   useScreenHeader('تغيير الرمز السري', onBack);
@@ -54,19 +55,19 @@ export default function ChangeMyPin({ onBack }) {
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">الرمز الحالي</label>
           <input type="password" inputMode="numeric" maxLength={4} value={currentPin}
-            onChange={(e) => setCurrentPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
+            onChange={(e) => setCurrentPin(toLatinDigits(e.target.value).replace(/\D/g, ''))} placeholder="••••"
             className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-tw-blue" />
         </div>
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">الرمز الجديد</label>
           <input type="password" inputMode="numeric" maxLength={4} value={newPin}
-            onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
+            onChange={(e) => setNewPin(toLatinDigits(e.target.value).replace(/\D/g, ''))} placeholder="••••"
             className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-tw-blue" />
         </div>
         <div>
           <label className="text-xs font-bold text-tw-muted mb-1.5 block">تأكيد الرمز الجديد</label>
           <input type="password" inputMode="numeric" maxLength={4} value={confirmPin}
-            onChange={(e) => setConfirmPin(e.target.value.replace(/\D/g, ''))} placeholder="••••"
+            onChange={(e) => setConfirmPin(toLatinDigits(e.target.value).replace(/\D/g, ''))} placeholder="••••"
             className="w-full p-4 bg-tw-soft/40 border border-tw-line rounded-xl text-center tracking-[0.5em] font-mono text-lg outline-none focus:border-tw-blue" />
         </div>
 
