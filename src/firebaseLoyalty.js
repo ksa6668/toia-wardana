@@ -665,6 +665,21 @@ export async function updateLoyaltyMemberContact({
   return { changed: true };
 }
 
+// ---------- تعليم إرسال الترحيب (Batch 92) ----------
+/**
+ * يسجّل أن زر الترحيب فُتح لهذا العضو — welcomeSentAt.
+ * تنبيه مهم: هذا يسجّل «فتح تبويب wa.me» لا «الإرسال الفعلي داخل واتساب»
+ * (لا يمكن تقنياً معرفة الضغط على إرسال هناك) — لا تبنِ عليه أي تقرير
+ * يفترض وصول الرسالة. غرضه الوحيد: تبديل نص الزر لمنع التكرار غير المقصود.
+ */
+export async function markLoyaltyWelcomeSent(memberId) {
+  await updateDoc(doc(db, "loyaltyMembers", memberId), {
+    welcomeSentAt: serverTimestamp(),
+    updatedAt: serverTimestamp(),
+  });
+  invalidateCachePrefix("loyalty");
+}
+
 // ---------- درجات الحذف عبر /api/loyaltyAdmin (المرحلة 5) ----------
 // نفس نمط adminChangeUserPin في firebaseUsers.js: توكن المدير + POST.
 // قواعد Firestore فيها allow delete: if false — الحذف/الإخفاء يمران
