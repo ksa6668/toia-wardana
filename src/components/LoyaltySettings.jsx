@@ -1,18 +1,25 @@
 // src/components/LoyaltySettings.jsx
 // ----------------------------------------------------------
-// إعدادات الولاء الأساسية لكل متجر (شاشة مدير فرعية):
-// النقاط لكل ريال، أساس الاحتساب والضريبة، مدد الانتهاء والنافذة،
-// المكافآت، الفئات، المصادر (تعطيل بدل حذف)، والرسالة الترحيبية.
+// إعدادات الولاء لكل متجر (شاشة مدير فرعية) — النسخة 3.0.
+// تسعة أقسام: الكسب والفئات، الرصيد، الترحيبية، الضريبة، المصادر،
+// قنوات التواصل، حد التنبيه، تفعيل البرنامج، والرسائل.
+// القيم تُدخل بالريال في الواجهة وتُخزَّن بالهللات (أعداد صحيحة).
+// تحقق إلزامي عند الحفظ برسائل عربية واضحة + سطر مثال حي يتفاعل
+// مع تغيير النسب قبل الحفظ.
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
 import { Loader2, Plus, RotateCcw, AlertTriangle } from 'lucide-react';
 import { getLoyaltySettings, setLoyaltySettings } from '../firebase';
 import {
-  buildPointsMessage,
+  CREDIT_NOTIFY_TEMPLATE,
+  CREDIT_MESSAGE_VARS,
+  WELCOME_MESSAGE_VARS,
+  EXPIRY_MESSAGE_VARS,
   findUnknownVars,
-  POINTS_NOTIFY_TEMPLATE,
+  buildCreditMessage,
   STORE_NAMES,
 } from '../loyaltyShare';
+import { computeEarnedHalalas, halalasToRiyalLabel, riyalsToHalalas } from '../loyaltyMath';
 import { useScreenHeader } from '../context/ScreenCtx';
 import { translateBranch } from '../i18n';
 import { toLatinDigits } from '../utils/digits';
@@ -26,6 +33,10 @@ function Row({ label, children }) {
     </div>
   );
 }
+
+const TIER_KEYS = ['silver', 'gold', 'platinum'];
+const TIER_AR = { silver: 'فضية', gold: 'ذهبية', platinum: 'بلاتينية' };
+const TIER_EN = { silver: 'Silver', gold: 'Gold', platinum: 'Platinum' };
 
 export default function LoyaltySettings({ store, lang, onBack }) {
   const en = lang === 'en';
@@ -60,16 +71,21 @@ export default function LoyaltySettings({ store, lang, onBack }) {
 
   const set = (key, value) => setS((prev) => ({ ...prev, [key]: value }));
   const setNum = (key, value) => set(key, value === '' ? '' : Number(value));
+  // القيم الريالية تُعرض ريالاً وتبقى في الحالة هللات — التحويل عند الإدخال
+  const setRiyal = (key, value) => set(key, value === '' ? '' : riyalsToHalalas(value) ?? '');
+  const riyalValue = (halalas) => (halalas === '' || halalas == null ? '' : Number(halalas) / 100);
 
-  const setReward = (idx, key, value) => {
-    setS((prev) => {
-      const rewards = prev.rewards.map((r, i) => (i === idx ? { ...r, [key]: value } : r));
-      return { ...prev, rewards };
-    });
-  };
   const setTier = (idx, key, value) => {
     setS((prev) => {
       const tiers = prev.tiers.map((t, i) => (i === idx ? { ...t, [key]: value } : t));
+      return { ...prev, tiers };
+    });
+  };
+  const setTierName = (idx, nameLang, value) => {
+    setS((prev) => {
+      const tiers = prev.tiers.map((t, i) =>
+        i === idx ? { ...t, name: { ...(typeof t.name === 'object' ? t.name : { ar: String(t.name || '') }), [nameLang]: value } } : t
+      );
       return { ...prev, tiers };
     });
   };
@@ -88,39 +104,99 @@ export default function LoyaltySettings({ store, lang, onBack }) {
     }));
     setNewSource('');
   };
+  const setMessage = (key, msgLang, value) => {
+    setS((prev) => ({
+      ...prev,
+      [key]: { ...(typeof prev[key] === 'object' ? prev[key] : {}), [msgLang]: value },
+    }));
+  };
+  const setContact = (key, value) => {
+    setS((prev) => ({ ...prev, contacts: { ...(prev.contacts || {}), [key]: value } }));
+  };
+
+  // ---- التحقق الإلزامي عند الحفظ — رسائل عربية واضحة ----
+  const validate = (tiers) => {
+    const [silver, gold, platinum] = tiers;
+    for (const t of tiers) {
+      const rate = Number(t.ratePercent);
+      // حماية من خطأ إدخال يكلّف مالاً — كل نسبة بين 0 و10
+      if (!(rate > 0 && rate <= 10)) {
+        return en
+          ? `Earn rate for ${TIER_EN[t.key]} must be between 0 and 10`
+          : `نسبة كسب «${TIER_AR[t.key]}» يجب أن تكون بين 0 و10`;
+      }
+    }
+    if (!(Number(silver.ratePercent) <= Number(gold.ratePercent)
+        && Number(gold.ratePercent) <= Number(platinum.ratePercent))) {
+      return en
+        ? 'Rates must be ascending: Silver ≤ Gold ≤ Platinum'
+        : 'النسب يجب أن تكون تصاعدية: فضية ≤ ذهبية ≤ بلاتينية';
+    }
+    const goldMin = Number(gold.minEarnedHalalas);
+    const platMin = Number(platinum.minEarnedHalalas);
+    if (!(goldMin > 0) || !(platMin > 0)) {
+      return en ? 'Tier thresholds must be positive' : 'عتبات الفئات يجب أن تكون أكبر من صفر';
+    }
+    if (!(goldMin < platMin)) {
+      return en
+        ? 'Thresholds must be ascending: Gold < Platinum'
+        : 'العتبات يجب أن تكون تصاعدية: عتبة الذهبية أقل من عتبة البلاتينية';
+    }
+    return null;
+  };
 
   const handleSave = async () => {
-    setSaving(true);
     setMsg('');
     setError('');
+    // تنقية الأرقام قبل الحفظ (حقول فارغة → افتراضي منطقي)
+    const tiers = TIER_KEYS.map((key, i) => {
+      const t = (s.tiers || [])[i] || { key };
+      return {
+        key,
+        name: typeof t.name === 'object' ? t.name : { ar: String(t.name || TIER_AR[key]), en: TIER_EN[key] },
+        minEarnedHalalas: key === 'silver' ? 0 : Math.round(Number(t.minEarnedHalalas) || 0),
+        ratePercent: Number(t.ratePercent) || 0,
+      };
+    });
+    const invalid = validate(tiers);
+    if (invalid) { setError(invalid); return; }
+
+    setSaving(true);
     try {
-      // تنقية الأرقام قبل الحفظ (حقول فارغة → افتراضي منطقي)
       const clean = {
         enabled: s.enabled !== false,
-        pointsPerRiyal: Number(s.pointsPerRiyal) || 0,
+        tiers,
+        tierWindowMonths: Number(s.tierWindowMonths) || 24,
+        expiryMonths: Number(s.expiryMonths) || 12,
+        expiryWarningDays: Number(s.expiryWarningDays) || 30,
+        earnRoundingHalalas: Math.max(1, Math.round(Number(s.earnRoundingHalalas) || 25)),
+        redeemStepHalalas: Math.max(1, Math.round(Number(s.redeemStepHalalas) || 25)),
+        welcomeBonusEnabled: s.welcomeBonusEnabled !== false,
+        welcomeBonusHalalas: Math.max(0, Math.round(Number(s.welcomeBonusHalalas) || 0)),
+        welcomeBonusDelayHours: Math.max(0, Number(s.welcomeBonusDelayHours) || 0),
         vatRegistered: !!s.vatRegistered,
-        pointsBasis: s.vatRegistered ? s.pointsBasis : 'gross',
+        amountBasis: s.vatRegistered ? 'net' : 'gross',
         vatRate: Number(s.vatRate) || 0,
-        expiryMonths: Number(s.expiryMonths) || 0,
-        tierWindowMonths: Number(s.tierWindowMonths) || 0,
-        largeTransactionAlert: Number(s.largeTransactionAlert) || 0,
-        tiers: (s.tiers || []).map((t) => ({
-          ...t,
-          min: Number(t.min) || 0,
-          max: t.max === '' || t.max == null ? null : Number(t.max),
-        })),
-        rewards: (s.rewards || []).map((r) => ({
-          ...r,
-          value: Number(r.value) || 0,
-          points: Number(r.points) || 0,
-          active: r.active !== false,
-        })),
+        largeTransactionAlertRiyals: Math.max(0, Number(s.largeTransactionAlertRiyals) || 0),
         sources: s.sources || [],
-        welcomeMessage: s.welcomeMessage || '',
-        // Batch 92.2: قالب إشعار النقاط — فارغ = السقوط على الثابت وقت الإرسال
-        pointsMessage: s.pointsMessage || '',
+        contacts: {
+          whatsapp: String(s.contacts?.whatsapp || '').trim(),
+          instagram: String(s.contacts?.instagram || '').trim(),
+          tiktok: String(s.contacts?.tiktok || '').trim(),
+        },
+        welcomeMessage: {
+          ar: s.welcomeMessage?.ar || '',
+          en: s.welcomeMessage?.en || '',
+        },
+        expiryWarningMessage: {
+          ar: s.expiryWarningMessage?.ar || '',
+          en: s.expiryWarningMessage?.en || '',
+        },
+        // إشعار الرصيد — فارغ = السقوط على القالب الثابت وقت الإرسال
+        creditMessage: s.creditMessage || '',
       };
       await setLoyaltySettings(store, clean);
+      setS((prev) => ({ ...prev, ...clean }));
       setMsg(en ? 'Saved ✓' : 'تم الحفظ ✓');
     } catch (err) {
       setError(err?.message || (en ? 'Save failed' : 'تعذّر الحفظ'));
@@ -141,30 +217,130 @@ export default function LoyaltySettings({ store, lang, onBack }) {
 
   const inputCls = 'w-full p-2.5 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue';
   const numCls = `${inputCls} text-center font-mono`;
+  const cardCls = 'bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-3';
+
+  // سطر المثال الحي — يتفاعل فوراً مع تغيير النسب/التقريب قبل الحفظ
+  const example = (() => {
+    const amountHalalas = 15000; // فاتورة 150 ريالاً
+    const roundStep = Math.max(1, Math.round(Number(s.earnRoundingHalalas) || 25));
+    const conf = { earnRoundingHalalas: roundStep, amountBasis: 'gross' };
+    const parts = TIER_KEYS.map((key, i) => {
+      const rate = Number((s.tiers || [])[i]?.ratePercent) || 0;
+      const earned = computeEarnedHalalas(amountHalalas, rate, conf);
+      return `${en ? TIER_EN[key] : TIER_AR[key]} ${halalasToRiyalLabel(earned)}`;
+    });
+    return en
+      ? `A SAR 150 invoice earns: ${parts.join(' • ')} SAR`
+      : `فاتورة 150 ريالًا تكسب: ${parts.join(' • ')} ريال`;
+  })();
+
+  const msgHelp = (vars) => (
+    <p className="text-[11px] text-tw-muted font-semibold leading-relaxed" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>
+      {vars.map((v) => `{${v}}`).join(' ')}
+    </p>
+  );
 
   return (
     <div
       className="min-h-full px-4 pt-3 pb-8 space-y-3"
       style={{ fontFamily: '"IBM Plex Sans Arabic", system-ui, -apple-system, sans-serif' }}
     >
-      {/* عام */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-3">
-        <h4 className="font-bold text-sm text-tw-navy">{en ? 'General' : 'عام'}</h4>
-        <label className="flex items-center justify-between gap-3 cursor-pointer">
-          <span className="text-xs font-bold text-tw-navy">{en ? 'Program enabled' : 'البرنامج مفعّل'}</span>
-          <input type="checkbox" checked={s.enabled !== false}
-                 onChange={(e) => set('enabled', e.target.checked)} className="w-4 h-4 accent-[#005BFF]" />
-        </label>
-        <Row label={en ? 'Points per riyal' : 'النقاط لكل ريال'}>
-          <input type="number" inputMode="decimal" min="0" value={s.pointsPerRiyal}
-                 onChange={(e) => setNum('pointsPerRiyal', toLatinDigits(e.target.value))} className={numCls} />
+      {/* 1) الكسب والفئات */}
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Earning & tiers' : 'الكسب والفئات'}</h4>
+        {TIER_KEYS.map((key, i) => (
+          <Row key={key} label={en ? `${TIER_EN[key]} rate %` : `نسبة كسب ${TIER_AR[key]} ٪`}>
+            <input type="number" inputMode="decimal" min="0" max="10" step="0.05"
+                   value={(s.tiers || [])[i]?.ratePercent ?? ''}
+                   onChange={(e) => setTier(i, 'ratePercent', e.target.value === '' ? '' : Number(toLatinDigits(e.target.value)))}
+                   className={numCls} />
+          </Row>
+        ))}
+        {/* العتبات تُدخل بالريال وتُخزَّن هللات — الفضية ثابتة عند 0 */}
+        <Row label={en ? 'Gold threshold (SAR)' : 'عتبة الذهبية (ريال)'}>
+          <input type="number" inputMode="decimal" min="0"
+                 value={riyalValue((s.tiers || [])[1]?.minEarnedHalalas)}
+                 onChange={(e) => setTier(1, 'minEarnedHalalas', e.target.value === '' ? '' : riyalsToHalalas(toLatinDigits(e.target.value)) ?? '')}
+                 className={numCls} />
         </Row>
+        <Row label={en ? 'Platinum threshold (SAR)' : 'عتبة البلاتينية (ريال)'}>
+          <input type="number" inputMode="decimal" min="0"
+                 value={riyalValue((s.tiers || [])[2]?.minEarnedHalalas)}
+                 onChange={(e) => setTier(2, 'minEarnedHalalas', e.target.value === '' ? '' : riyalsToHalalas(toLatinDigits(e.target.value)) ?? '')}
+                 className={numCls} />
+        </Row>
+        <Row label={en ? 'Tier window (months)' : 'نافذة احتساب الفئة (شهور)'}>
+          <input type="number" inputMode="numeric" min="1" value={s.tierWindowMonths}
+                 onChange={(e) => setNum('tierWindowMonths', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+        {/* أسماء الفئات (ar/en) — تظهر في البطاقة والواجهة */}
+        <div className="grid grid-cols-[4rem_1fr_1fr] gap-2 text-[10px] font-bold text-tw-muted">
+          <span /><span className="text-center">{en ? 'Arabic name' : 'الاسم عربي'}</span><span className="text-center">{en ? 'English name' : 'الاسم إنجليزي'}</span>
+        </div>
+        {TIER_KEYS.map((key, i) => (
+          <div key={key} className="grid grid-cols-[4rem_1fr_1fr] gap-2 items-center">
+            <span className="text-[11px] font-bold text-tw-muted">{en ? TIER_EN[key] : TIER_AR[key]}</span>
+            <input type="text" value={(s.tiers || [])[i]?.name?.ar ?? ''} onChange={(e) => setTierName(i, 'ar', e.target.value)} className={inputCls} />
+            <input type="text" dir="ltr" value={(s.tiers || [])[i]?.name?.en ?? ''} onChange={(e) => setTierName(i, 'en', e.target.value)} className={inputCls} />
+          </div>
+        ))}
+        {/* المثال الحي — بعد تطبيق التقريب لأقرب ربع ريال */}
+        <p className="text-[11px] font-bold text-tw-blue bg-tw-soft/50 border border-tw-line rounded-xl p-2.5">
+          {example}
+        </p>
+      </div>
+
+      {/* 2) الرصيد */}
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Balance' : 'الرصيد'}</h4>
+        <Row label={en ? 'Balance expiry (months)' : 'مدة انتهاء الرصيد (شهور)'}>
+          <input type="number" inputMode="numeric" min="1" value={s.expiryMonths}
+                 onChange={(e) => setNum('expiryMonths', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+        <Row label={en ? 'Expiry warning (days)' : 'أيام التنبيه قبل الانتهاء'}>
+          <input type="number" inputMode="numeric" min="1" value={s.expiryWarningDays}
+                 onChange={(e) => setNum('expiryWarningDays', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+        <Row label={en ? 'Earn rounding (halalas)' : 'تقريب الكسب (هللة)'}>
+          <input type="number" inputMode="numeric" min="1" value={s.earnRoundingHalalas}
+                 onChange={(e) => setNum('earnRoundingHalalas', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+        <Row label={en ? 'Redeem step (halalas)' : 'خطوة الاستبدال (هللة)'}>
+          <input type="number" inputMode="numeric" min="1" value={s.redeemStepHalalas}
+                 onChange={(e) => setNum('redeemStepHalalas', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+        <p className="text-[11px] text-tw-muted font-semibold">
+          {en ? '25 halalas = quarter riyal.' : '25 هللة = ربع ريال.'}
+        </p>
+      </div>
+
+      {/* 3) المكافأة الترحيبية */}
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Welcome bonus' : 'المكافأة الترحيبية'}</h4>
+        <label className="flex items-center justify-between gap-3 cursor-pointer">
+          <span className="text-xs font-bold text-tw-navy">{en ? 'Enabled' : 'مفعّلة'}</span>
+          <input type="checkbox" checked={s.welcomeBonusEnabled !== false}
+                 onChange={(e) => set('welcomeBonusEnabled', e.target.checked)} className="w-4 h-4 accent-[#005BFF]" />
+        </label>
+        <Row label={en ? 'Value (SAR)' : 'القيمة (ريال)'}>
+          <input type="number" inputMode="decimal" min="0" step="0.25" value={riyalValue(s.welcomeBonusHalalas)}
+                 onChange={(e) => setRiyal('welcomeBonusHalalas', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+        <Row label={en ? 'Hold delay (hours)' : 'مدة التأخير (ساعة)'}>
+          <input type="number" inputMode="numeric" min="0" value={s.welcomeBonusDelayHours}
+                 onChange={(e) => setNum('welcomeBonusDelayHours', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+      </div>
+
+      {/* 4) الضريبة */}
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'VAT' : 'الضريبة'}</h4>
         <label className="flex items-center justify-between gap-3 cursor-pointer">
           <span className="text-xs font-bold text-tw-navy">{en ? 'VAT registered' : 'منشأة مسجلة بالضريبة'}</span>
           <input type="checkbox" checked={!!s.vatRegistered}
                  onChange={(e) => {
                    set('vatRegistered', e.target.checked);
-                   set('pointsBasis', e.target.checked ? 'net' : 'gross');
+                   set('amountBasis', e.target.checked ? 'net' : 'gross');
                  }} className="w-4 h-4 accent-[#005BFF]" />
         </label>
         {s.vatRegistered && (
@@ -175,63 +351,13 @@ export default function LoyaltySettings({ store, lang, onBack }) {
         )}
         <p className="text-[11px] text-tw-muted font-semibold">
           {en
-            ? `Points basis: ${s.vatRegistered ? 'net (excl. VAT)' : 'gross'}`
+            ? `Earn basis: ${s.vatRegistered ? 'net (excl. VAT)' : 'gross'}`
             : `أساس الاحتساب: ${s.vatRegistered ? 'الصافي (قبل الضريبة)' : 'الإجمالي'}`}
         </p>
-        <Row label={en ? 'Points expiry (months)' : 'انتهاء النقاط (شهور)'}>
-          <input type="number" inputMode="numeric" min="0" value={s.expiryMonths}
-                 onChange={(e) => setNum('expiryMonths', toLatinDigits(e.target.value))} className={numCls} />
-        </Row>
-        <Row label={en ? 'Tier window (months)' : 'نافذة الفئة (شهور)'}>
-          <input type="number" inputMode="numeric" min="0" value={s.tierWindowMonths}
-                 onChange={(e) => setNum('tierWindowMonths', toLatinDigits(e.target.value))} className={numCls} />
-        </Row>
-        <Row label={en ? 'Large purchase alert (SAR)' : 'تنبيه شراء كبير (ريال)'}>
-          <input type="number" inputMode="numeric" min="0" value={s.largeTransactionAlert}
-                 onChange={(e) => setNum('largeTransactionAlert', toLatinDigits(e.target.value))} className={numCls} />
-        </Row>
       </div>
 
-      {/* الفئات */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-2">
-        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Tiers' : 'الفئات'}</h4>
-        <div className="grid grid-cols-[1fr_5rem_5rem] gap-2 text-[10px] font-bold text-tw-muted">
-          <span>{en ? 'Name' : 'الاسم'}</span><span className="text-center">{en ? 'Min' : 'من'}</span><span className="text-center">{en ? 'Max' : 'إلى'}</span>
-        </div>
-        {(s.tiers || []).map((tr, i) => (
-          <div key={tr.key} className="grid grid-cols-[1fr_5rem_5rem] gap-2">
-            <input type="text" value={tr.name} onChange={(e) => setTier(i, 'name', e.target.value)} className={inputCls} />
-            <input type="number" inputMode="numeric" value={tr.min}
-                   onChange={(e) => setTier(i, 'min', e.target.value === '' ? '' : Number(toLatinDigits(e.target.value)))} className={numCls} />
-            <input type="number" inputMode="numeric" value={tr.max == null ? '' : tr.max}
-                   placeholder="∞"
-                   onChange={(e) => setTier(i, 'max', e.target.value === '' ? null : Number(toLatinDigits(e.target.value)))} className={numCls} />
-          </div>
-        ))}
-      </div>
-
-      {/* المكافآت */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-2">
-        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Rewards' : 'المكافآت'}</h4>
-        <div className="grid grid-cols-[1fr_4.5rem_5.5rem_2rem] gap-2 text-[10px] font-bold text-tw-muted">
-          <span>{en ? 'Label' : 'الاسم'}</span><span className="text-center">{en ? 'Value' : 'القيمة'}</span><span className="text-center">{en ? 'Points' : 'النقاط'}</span><span />
-        </div>
-        {(s.rewards || []).map((r, i) => (
-          <div key={r.id} className="grid grid-cols-[1fr_4.5rem_5.5rem_2rem] gap-2 items-center">
-            <input type="text" value={r.label} onChange={(e) => setReward(i, 'label', e.target.value)} className={inputCls} />
-            <input type="number" inputMode="numeric" value={r.value}
-                   onChange={(e) => setReward(i, 'value', e.target.value === '' ? '' : Number(toLatinDigits(e.target.value)))} className={numCls} />
-            <input type="number" inputMode="numeric" value={r.points}
-                   onChange={(e) => setReward(i, 'points', e.target.value === '' ? '' : Number(toLatinDigits(e.target.value)))} className={numCls} />
-            <input type="checkbox" checked={r.active !== false}
-                   onChange={(e) => setReward(i, 'active', e.target.checked)}
-                   title={en ? 'Active' : 'مفعّلة'} className="w-4 h-4 accent-[#005BFF] justify-self-center" />
-          </div>
-        ))}
-      </div>
-
-      {/* المصادر — تعطيل بدل الحذف */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-2">
+      {/* 5) المصادر — تعطيل بدل الحذف */}
+      <div className={cardCls}>
         <h4 className="font-bold text-sm text-tw-navy">{en ? 'Acquisition sources' : 'مصادر التعرف'}</h4>
         {(s.sources || []).map((src, i) => (
           <div key={src.id} className="flex items-center gap-2">
@@ -254,49 +380,98 @@ export default function LoyaltySettings({ store, lang, onBack }) {
         </div>
       </div>
 
-      {/* الرسالة الترحيبية */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-2">
+      {/* 6) قنوات التواصل — تُعرض في صفحة البطاقة (المرحلة B) */}
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Contact channels' : 'قنوات التواصل'}</h4>
+        <Row label={en ? 'WhatsApp' : 'واتساب'}>
+          <input type="text" dir="ltr" value={s.contacts?.whatsapp || ''}
+                 onChange={(e) => setContact('whatsapp', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+        <Row label={en ? 'Instagram' : 'انستقرام'}>
+          <input type="text" dir="ltr" value={s.contacts?.instagram || ''}
+                 onChange={(e) => setContact('instagram', e.target.value)} className={numCls} />
+        </Row>
+        <Row label={en ? 'TikTok' : 'تيك توك'}>
+          <input type="text" dir="ltr" value={s.contacts?.tiktok || ''}
+                 onChange={(e) => setContact('tiktok', e.target.value)} className={numCls} />
+        </Row>
+      </div>
+
+      {/* 7) حد التنبيه على العمليات الكبيرة */}
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Large transaction alert' : 'التنبيه على العمليات الكبيرة'}</h4>
+        <Row label={en ? 'Threshold (SAR)' : 'الحد (ريال)'}>
+          <input type="number" inputMode="numeric" min="0" value={s.largeTransactionAlertRiyals}
+                 onChange={(e) => setNum('largeTransactionAlertRiyals', toLatinDigits(e.target.value))} className={numCls} />
+        </Row>
+      </div>
+
+      {/* 8) تفعيل البرنامج */}
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Program' : 'البرنامج'}</h4>
+        <label className="flex items-center justify-between gap-3 cursor-pointer">
+          <span className="text-xs font-bold text-tw-navy">{en ? 'Program enabled' : 'البرنامج مفعّل'}</span>
+          <input type="checkbox" checked={s.enabled !== false}
+                 onChange={(e) => set('enabled', e.target.checked)} className="w-4 h-4 accent-[#005BFF]" />
+        </label>
+      </div>
+
+      {/* 9) الرسائل — حقلان (عربي/إنجليزي) للترحيبية ولتنبيه الانتهاء */}
+      <div className={cardCls}>
         <h4 className="font-bold text-sm text-tw-navy">{en ? 'Welcome message' : 'الرسالة الترحيبية'}</h4>
-        <textarea rows={6} value={s.welcomeMessage || ''}
-                  onChange={(e) => set('welcomeMessage', e.target.value)}
+        <p className="text-[10px] font-bold text-tw-muted">{en ? 'Arabic' : 'عربي'}</p>
+        <textarea rows={5} value={s.welcomeMessage?.ar || ''}
+                  onChange={(e) => setMessage('welcomeMessage', 'ar', e.target.value)}
                   className={inputCls} style={{ resize: 'none' }} />
-        {/* المرحلة 2: تُرسل عبر واتساب مع رابط البطاقة — المتغيرات تُستبدل تلقائياً */}
-        <p className="text-[11px] text-tw-muted font-semibold leading-relaxed" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>
-          {'{name} {storeName} {memberNo} {tier} {points} {cardUrl}'}
-        </p>
+        <p className="text-[10px] font-bold text-tw-muted">{en ? 'English' : 'إنجليزي'}</p>
+        <textarea rows={5} dir="ltr" value={s.welcomeMessage?.en || ''}
+                  onChange={(e) => setMessage('welcomeMessage', 'en', e.target.value)}
+                  className={inputCls} style={{ resize: 'none' }} />
+        {msgHelp(WELCOME_MESSAGE_VARS)}
         <p className="text-[11px] text-tw-muted font-semibold">
           {en
-            ? 'Supported variables above are replaced automatically when sending the card via WhatsApp.'
+            ? 'Variables above are replaced automatically when sending the card via WhatsApp.'
             : 'المتغيرات أعلاه تُستبدل تلقائياً عند إرسال البطاقة عبر واتساب.'}
         </p>
       </div>
 
-      {/* Batch 92.2: رسالة إشعار النقاط — نفس نمط الترحيبية، بمعاينة حيّة */}
-      <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-2">
+      <div className={cardCls}>
+        <h4 className="font-bold text-sm text-tw-navy">{en ? 'Expiry warning message' : 'رسالة تنبيه الانتهاء'}</h4>
+        <p className="text-[10px] font-bold text-tw-muted">{en ? 'Arabic' : 'عربي'}</p>
+        <textarea rows={4} value={s.expiryWarningMessage?.ar || ''}
+                  onChange={(e) => setMessage('expiryWarningMessage', 'ar', e.target.value)}
+                  className={inputCls} style={{ resize: 'none' }} />
+        <p className="text-[10px] font-bold text-tw-muted">{en ? 'English' : 'إنجليزي'}</p>
+        <textarea rows={4} dir="ltr" value={s.expiryWarningMessage?.en || ''}
+                  onChange={(e) => setMessage('expiryWarningMessage', 'en', e.target.value)}
+                  className={inputCls} style={{ resize: 'none' }} />
+        {msgHelp(EXPIRY_MESSAGE_VARS)}
+      </div>
+
+      {/* رسالة إشعار الرصيد — نص عربي واحد الآن ({ar,en} في المرحلة B)، بمعاينة حيّة */}
+      <div className={cardCls}>
         <div className="flex items-center justify-between gap-2">
-          <h4 className="font-bold text-sm text-tw-navy">{en ? 'Points notification message' : 'رسالة إشعار النقاط'}</h4>
+          <h4 className="font-bold text-sm text-tw-navy">{en ? 'Credit notification message' : 'رسالة إشعار الرصيد'}</h4>
           <button
             type="button"
-            onClick={() => set('pointsMessage', POINTS_NOTIFY_TEMPLATE)}
+            onClick={() => set('creditMessage', CREDIT_NOTIFY_TEMPLATE)}
             className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-tw-soft text-tw-blue text-[10px] font-bold hover:bg-tw-soft/70 flex-shrink-0"
           >
             <RotateCcw size={12} /> {en ? 'Restore default' : 'استعادة النص الافتراضي'}
           </button>
         </div>
-        <textarea rows={6} value={s.pointsMessage || ''}
-                  onChange={(e) => set('pointsMessage', e.target.value)}
+        <textarea rows={6} value={s.creditMessage || ''}
+                  onChange={(e) => set('creditMessage', e.target.value)}
                   className={inputCls} style={{ resize: 'none' }} />
-        <p className="text-[11px] text-tw-muted font-semibold leading-relaxed" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>
-          {'{name} {points} {balance} {cardUrl} {storeName}'}
-        </p>
+        {msgHelp(CREDIT_MESSAGE_VARS)}
         <p className="text-[11px] text-tw-muted font-semibold">
           {en
-            ? 'Sent after adding points. Empty field = the built-in default text.'
-            : 'تُرسل بعد إضافة النقاط. الحقل الفارغ = النص الافتراضي المدمج.'}
+            ? 'Sent after adding credit. Empty field = the built-in default text.'
+            : 'تُرسل بعد إضافة الرصيد. الحقل الفارغ = النص الافتراضي المدمج.'}
         </p>
         {/* تحذير غير مانع للحفظ — متغيرات {...} خارج الخمسة أعلاه */}
         {(() => {
-          const unknown = findUnknownVars(s.pointsMessage || '');
+          const unknown = findUnknownVars(s.creditMessage || '');
           if (!unknown.length) return null;
           return (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-2.5 flex items-start gap-2">
@@ -312,13 +487,13 @@ export default function LoyaltySettings({ store, lang, onBack }) {
         <div className="bg-tw-soft/40 border border-tw-line rounded-xl p-3">
           <p className="text-[10px] font-bold text-tw-muted mb-1.5">{en ? 'Live preview' : 'معاينة حيّة'}</p>
           <p className="text-xs font-semibold text-tw-navy whitespace-pre-line leading-relaxed">
-            {buildPointsMessage({
+            {buildCreditMessage({
               name: 'أحمد',
-              points: 500,
-              balance: 6250,
+              earned: '3.75',
+              balance: '12.50',
               cardUrl: 'https://example.com/c/xxxxxxxx',
               storeName: STORE_NAMES[store] || store,
-            }, s.pointsMessage)}
+            }, s.creditMessage)}
           </p>
         </div>
       </div>

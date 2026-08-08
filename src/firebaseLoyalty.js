@@ -1,20 +1,26 @@
 // src/firebaseLoyalty.js
 // ====================================================================
-// برنامج الولاء — طبقة البيانات (المرحلة 1).
+// برنامج الولاء — طبقة البيانات (النسخة 3.0: رصيد بالريال، هللات صحيحة).
 //
 // المجموعات (camelCase التزاماً بنمط المشروع):
 //   loyaltyMembers/{memberId}        ملفات الأعضاء (لكل متجر عضوية مستقلة)
 //   loyaltyTransactions/{txId}       سجل الحركات — إضافي فقط (append-only):
-//                                    earn / redeem / adjust / reverse / expire
+//                                    earn / redeem / welcome / adjust /
+//                                    reverse / expire / audit
 //   loyaltyInvoices/{store}_{invoiceNo}  معرّف المستند نفسه = ضمان عدم تكرار
 //                                    الفاتورة ذرّياً (create فقط داخل معاملة)
 //   loyaltySettings/{store}          إعدادات كل متجر
 //
 // مبادئ إلزامية:
-//   • كل earn/redeem/reverse/adjust/expire داخل runTransaction واحدة —
-//     أول استخدام للمعاملات في المشروع، معزول هنا بالكامل.
+//   • كل المبالغ هللات صحيحة (deltaHalalas / amountHalalas /
+//     balanceAfterHalalas / balanceHalalas) — ممنوع الريال العشري في أي
+//     منطق أو مستند؛ القسمة على 100 للعرض فقط في الواجهة.
+//   • كل earn/redeem/adjust/reverse/expire — والتسجيل مع شراء — داخل
+//     runTransaction واحدة (كل شيء أو لا شيء).
 //   • لا حذف ولا تعديل في مكانه لأي حركة: العكس حركة جديدة، والربط يُشتق
 //     عند القراءة من reversesTxId (مع معرّف حتمي rev_{txId} يمنع العكس المزدوج).
+//   • النسبة والفئة المطبقتان تُحفظان في حركة earn لحظة العملية
+//     (ratePercent / tierAtTime) ولا يُعاد حسابهما لاحقاً.
 //   • قيم الولاء لا تُكتب أبداً في dailySales — لا تكرار للمبيعات.
 //   • بعد كل كتابة: invalidateCachePrefix('loyalty').
 // ====================================================================
@@ -35,18 +41,23 @@ import { db, auth } from "./firebaseCore";
 import { invalidateCachePrefix } from "./firebaseCache";
 import {
   normalizePhone,
-  computeEarnPoints,
+  computeEarnedHalalas,
   computeExpiryAt,
-  isPointsExpired,
+  isBalanceExpired,
+  isValidRedeemAmount,
+  availableBalanceHalalas,
+  halalasToRiyalLabel,
+  effectiveTier,
+  tierForEarned,
   invoiceDocId,
   randomMemberNo,
   randomCardToken,
 } from "./loyaltyMath";
 import { LOYALTY_DEFAULT_SETTINGS } from "./loyaltyShare";
 
-// المرحلة 2: الإعدادات الافتراضية انتقلت إلى loyaltyShare.js (وحدة نقية
-// يستوردها أيضاً api/card.js بلا تهيئة Firebase) — يُعاد تصديرها هنا
-// حتى تبقى الاستيرادات القائمة من '../firebase' كما هي.
+// الإعدادات الافتراضية في loyaltyShare.js (وحدة نقية يستوردها أيضاً
+// api/card.js بلا تهيئة Firebase) — يُعاد تصديرها هنا حتى تبقى
+// الاستيرادات القائمة من '../firebase' كما هي.
 export { LOYALTY_DEFAULT_SETTINGS };
 
 // ---------- أخطاء بمعرّف code (الواجهة تترجم عند الحاجة) ----------
@@ -136,7 +147,7 @@ export async function getLoyaltyTransactions(memberId) {
 }
 
 /**
- * المرحلة 5: كل حركات متجر في جلبة واحدة — لصفحة الإحصائيات.
+ * كل حركات متجر في جلبة واحدة — لصفحة الإحصائيات.
  * التجميع (فترات/شهور/موظفون) يتم محلياً في loyaltyStats بدل استعلامات
  * متعددة، والنتيجة تمر عبر useCachedQuery في الشاشة.
  * حد معروف: تكبر مع السنين — مقبولة لحجم متجرين حالياً.
@@ -161,26 +172,52 @@ async function isCardTokenTaken(cardToken) {
 /**
  * إنشاء عضوية جديدة في متجر. العضوية مستقلة لكل متجر —
  * نفس الجوال يمكن أن يملك عضوية في تويا وأخرى في وردانة برصيدين مستقلين.
+ *
+ * رقم الفاتورة والمبلغ اختياريان عند التسجيل:
+ *   • تسجيل بلا شراء → العضوية + المكافأة الترحيبية فقط
+ *   • تسجيل مع شراء → العضوية + الترحيبية + مستند الفاتورة + حركة earn،
+ *     كلها في معاملة واحدة (كل شيء أو لا شيء)
+ * amountHalalas بالهللات (الواجهة تحوّل الريال قبل الاستدعاء).
  */
 export async function createLoyaltyMember({
   store,
   phone: phoneInput,
   name,
   gender,
+  language,
   source = "",
   sourceOther = "",
   marketingConsent = false,
+  invoiceNo = "",
+  amountHalalas = null,
   byUid = "",
   byName = "",
 }) {
   const phone = normalizePhone(phoneInput);
   if (!phone) throw loyaltyError("invalid-phone", "رقم الجوال غير صالح");
   if (!String(name || "").trim()) throw loyaltyError("name-required", "أدخل اسم العميل");
-  // المرحلة 5: الجنس إلزامي عند التسجيل — خياران فقط لا ثالث لهما.
-  // (الأعضاء القدامى بلا الحقل يبقون كما هم — شريحة «غير مسجّل» في التقارير)
+  // الجنس إلزامي عند التسجيل — خياران فقط لا ثالث لهما.
   if (gender !== "male" && gender !== "female") {
     throw loyaltyError("gender-required", "حدّد جنس العميل");
   }
+  // النسخة 3.0: لغة العميل إلزامية عند التسجيل (عربي / English)
+  if (language !== "ar" && language !== "en") {
+    throw loyaltyError("language-required", "حدّد لغة العميل");
+  }
+
+  const settings = await getLoyaltySettings(store);
+  if (settings.enabled === false) throw loyaltyError("disabled", "برنامج الولاء معطّل لهذا المتجر");
+
+  // شراء عند التسجيل؟ التحقق من رقم الفاتورة يسري فقط إن أُدخل —
+  // لكن الفاتورة والمبلغ يلزمان معاً (لا أحدهما دون الآخر)
+  const hasInvoice = !!String(invoiceNo || "").trim();
+  const amt = amountHalalas == null || amountHalalas === "" ? null : Math.round(Number(amountHalalas));
+  const hasAmount = Number.isFinite(amt) && amt > 0;
+  if (hasInvoice && !hasAmount) throw loyaltyError("amount-invalid", "أدخل مبلغ الفاتورة");
+  if (hasAmount && !hasInvoice) throw loyaltyError("invoice-required", "أدخل رقم الفاتورة");
+  const withPurchase = hasInvoice && hasAmount;
+  const invId = withPurchase ? invoiceDocId(store, invoiceNo) : null;
+  if (withPurchase && !invId) throw loyaltyError("invoice-required", "رقم الفاتورة غير صالح");
 
   // منع تكرار الجوال داخل نفس المتجر
   const existing = await findLoyaltyMemberByPhone(store, phone);
@@ -202,7 +239,23 @@ export async function createLoyaltyMember({
   }
   if (!cardToken) throw loyaltyError("token-failed", "تعذّر توليد توكن فريد — حاول مجدداً");
 
-  const ref = doc(collection(db, "loyaltyMembers"));
+  const welcomeHalalas =
+    settings.welcomeBonusEnabled === false ? 0 : Math.round(Number(settings.welcomeBonusHalalas) || 0);
+
+  // عضو جديد: مكتسبه في النافذة صفر → فئته المحسوبة هي فئة العتبة 0 (فضية)،
+  // ونسبتها هي المطبقة على شراء التسجيل. الترحيبية لا تدخل حساب الفئة.
+  const startTier = tierForEarned(0, settings.tiers);
+  const startRate = Number(startTier?.ratePercent) || 0;
+  const earnedHalalas = withPurchase ? computeEarnedHalalas(amt, startRate, settings) : 0;
+
+  const now = new Date();
+  const balanceHalalas = welcomeHalalas + earnedHalalas;
+  // انتهاء الرصيد: مع شراء = lastPurchaseAt + expiryMonths؛
+  // بلا شراء تنتهي الترحيبية بـ joinedAt + expiryMonths (كلاهما "الآن" هنا)
+  const balanceExpiresAt = balanceHalalas > 0 ? computeExpiryAt(now, settings.expiryMonths) : null;
+
+  const memberRef = doc(collection(db, "loyaltyMembers"));
+  const invoiceRef = invId ? doc(db, "loyaltyInvoices", invId) : null;
   const data = {
     store,
     memberNo,
@@ -210,29 +263,84 @@ export async function createLoyaltyMember({
     phone,
     name: String(name).trim(),
     gender,
+    language,
     source: source || "",
     sourceOther: source === "other" ? String(sourceOther || "").trim() : "",
     marketingConsent: !!marketingConsent,
     joinedAt: serverTimestamp(),
-    pointsBalance: 0,
-    redemptionsCount: 0,
-    lastPurchaseAt: null,
-    pointsExpireAt: null,
+    balanceHalalas,
+    lastPurchaseAt: withPurchase ? now : null,
+    balanceExpiresAt,
+    welcomeBonusAt: welcomeHalalas > 0 ? now : null,
     manualTier: null,
     status: "active",
+    anonymized: false,
+    cardViews: 0,
+    lastCardViewAt: null,
     createdBy: byUid,
     createdByName: byName,
     updatedAt: serverTimestamp(),
   };
-  await setDoc(ref, data);
+
+  await runTransaction(db, async (tx) => {
+    // كل القراءات قبل الكتابات (شرط معاملات Firestore)
+    if (invoiceRef) {
+      const invSnap = await tx.get(invoiceRef);
+      if (invSnap.exists()) {
+        throw loyaltyError("duplicate-invoice", "رقم الفاتورة مستخدم مسبقاً في هذا المتجر");
+      }
+    }
+    tx.set(memberRef, data);
+    if (welcomeHalalas > 0) {
+      const welcomeTxRef = doc(collection(db, "loyaltyTransactions"));
+      tx.set(welcomeTxRef, {
+        memberId: memberRef.id,
+        store,
+        type: "welcome",
+        deltaHalalas: welcomeHalalas,
+        balanceAfterHalalas: welcomeHalalas,
+        reason: "مكافأة ترحيبية",
+        byUid,
+        byName,
+        at: serverTimestamp(),
+      });
+    }
+    if (withPurchase) {
+      const earnTxRef = doc(collection(db, "loyaltyTransactions"));
+      tx.set(invoiceRef, {
+        memberId: memberRef.id,
+        txId: earnTxRef.id,
+        amountHalalas: amt,
+        at: serverTimestamp(),
+      });
+      tx.set(earnTxRef, {
+        memberId: memberRef.id,
+        store,
+        type: "earn",
+        amountHalalas: amt,
+        deltaHalalas: earnedHalalas,
+        balanceAfterHalalas: welcomeHalalas + earnedHalalas,
+        // النسبة والفئة لحظة العملية — تُحفظان ولا يُعاد حسابهما
+        ratePercent: startRate,
+        tierAtTime: startTier?.key || "",
+        invoiceNo: String(invoiceNo).trim(),
+        amountBasis: settings.amountBasis,
+        vatRate: settings.vatRate,
+        byUid,
+        byName,
+        at: serverTimestamp(),
+      });
+    }
+  });
+
   invalidateCachePrefix("loyalty");
-  return { id: ref.id, ...data };
+  return { id: memberRef.id, ...data, earnedHalalas, welcomeHalalas };
 }
 
 // ---------- فتح ملف عضو + الانتهاء الكسول ----------
 /**
- * جلب عضو بالمعرّف مع تطبيق انتهاء النقاط الكسول:
- * إذا now > pointsExpireAt والرصيد > 0 → حركة expire سالبة تُصفّر الرصيد
+ * جلب عضو بالمعرّف مع تطبيق انتهاء الرصيد الكسول:
+ * إذا now > balanceExpiresAt والرصيد > 0 → حركة expire سالبة تُصفّر الرصيد
  * (داخل معاملة، مع إعادة الفحص داخلها منعاً للتصفير المزدوج). لا حذف لأي سجل.
  */
 export async function getLoyaltyMember(memberId, { byUid = "", byName = "" } = {}) {
@@ -241,26 +349,26 @@ export async function getLoyaltyMember(memberId, { byUid = "", byName = "" } = {
   if (!snap.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
   let member = { id: snap.id, ...snap.data() };
 
-  if (isPointsExpired(member)) {
+  if (isBalanceExpired(member)) {
     await runTransaction(db, async (tx) => {
       const fresh = await tx.get(ref);
       if (!fresh.exists()) return;
       const m = fresh.data();
-      if (!isPointsExpired(m)) return; // صُفّر من جلسة أخرى — لا شيء نفعله
-      const balance = Number(m.pointsBalance) || 0;
+      if (!isBalanceExpired(m)) return; // صُفّر من جلسة أخرى — لا شيء نفعله
+      const balance = Number(m.balanceHalalas) || 0;
       const txRef = doc(collection(db, "loyaltyTransactions"));
       tx.set(txRef, {
         memberId,
         store: m.store,
         type: "expire",
-        points: -balance,
-        balanceAfter: 0,
-        reason: "انتهاء صلاحية النقاط",
+        deltaHalalas: -balance,
+        balanceAfterHalalas: 0,
+        reason: "انتهاء صلاحية الرصيد",
         byUid,
         byName,
         at: serverTimestamp(),
       });
-      tx.update(ref, { pointsBalance: 0, updatedAt: serverTimestamp() });
+      tx.update(ref, { balanceHalalas: 0, updatedAt: serverTimestamp() });
     });
     invalidateCachePrefix("loyalty");
     const after = await getDoc(ref);
@@ -269,30 +377,43 @@ export async function getLoyaltyMember(memberId, { byUid = "", byName = "" } = {
   return member;
 }
 
-// ---------- إضافة نقاط (earn) — معاملة ذرّية واحدة ----------
+// ---------- إضافة رصيد شراء (earn) — معاملة ذرّية واحدة ----------
 /**
  * الخطوات الثلاث داخل معاملة واحدة:
  *   1) create فقط لـ loyaltyInvoices/{store}_{invoiceNo} — التكرار يُفشل الكل
  *   2) حركة earn في loyaltyTransactions
- *   3) تحديث pointsBalance / lastPurchaseAt / pointsExpireAt في العضو
- * يرجع { points, balanceAfter, largeAlert }.
+ *   3) تحديث balanceHalalas / lastPurchaseAt / balanceExpiresAt في العضو
+ *
+ * amountHalalas هو المبلغ المدفوع نقداً بالهللات — الجزء المخصوم من الرصيد
+ * (redeem) لا يكسب: الكسب على المدفوع فقط، والخصم عملية مستقلة.
+ * يرجع { earnedHalalas, balanceAfterHalalas, ratePercent, tierAtTime, largeAlert }.
  */
-export async function earnLoyaltyPoints({
+export async function earnLoyaltyCredit({
   store,
   memberId,
   invoiceNo,
-  amount,
+  amountHalalas,
   byUid = "",
   byName = "",
 }) {
   const invId = invoiceDocId(store, invoiceNo);
   if (!invId) throw loyaltyError("invoice-required", "أدخل رقم الفاتورة");
-  const amt = Number(amount);
-  if (!amt || amt <= 0) throw loyaltyError("amount-invalid", "أدخل مبلغاً صحيحاً");
+  const amt = Math.round(Number(amountHalalas));
+  if (!Number.isFinite(amt) || amt <= 0) throw loyaltyError("amount-invalid", "أدخل مبلغاً صحيحاً");
 
   const settings = await getLoyaltySettings(store);
   if (settings.enabled === false) throw loyaltyError("disabled", "برنامج الولاء معطّل لهذا المتجر");
-  const points = computeEarnPoints(amt, settings);
+
+  // لقطة الفئة/النسبة قبل المعاملة (snapshot): معاملات Firestore في client SDK
+  // لا تسمح باستعلامات داخلها، فالفئة تُحسب هنا من الحركات المجلوبة وتُحفظ
+  // في الحركة كما هي. السباق النظري (عمليتان متزامنتان لنفس العضو تعبران
+  // عتبة فئة) مقبول عند هذا الحجم عمداً — لا حل معقداً له.
+  const memberSnapshot = await getLoyaltyMember(memberId, { byUid, byName });
+  const memberTxs = await getLoyaltyTransactions(memberId);
+  const { tier } = effectiveTier(memberSnapshot, memberTxs, settings);
+  const ratePercent = Number(tier?.ratePercent) || 0;
+  const tierAtTime = tier?.key || "";
+  const earned = computeEarnedHalalas(amt, ratePercent, settings);
 
   const invoiceRef = doc(db, "loyaltyInvoices", invId);
   const memberRef = doc(db, "loyaltyMembers", memberId);
@@ -310,62 +431,79 @@ export async function earnLoyaltyPoints({
     if (m.status === "disabled") throw loyaltyError("member-disabled", "هذه العضوية معطّلة");
     if (m.anonymized) throw loyaltyError("member-anonymized", "هذه العضوية محذوفة (مخفاة الهوية)");
 
-    const balance = Number(m.pointsBalance) || 0;
-    const balanceAfter = balance + points;
+    const balance = Number(m.balanceHalalas) || 0;
+    const balanceAfterHalalas = balance + earned;
     const now = new Date();
     const expireAt = computeExpiryAt(now, settings.expiryMonths);
 
     tx.set(invoiceRef, {
       memberId,
       txId: txRef.id,
-      amount: amt,
+      amountHalalas: amt,
       at: serverTimestamp(),
     });
     tx.set(txRef, {
       memberId,
       store,
       type: "earn",
-      points,
-      balanceAfter,
+      amountHalalas: amt,
+      deltaHalalas: earned,
+      balanceAfterHalalas,
+      // الأساس والنسبة والفئة وقت التنفيذ — للتاريخ (لو تغيّرت الإعدادات لاحقاً)
+      ratePercent,
+      tierAtTime,
       invoiceNo: String(invoiceNo).trim(),
-      amount: amt,
-      // الأساس وقت التنفيذ — للتاريخ (لو تغيّرت الإعدادات لاحقاً)
-      pointsBasis: settings.pointsBasis,
+      amountBasis: settings.amountBasis,
       vatRate: settings.vatRate,
-      pointsPerRiyal: settings.pointsPerRiyal,
       byUid,
       byName,
       at: serverTimestamp(),
     });
     tx.update(memberRef, {
-      pointsBalance: balanceAfter,
+      balanceHalalas: balanceAfterHalalas,
       lastPurchaseAt: now,
-      pointsExpireAt: expireAt,
+      balanceExpiresAt: expireAt,
       updatedAt: serverTimestamp(),
     });
-    return { points, balanceAfter };
+    return { earnedHalalas: earned, balanceAfterHalalas };
   });
 
   invalidateCachePrefix("loyalty");
+  const alertRiyals = Number(settings.largeTransactionAlertRiyals) || 0;
   return {
     ...result,
-    largeAlert: Number(settings.largeTransactionAlert) > 0 && amt >= Number(settings.largeTransactionAlert),
+    ratePercent,
+    tierAtTime,
+    largeAlert: alertRiyals > 0 && amt >= alertRiyals * 100,
   };
 }
 
-// ---------- استبدال مكافأة (redeem) — معاملة ذرّية واحدة ----------
-/** التحقق من الرصيد + حركة redeem + تحديث الرصيد والعدّاد — كله أو لا شيء. */
-export async function redeemLoyaltyReward({
+// ---------- خصم من الرصيد (redeem) — معاملة ذرّية واحدة ----------
+/**
+ * لا حد أدنى — بمضاعفات redeemStepHalalas، ويغطي كامل الفاتورة إن كفى
+ * الرصيد. لا يُطبَّق تلقائياً: يُخصم بطلب العميل فقط.
+ * الرصيد المتاح = balanceHalalas ناقص الترحيبية ما دامت في فترة الانتظار
+ * (بحد أدنى صفر) — الرفض إن تجاوز المبلغ المتاح.
+ * التحقق + حركة redeem + تحديث الرصيد — كله أو لا شيء.
+ */
+export async function redeemLoyaltyCredit({
   store,
   memberId,
-  rewardId,
+  amountHalalas,
+  invoiceNo = "",
   byUid = "",
   byName = "",
 }) {
   const settings = await getLoyaltySettings(store);
   if (settings.enabled === false) throw loyaltyError("disabled", "برنامج الولاء معطّل لهذا المتجر");
-  const reward = (settings.rewards || []).find((r) => r.id === rewardId && r.active !== false);
-  if (!reward) throw loyaltyError("reward-not-found", "المكافأة غير متاحة");
+  const amt = Math.round(Number(amountHalalas));
+  if (!Number.isFinite(amt) || amt <= 0) throw loyaltyError("amount-invalid", "أدخل مبلغاً صحيحاً");
+  if (!isValidRedeemAmount(amt, settings.redeemStepHalalas)) {
+    throw loyaltyError(
+      "redeem-step",
+      `مبلغ الخصم يجب أن يكون من مضاعفات ${halalasToRiyalLabel(settings.redeemStepHalalas)} ريال`
+    );
+  }
 
   const memberRef = doc(db, "loyaltyMembers", memberId);
   const txRef = doc(collection(db, "loyaltyTransactions"));
@@ -377,34 +515,36 @@ export async function redeemLoyaltyReward({
     if (m.status === "disabled") throw loyaltyError("member-disabled", "هذه العضوية معطّلة");
     if (m.anonymized) throw loyaltyError("member-anonymized", "هذه العضوية محذوفة (مخفاة الهوية)");
 
-    const balance = Number(m.pointsBalance) || 0;
+    const balance = Number(m.balanceHalalas) || 0;
     if (balance < 0) {
       throw loyaltyError("negative-balance", "الرصيد سالب — الاستبدال معطّل حتى تسوية الرصيد");
     }
-    if (balance < Number(reward.points)) {
-      throw loyaltyError("insufficient-points", "الرصيد لا يكفي لهذه المكافأة");
+    // المتاح يخصم الترحيبية المعلّقة — مثبّت عند صفر (لا متاح سالب)
+    const available = availableBalanceHalalas(m, settings);
+    if (amt > available) {
+      throw loyaltyError(
+        "insufficient-balance",
+        `الرصيد المتاح لا يكفي (المتاح: ${halalasToRiyalLabel(available)} ريال)`
+      );
     }
 
-    const balanceAfter = balance - Number(reward.points);
+    const balanceAfterHalalas = balance - amt;
     tx.set(txRef, {
       memberId,
       store,
       type: "redeem",
-      points: -Number(reward.points),
-      balanceAfter,
-      rewardId: reward.id,
-      rewardValue: Number(reward.value) || 0,
-      rewardLabel: reward.label || "",
+      deltaHalalas: -amt,
+      balanceAfterHalalas,
+      invoiceNo: String(invoiceNo || "").trim(),
       byUid,
       byName,
       at: serverTimestamp(),
     });
     tx.update(memberRef, {
-      pointsBalance: balanceAfter,
-      redemptionsCount: (Number(m.redemptionsCount) || 0) + 1,
+      balanceHalalas: balanceAfterHalalas,
       updatedAt: serverTimestamp(),
     });
-    return { balanceAfter, reward };
+    return { redeemedHalalas: amt, balanceAfterHalalas };
   });
 
   invalidateCachePrefix("loyalty");
@@ -412,17 +552,17 @@ export async function redeemLoyaltyReward({
 }
 
 // ---------- تسوية يدوية (adjust) — للمدير ----------
-/** حركة adjust بنقاط موجبة أو سالبة مع سبب إلزامي — داخل معاملة. */
-export async function adjustLoyaltyPoints({
+/** حركة adjust بهللات موجبة أو سالبة مع سبب إلزامي — داخل معاملة. */
+export async function adjustLoyaltyCredit({
   store,
   memberId,
-  points,
+  deltaHalalas,
   reason,
   byUid = "",
   byName = "",
 }) {
-  const p = Math.round(Number(points));
-  if (!p) throw loyaltyError("points-invalid", "أدخل عدد نقاط غير صفري");
+  const delta = Math.round(Number(deltaHalalas));
+  if (!delta) throw loyaltyError("amount-invalid", "أدخل مبلغاً غير صفري");
   if (!String(reason || "").trim()) throw loyaltyError("reason-required", "السبب إلزامي");
 
   const memberRef = doc(db, "loyaltyMembers", memberId);
@@ -432,20 +572,20 @@ export async function adjustLoyaltyPoints({
     const memberSnap = await tx.get(memberRef);
     if (!memberSnap.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
     const m = memberSnap.data();
-    const balanceAfter = (Number(m.pointsBalance) || 0) + p;
+    const balanceAfterHalalas = (Number(m.balanceHalalas) || 0) + delta;
     tx.set(txRef, {
       memberId,
       store,
       type: "adjust",
-      points: p,
-      balanceAfter,
+      deltaHalalas: delta,
+      balanceAfterHalalas,
       reason: String(reason).trim(),
       byUid,
       byName,
       at: serverTimestamp(),
     });
-    tx.update(memberRef, { pointsBalance: balanceAfter, updatedAt: serverTimestamp() });
-    return { balanceAfter };
+    tx.update(memberRef, { balanceHalalas: balanceAfterHalalas, updatedAt: serverTimestamp() });
+    return { balanceAfterHalalas };
   });
 
   invalidateCachePrefix("loyalty");
@@ -486,14 +626,14 @@ export async function reverseLoyaltyTransaction({
     if (!memberSnap.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
     const m = memberSnap.data();
 
-    const delta = -(Number(orig.points) || 0);
-    const balanceAfter = (Number(m.pointsBalance) || 0) + delta;
+    const delta = -(Number(orig.deltaHalalas) || 0);
+    const balanceAfterHalalas = (Number(m.balanceHalalas) || 0) + delta;
     tx.set(revRef, {
       memberId,
       store,
       type: "reverse",
-      points: delta,
-      balanceAfter,
+      deltaHalalas: delta,
+      balanceAfterHalalas,
       reversesTxId: txId,
       reversedType: orig.type,
       reason: String(reason).trim(),
@@ -501,13 +641,8 @@ export async function reverseLoyaltyTransaction({
       byName,
       at: serverTimestamp(),
     });
-    const memberUpdate = { pointsBalance: balanceAfter, updatedAt: serverTimestamp() };
-    // عكس استبدال → إنقاص عدّاد الاستبدالات
-    if (orig.type === "redeem") {
-      memberUpdate.redemptionsCount = Math.max(0, (Number(m.redemptionsCount) || 0) - 1);
-    }
-    tx.update(memberRef, memberUpdate);
-    return { balanceAfter };
+    tx.update(memberRef, { balanceHalalas: balanceAfterHalalas, updatedAt: serverTimestamp() });
+    return { balanceAfterHalalas };
   });
 
   invalidateCachePrefix("loyalty");
@@ -539,11 +674,11 @@ export async function setLoyaltyManualTier(memberId, manualTier, { byUid = "", b
   invalidateCachePrefix("loyalty");
 }
 
-// ---------- تعطيل/تفعيل عضوية — للمدير، بسبب إلزامي وسجل تدقيق ----------
+// ---------- تعطيل/تفعيل عضوية — للمدير، وسجل تدقيق ----------
 /**
- * المرحلة 2: الحذف ممنوع بالتصميم — التعطيل هو البديل.
+ * الحذف ممنوع بالتصميم — التعطيل هو البديل.
  * داخل معاملة واحدة: تحديث status (+ الفاعل/السبب/التاريخ على المستند)
- * وإنشاء حركة تدقيق type:"audit" بنقاط 0 — لا تدخل في أي حساب رصيد/فئة
+ * وإنشاء حركة تدقيق type:"audit" بقيمة 0 — لا تدخل في أي حساب رصيد/فئة
  * (مستثناة صراحةً في loyaltyMath) ولا تُعدَّل ولا تُحذف.
  */
 export async function setLoyaltyMemberStatus(memberId, status, { reason, byUid = "", byName = "" } = {}) {
@@ -563,8 +698,8 @@ export async function setLoyaltyMemberStatus(memberId, status, { reason, byUid =
       store: m.store,
       type: "audit",
       action: newStatus === "disabled" ? "disable" : "enable",
-      points: 0,
-      balanceAfter: Number(m.pointsBalance) || 0,
+      deltaHalalas: 0,
+      balanceAfterHalalas: Number(m.balanceHalalas) || 0,
       oldValue: m.status || "active",
       newValue: newStatus,
       reason: String(reason || "").trim(),
@@ -583,17 +718,18 @@ export async function setLoyaltyMemberStatus(memberId, status, { reason, byUid =
   invalidateCachePrefix("loyalty");
 }
 
-// ---------- تعديل الجوال/الاسم — للمدير، بسبب إلزامي وسجل تدقيق ----------
+// ---------- تعديل الجوال/الاسم/الجنس/اللغة — للمدير، وسجل تدقيق ----------
 /**
  * الجوال الجديد يمر بنفس دالة التوحيد (+9665XXXXXXXX)، ويُرفض إن كان
  * مستخدماً في عضوية أخرى بنفس المتجر. تُسجَّل القيمة القديمة والجديدة
- * والفاعل والسبب كحركة audit (نقاط 0).
+ * والفاعل والسبب كحركة audit (قيمة 0).
  */
 export async function updateLoyaltyMemberContact({
   memberId,
   name,
   phone: phoneInput,
   gender,
+  language,
   reason,
   byUid = "",
   byName = "",
@@ -630,7 +766,7 @@ export async function updateLoyaltyMemberContact({
     }
   }
 
-  // المرحلة 5: تعديل الجنس — للمدير فقط، بحركة audit
+  // تعديل الجنس — للمدير فقط، بحركة audit
   if (gender !== undefined && gender !== (m.gender || "")) {
     if (gender !== "male" && gender !== "female") {
       throw loyaltyError("gender-invalid", "قيمة الجنس غير صالحة");
@@ -639,12 +775,21 @@ export async function updateLoyaltyMemberContact({
     changes.push({ action: "editGender", oldValue: m.gender || "غير مسجّل", newValue: gender });
   }
 
+  // النسخة 3.0: تعديل اللغة — للمدير فقط، بحركة audit
+  if (language !== undefined && language !== (m.language || "")) {
+    if (language !== "ar" && language !== "en") {
+      throw loyaltyError("language-invalid", "قيمة اللغة غير صالحة");
+    }
+    update.language = language;
+    changes.push({ action: "editLanguage", oldValue: m.language || "غير مسجّل", newValue: language });
+  }
+
   if (changes.length === 0) return { changed: false };
 
   await runTransaction(db, async (tx) => {
     const fresh = await tx.get(memberRef);
     if (!fresh.exists()) throw loyaltyError("member-not-found", "العضوية غير موجودة");
-    const balance = Number(fresh.data().pointsBalance) || 0;
+    const balance = Number(fresh.data().balanceHalalas) || 0;
     for (const c of changes) {
       const txRef = doc(collection(db, "loyaltyTransactions"));
       tx.set(txRef, {
@@ -652,8 +797,8 @@ export async function updateLoyaltyMemberContact({
         store: m.store,
         type: "audit",
         action: c.action,
-        points: 0,
-        balanceAfter: balance,
+        deltaHalalas: 0,
+        balanceAfterHalalas: balance,
         oldValue: c.oldValue,
         newValue: c.newValue,
         reason: String(reason || "").trim(),
@@ -683,7 +828,7 @@ export async function markLoyaltyWelcomeSent(memberId) {
   invalidateCachePrefix("loyalty");
 }
 
-// ---------- درجات الحذف عبر /api/loyaltyAdmin (المرحلة 5) ----------
+// ---------- درجات الحذف عبر /api/loyaltyAdmin ----------
 // نفس نمط adminChangeUserPin في firebaseUsers.js: توكن المدير + POST.
 // قواعد Firestore فيها allow delete: if false — الحذف/الإخفاء يمران
 // حصراً عبر Admin SDK على الخادم.

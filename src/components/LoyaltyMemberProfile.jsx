@@ -1,8 +1,9 @@
 // src/components/LoyaltyMemberProfile.jsx
 // ----------------------------------------------------------
-// ملف العضو (شاشة مدير فرعية): البيانات، سجل المشتريات،
-// حركة النقاط الكاملة، التصحيح/العكس بسبب إلزامي (بلا حذف)،
-// الترقية اليدوية للفئة، وتعطيل/تفعيل العضوية.
+// ملف العضو (شاشة مدير فرعية) — النسخة 3.0: رصيد بالريال.
+// البيانات، سجل المشتريات، حركة الرصيد الكاملة، التصحيح/العكس بسبب
+// إلزامي (بلا حذف)، الترقية اليدوية للفئة، تعديل البيانات (بما فيها
+// الجنس واللغة بحركة audit)، المتبقي للترقية، ودرجات الحذف الثلاث.
 // حالة "معكوسة" تُشتق من حركات reverse (reversesTxId) — السجل إضافي فقط.
 // ----------------------------------------------------------
 import { useState, useEffect, useCallback } from 'react';
@@ -12,7 +13,7 @@ import {
   getLoyaltyTransactions,
   getLoyaltySettings,
   reverseLoyaltyTransaction,
-  adjustLoyaltyPoints,
+  adjustLoyaltyCredit,
   setLoyaltyManualTier,
   setLoyaltyMemberStatus,
   updateLoyaltyMemberContact,
@@ -20,10 +21,20 @@ import {
   loyaltyDeleteMemberWithArchive,
   markLoyaltyWelcomeSent,
 } from '../firebase';
-import { effectiveTier, toDateSafe, addMonths, normalizePhone } from '../loyaltyMath';
+import {
+  effectiveTier,
+  tierName,
+  toDateSafe,
+  addMonths,
+  normalizePhone,
+  riyalsToHalalas,
+  halalasToRiyalLabel,
+  isWelcomeOnHold,
+  welcomeAvailableAt,
+} from '../loyaltyMath';
 import {
   renderWelcomeMessage,
-  buildPointsMessage,
+  buildCreditMessage,
   buildWhatsappUrl,
   cardUrlFor,
   isLocalOrigin,
@@ -40,27 +51,34 @@ const TIER_STYLE = {
 };
 
 const TYPE_LABEL = {
-  earn:    { ar: 'إضافة نقاط', en: 'Earn' },
-  redeem:  { ar: 'استبدال',    en: 'Redeem' },
-  adjust:  { ar: 'تسوية',      en: 'Adjust' },
-  reverse: { ar: 'عكس حركة',   en: 'Reverse' },
-  expire:  { ar: 'انتهاء',     en: 'Expire' },
-  audit:   { ar: 'إجراء إداري', en: 'Audit' },
+  earn:    { ar: 'شراء',            en: 'Purchase' },
+  redeem:  { ar: 'خصم من الرصيد',   en: 'Redeem' },
+  welcome: { ar: 'مكافأة ترحيبية',  en: 'Welcome bonus' },
+  adjust:  { ar: 'تسوية',           en: 'Adjust' },
+  reverse: { ar: 'عكس حركة',        en: 'Reverse' },
+  expire:  { ar: 'انتهاء',          en: 'Expire' },
+  audit:   { ar: 'إجراء إداري',     en: 'Audit' },
 };
 
-// أسماء إجراءات التدقيق (المرحلة 2 + المرحلة 5)
+// أسماء إجراءات التدقيق
 const AUDIT_ACTION_LABEL = {
-  disable:    { ar: 'تعطيل العضوية',  en: 'Membership disabled' },
-  enable:     { ar: 'إعادة التفعيل',  en: 'Membership re-enabled' },
-  editPhone:  { ar: 'تعديل الجوال',   en: 'Phone edited' },
-  editName:   { ar: 'تعديل الاسم',    en: 'Name edited' },
-  editGender: { ar: 'تعديل الجنس',    en: 'Gender edited' },
-  anonymize:  { ar: 'إخفاء الهوية',   en: 'Anonymized' },
+  disable:      { ar: 'تعطيل العضوية',  en: 'Membership disabled' },
+  enable:       { ar: 'إعادة التفعيل',  en: 'Membership re-enabled' },
+  editPhone:    { ar: 'تعديل الجوال',   en: 'Phone edited' },
+  editName:     { ar: 'تعديل الاسم',    en: 'Name edited' },
+  editGender:   { ar: 'تعديل الجنس',    en: 'Gender edited' },
+  editLanguage: { ar: 'تعديل اللغة',    en: 'Language edited' },
+  anonymize:    { ar: 'إخفاء الهوية',   en: 'Anonymized' },
 };
 
 const GENDER_LABEL = {
   male:   { ar: 'ذكر',  en: 'Male' },
   female: { ar: 'أنثى', en: 'Female' },
+};
+
+const LANGUAGE_LABEL = {
+  ar: { ar: 'عربي',      en: 'Arabic' },
+  en: { ar: 'إنجليزي',   en: 'English' },
 };
 
 function fmtDate(v, en) {
@@ -82,9 +100,9 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
 
   // عكس حركة
   const [reverseTx, setReverseTx] = useState(null);
-  // تسوية يدوية
+  // تسوية يدوية (بالريال)
   const [showAdjust, setShowAdjust] = useState(false);
-  const [adjPoints, setAdjPoints] = useState('');
+  const [adjAmount, setAdjAmount] = useState('');
   const [adjReason, setAdjReason] = useState('');
   const [adjBusy, setAdjBusy] = useState(false);
   // ترقية يدوية
@@ -93,17 +111,18 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
   const [tierReason, setTierReason] = useState('');
   const [tierMonths, setTierMonths] = useState('');
   const [tierBusy, setTierBusy] = useState(false);
-  // تعطيل/تفعيل — المرحلة 2: عبر ConfirmSheet بسبب إلزامي
+  // تعطيل/تفعيل — عبر ConfirmSheet
   const [statusConfirm, setStatusConfirm] = useState(false);
-  // تعديل الجوال/الاسم — المرحلة 2 (+ الجنس — المرحلة 5)
+  // تعديل البيانات (اسم/جوال/جنس/لغة)
   const [showEditContact, setShowEditContact] = useState(false);
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editGender, setEditGender] = useState('');
+  const [editLanguage, setEditLanguage] = useState('');
   const [editReason, setEditReason] = useState('');
   const [editBusy, setEditBusy] = useState(false);
   const [editError, setEditError] = useState('');
-  // درجات الحذف — المرحلة 5
+  // درجات الحذف
   const [anonConfirm, setAnonConfirm] = useState(false);
   const [deleteConfirm, setDeleteConfirm] = useState(false);
   // Batch 92.1: تأكيد تغيير الجوال — {oldPhone, newPhone} أو null
@@ -150,23 +169,24 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
     return <p className="p-6 text-center text-sm font-bold text-tw-red">{error || '—'}</p>;
   }
 
-  const balance = Number(member.pointsBalance) || 0;
+  const balance = Number(member.balanceHalalas) || 0;
   const tierInfo = settings ? effectiveTier(member, txs, settings) : null;
   const tierStyle = tierInfo?.tier ? (TIER_STYLE[tierInfo.tier.key] || TIER_STYLE.silver) : null;
+  const welcomeHeld = settings ? isWelcomeOnHold(member, settings) : false;
   // الحركات المعكوسة — تُشتق من reversesTxId
   const reversedIds = new Set(txs.filter((x) => x.type === 'reverse' && x.reversesTxId).map((x) => x.reversesTxId));
   const purchases = txs.filter((x) => x.type === 'earn');
   const disabled = member.status === 'disabled';
-  // المرحلة 5: مخفي الهوية — تُعرض سجلاته للتقارير، وتُخفى إجراءات التشغيل
+  // مخفي الهوية — تُعرض سجلاته للتقارير، وتُخفى إجراءات التشغيل
   const anonymized = !!member.anonymized;
 
   const handleAdjust = async () => {
-    const p = Math.round(Number(adjPoints));
-    if (!p) return;
+    const halalas = riyalsToHalalas(adjAmount);
+    if (!halalas) return;
     setAdjBusy(true);
     try {
-      await adjustLoyaltyPoints({ store, memberId, points: p, reason: adjReason, ...byMeta });
-      setShowAdjust(false); setAdjPoints(''); setAdjReason('');
+      await adjustLoyaltyCredit({ store, memberId, deltaHalalas: halalas, reason: adjReason, ...byMeta });
+      setShowAdjust(false); setAdjAmount(''); setAdjReason('');
       setNotice(en ? 'Adjustment saved ✓' : 'تمت التسوية ✓');
       await load();
     } catch (err) {
@@ -200,11 +220,12 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
     }
   };
 
-  // المرحلة 2: فتح نموذج تعديل الجوال/الاسم بقيم العضو الحالية
+  // فتح نموذج تعديل البيانات بقيم العضو الحالية
   const openEditContact = () => {
     setEditName(member?.name || '');
     setEditPhone(member?.phone || '');
     setEditGender(member?.gender || '');
+    setEditLanguage(member?.language || '');
     setEditReason('');
     setEditError('');
     setShowEditContact(true);
@@ -216,8 +237,9 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
       memberId,
       name: editName,
       phone: editPhone,
-      // لا نمرر gender إلا إذا اختير — القدامى بلا الحقل يبقون «غير مسجّل»
+      // لا نمرر gender/language إلا إذا اختيرا — القدامى بلا الحقل يبقون «غير مسجّل»
       ...(editGender ? { gender: editGender } : {}),
+      ...(editLanguage ? { language: editLanguage } : {}),
       reason: editReason, // Batch 92.1: اختياري — يُحفظ إن كُتب
       ...byMeta,
     });
@@ -236,7 +258,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
       return;
     }
     // Batch 92.1: تغيير الجوال يمر بنافذة تأكيد تعرض القديم والجديد معاً
-    // (بدل إلزام السبب) — تعديل الاسم/الجنس وحده يُحفظ مباشرة
+    // (بدل إلزام السبب) — تعديل الاسم/الجنس/اللغة وحده يُحفظ مباشرة
     if (newPhone !== member.phone) {
       setPhoneConfirm({ oldPhone: member.phone || '—', newPhone });
       return;
@@ -251,7 +273,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
     }
   };
 
-  // المرحلة 2: إعادة إرسال البطاقة عبر واتساب من ملف العضو
+  // إعادة إرسال البطاقة عبر واتساب من ملف العضو (عربي حالياً — المرحلة B: بلغة العميل)
   const handleSendWhatsapp = () => {
     setWaWarning('');
     const origin = window.location.origin;
@@ -261,12 +283,12 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
       return;
     }
-    const text = renderWelcomeMessage(settings?.welcomeMessage, {
+    const text = renderWelcomeMessage(settings?.welcomeMessage?.ar, {
       name: member.name,
       storeName: STORE_NAMES[member.store] || member.store,
       memberNo: member.memberNo,
-      tier: tierInfo?.tier?.name || 'عضو',
-      points: Number(member.pointsBalance) || 0,
+      tier: tierName(tierInfo?.tier, 'ar') || 'عضو',
+      balance: halalasToRiyalLabel(balance),
       cardUrl: cardUrlFor(origin, member.cardToken),
     });
     const url = buildWhatsappUrl(member.phone, text);
@@ -283,9 +305,9 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
     }
   };
 
-  // Batch 92: إعادة إرسال إشعار نقاط لحركة earn — القيم من الحركة نفسها
-  // (points/balanceAfter المخزّنان فيها) لا من قراءة جديدة: دقة تاريخية
-  const handleSendPointsNotify = (tx) => {
+  // إعادة إرسال إشعار الرصيد لحركة earn — القيم من الحركة نفسها
+  // (deltaHalalas/balanceAfterHalalas المخزّنان فيها) لا من قراءة جديدة: دقة تاريخية
+  const handleSendCreditNotify = (tx) => {
     setWaWarning('');
     const origin = window.location.origin;
     if (isLocalOrigin(origin)) {
@@ -294,14 +316,14 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
       return;
     }
-    // Batch 92.2: القالب من إعدادات المتجر — فارغ/غير محمّل → الثابت تلقائياً
-    const text = buildPointsMessage({
+    // القالب من إعدادات المتجر (creditMessage) — فارغ/غير محمّل → الثابت تلقائياً
+    const text = buildCreditMessage({
       name: member.name,
-      points: Number(tx.points) || 0,
-      balance: Number(tx.balanceAfter) || 0,
+      earned: halalasToRiyalLabel(Number(tx.deltaHalalas) || 0),
+      balance: halalasToRiyalLabel(Number(tx.balanceAfterHalalas) || 0),
       cardUrl: cardUrlFor(origin, member.cardToken),
       storeName: STORE_NAMES[member.store] || member.store,
-    }, settings?.pointsMessage);
+    }, settings?.creditMessage);
     const url = buildWhatsappUrl(member.phone, text);
     if (!url) {
       setWaWarning(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
@@ -311,6 +333,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
   };
 
   const inputCls = 'w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue';
+  const fmtDelta = (h) => `${h >= 0 ? '+' : ''}${halalasToRiyalLabel(h)}`;
 
   return (
     <div
@@ -329,37 +352,48 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
           {tierStyle && (
             <span className="px-2.5 py-1 rounded-full text-[11px] font-extrabold flex-shrink-0"
                   style={{ background: tierStyle.bg, color: tierStyle.color }}>
-              {tierInfo.tier.name}{tierInfo.manual ? ' ★' : ''}
+              {tierName(tierInfo.tier, lang)}{tierInfo.manual ? ' ★' : ''}
             </span>
           )}
         </div>
         <div className="grid grid-cols-3 gap-2 text-center pt-1">
           <div className="bg-tw-soft/50 rounded-xl p-2">
-            <p className="text-[10px] text-tw-muted font-bold">{en ? 'Balance' : 'الرصيد'}</p>
+            <p className="text-[10px] text-tw-muted font-bold">{en ? 'Balance (SAR)' : 'الرصيد (ريال)'}</p>
             <p className={`text-lg font-extrabold ${balance < 0 ? 'text-tw-red' : 'text-tw-navy'}`}>
-              {balance.toLocaleString('en-US')}
+              {halalasToRiyalLabel(balance)}
             </p>
           </div>
           <div className="bg-tw-soft/50 rounded-xl p-2">
-            <p className="text-[10px] text-tw-muted font-bold">{en ? 'Tier points' : 'نقاط الفئة'}</p>
+            <p className="text-[10px] text-tw-muted font-bold">{en ? 'Earned (window)' : 'المكتسب (النافذة)'}</p>
             <p className="text-lg font-extrabold text-tw-navy">
-              {(tierInfo?.tierPoints || 0).toLocaleString('en-US')}
+              {halalasToRiyalLabel(tierInfo?.earnedHalalas || 0)}
             </p>
           </div>
+          {/* المتبقي للترقية التالية — بالريال */}
           <div className="bg-tw-soft/50 rounded-xl p-2">
-            <p className="text-[10px] text-tw-muted font-bold">{en ? 'Redemptions' : 'الاستبدالات'}</p>
+            <p className="text-[10px] text-tw-muted font-bold">{en ? 'To next tier' : 'المتبقي للترقية'}</p>
             <p className="text-lg font-extrabold text-tw-navy">
-              {Number(member.redemptionsCount) || 0}
+              {tierInfo?.nextTier
+                ? halalasToRiyalLabel(tierInfo.remainingToNextHalalas)
+                : (en ? 'Top tier' : 'أعلى فئة')}
             </p>
           </div>
         </div>
         <div className="text-[11px] text-tw-muted font-semibold space-y-0.5 pt-1">
           <p>{en ? 'Joined:' : 'الانضمام:'} {fmtDate(member.joinedAt, en)} · {en ? 'Last purchase:' : 'آخر شراء:'} {fmtDate(member.lastPurchaseAt, en)}</p>
           <p>
-            {en ? 'Points expire:' : 'انتهاء النقاط:'} {fmtDate(member.pointsExpireAt, en)}
+            {en ? 'Balance expires:' : 'انتهاء الرصيد:'} {fmtDate(member.balanceExpiresAt, en)}
             {' · '}{en ? 'Gender:' : 'الجنس:'} {GENDER_LABEL[member.gender]?.[en ? 'en' : 'ar'] || (en ? 'Unregistered' : 'غير مسجّل')}
+            {' · '}{en ? 'Language:' : 'اللغة:'} {LANGUAGE_LABEL[member.language]?.[en ? 'en' : 'ar'] || (en ? 'Unregistered' : 'غير مسجّل')}
             {' · '}{en ? 'Marketing consent:' : 'موافقة تسويقية:'} {member.marketingConsent ? '✓' : '✗'}
           </p>
+          {welcomeHeld && (
+            <p className="text-[#9A7000]">
+              {en
+                ? `Welcome bonus on hold — available after ${fmtDate(welcomeAvailableAt(member, settings), true)}`
+                : `الترحيبية في فترة الانتظار — متاحة بعد ${fmtDate(welcomeAvailableAt(member, settings), false)}`}
+            </p>
+          )}
           {tierInfo?.manual && member.manualTier && (
             <p className="text-[#9A7000]">
               {en ? 'Manual tier:' : 'ترقية يدوية:'} {member.manualTier.reason}
@@ -406,7 +440,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
                 className="py-2.5 rounded-xl bg-white border border-tw-line text-tw-navy text-xs font-bold flex items-center justify-center gap-1.5 hover:bg-tw-soft">
           <Pencil size={14} /> {en ? 'Edit contact' : 'تعديل البيانات'}
         </button>
-        {/* المرحلة 2: تعطيل/تفعيل عبر ConfirmSheet بسبب إلزامي — الحذف ممنوع بالتصميم */}
+        {/* تعطيل/تفعيل عبر ConfirmSheet — الحذف ممنوع بالتصميم */}
         <button type="button" onClick={() => setStatusConfirm(true)}
                 className={`py-2.5 rounded-xl border text-xs font-bold flex items-center justify-center gap-1.5 ${
                   disabled
@@ -441,7 +475,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         </>
       )}
 
-      {/* نموذج تعديل الجوال/الاسم — سبب إلزامي وسجل تدقيق */}
+      {/* نموذج تعديل البيانات — اسم/جوال/جنس/لغة بسجل تدقيق */}
       {showEditContact && (
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-blue/30 space-y-2">
           <h4 className="font-bold text-sm text-tw-navy">{en ? 'Edit contact info' : 'تعديل بيانات العضو'}</h4>
@@ -451,7 +485,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
                  onChange={(e) => setEditPhone(toLatinDigits(e.target.value))}
                  placeholder={en ? 'Phone' : 'رقم الجوال'}
                  className={`${inputCls} text-center font-mono`} />
-          {/* المرحلة 5: تعديل الجنس — للمدير فقط، يُسجَّل بحركة audit */}
+          {/* تعديل الجنس — للمدير فقط، يُسجَّل بحركة audit */}
           <div className="flex items-center gap-1.5">
             <span className="text-xs font-bold text-tw-muted flex-shrink-0">{en ? 'Gender:' : 'الجنس:'}</span>
             {[
@@ -468,6 +502,26 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
               </button>
             ))}
             {!member.gender && !editGender && (
+              <span className="text-[10px] font-bold text-tw-muted">({en ? 'unregistered' : 'غير مسجّل'})</span>
+            )}
+          </div>
+          {/* النسخة 3.0: تعديل اللغة — للمدير فقط، يُسجَّل بحركة audit */}
+          <div className="flex items-center gap-1.5">
+            <span className="text-xs font-bold text-tw-muted flex-shrink-0">{en ? 'Language:' : 'اللغة:'}</span>
+            {[
+              { v: 'ar', label: 'عربي' },
+              { v: 'en', label: 'English' },
+            ].map((l) => (
+              <button key={l.v} type="button" onClick={() => setEditLanguage(l.v)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
+                        editLanguage === l.v
+                          ? 'bg-tw-blue text-white border-tw-blue'
+                          : 'bg-tw-soft/40 text-tw-navy border-tw-line'
+                      }`}>
+                {l.label}
+              </button>
+            ))}
+            {!member.language && !editLanguage && (
               <span className="text-[10px] font-bold text-tw-muted">({en ? 'unregistered' : 'غير مسجّل'})</span>
             )}
           </div>
@@ -488,17 +542,17 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         </div>
       )}
 
-      {/* نموذج التسوية */}
+      {/* نموذج التسوية — بالريال (يُخزَّن هللات) */}
       {showAdjust && (
         <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-blue/30 space-y-2">
-          <h4 className="font-bold text-sm text-tw-navy">{en ? 'Points adjustment' : 'تسوية نقاط'}</h4>
-          <input type="number" inputMode="numeric" value={adjPoints}
-                 onChange={(e) => setAdjPoints(toLatinDigits(e.target.value))}
-                 placeholder={en ? 'Points (+ or −)' : 'النقاط (+ أو −)'} className={inputCls} />
+          <h4 className="font-bold text-sm text-tw-navy">{en ? 'Balance adjustment' : 'تسوية رصيد'}</h4>
+          <input type="number" inputMode="decimal" step="0.25" value={adjAmount}
+                 onChange={(e) => setAdjAmount(toLatinDigits(e.target.value))}
+                 placeholder={en ? 'Amount SAR (+ or −)' : 'المبلغ بالريال (+ أو −)'} className={inputCls} />
           <input type="text" value={adjReason} onChange={(e) => setAdjReason(e.target.value)}
                  placeholder={en ? 'Reason (required)' : 'السبب (إلزامي)'} className={inputCls} />
           <button type="button" onClick={handleAdjust}
-                  disabled={adjBusy || !Math.round(Number(adjPoints)) || !adjReason.trim()}
+                  disabled={adjBusy || !riyalsToHalalas(adjAmount) || !adjReason.trim()}
                   className="w-full py-2.5 rounded-xl bg-tw-blue text-white text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">
             {adjBusy && <Loader2 size={14} className="animate-spin" />}
             {en ? 'Save adjustment' : 'حفظ التسوية'}
@@ -522,7 +576,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
                       className={`px-3 py-1.5 rounded-full text-xs font-bold border ${
                         tierKey === tr.key ? 'bg-tw-blue text-white border-tw-blue' : 'bg-tw-soft/40 text-tw-navy border-tw-line'
                       }`}>
-                {tr.name}
+                {tierName(tr, lang)}
               </button>
             ))}
           </div>
@@ -545,7 +599,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         </div>
       )}
 
-      {/* المرحلة 5: درجات الحذف — الحذف ممنوع مباشرة؛ إخفاء هوية أو حذف كامل مع أرشفة */}
+      {/* درجات الحذف — الحذف ممنوع مباشرة؛ إخفاء هوية أو حذف كامل مع أرشفة */}
       <div className="bg-white p-4 rounded-2xl shadow-sm border border-red-200 space-y-2">
         <h4 className="font-bold text-sm text-tw-red">{en ? 'Danger zone' : 'إجراءات حساسة'}</h4>
         <div className="grid grid-cols-2 gap-2">
@@ -581,19 +635,22 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
             <div key={x.id} className={`flex items-center gap-2 p-3 border-b border-tw-line/50 last:border-b-0 ${reversed ? 'opacity-60' : ''}`}>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-tw-navy">
-                  {en ? 'Invoice' : 'فاتورة'} {x.invoiceNo} · {(Number(x.amount) || 0).toLocaleString('en-US')} {en ? 'SAR' : 'ريال'}
+                  {en ? 'Invoice' : 'فاتورة'} {x.invoiceNo} · {halalasToRiyalLabel(Number(x.amountHalalas) || 0)} {en ? 'SAR' : 'ريال'}
                   {reversed && <span className="text-tw-red mx-1.5">({en ? 'reversed' : 'معكوسة'})</span>}
                 </p>
-                <p className="text-[10px] text-tw-muted font-semibold">{fmtDate(x.at, en)} · {x.byName || '—'}</p>
+                <p className="text-[10px] text-tw-muted font-semibold">
+                  {fmtDate(x.at, en)} · {x.byName || '—'}
+                  {x.ratePercent ? <> · <span dir="ltr">{x.ratePercent}%</span></> : null}
+                </p>
               </div>
               <span className="text-xs font-extrabold text-green-700 flex-shrink-0">
-                +{(Number(x.points) || 0).toLocaleString('en-US')}
+                +{halalasToRiyalLabel(Number(x.deltaHalalas) || 0)}
               </span>
-              {/* Batch 92: إعادة إرسال إشعار النقاط — للحركات غير المعكوسة
+              {/* إعادة إرسال إشعار الرصيد — للحركات غير المعكوسة
                   ولعضوية فعّالة غير مخفاة فقط */}
               {!reversed && !disabled && !anonymized && (
-                <button type="button" onClick={() => handleSendPointsNotify(x)}
-                        title={en ? 'Send points notification' : 'إرسال إشعار النقاط'}
+                <button type="button" onClick={() => handleSendCreditNotify(x)}
+                        title={en ? 'Send credit notification' : 'إرسال إشعار الرصيد'}
                         className="p-1.5 rounded-lg text-[#128C4A] hover:bg-green-50 flex-shrink-0">
                   <MessageCircle size={15} />
                 </button>
@@ -610,19 +667,19 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         })}
       </div>
 
-      {/* حركة النقاط الكاملة */}
+      {/* حركة الرصيد الكاملة */}
       <div className="bg-white rounded-2xl shadow-sm border border-tw-line overflow-hidden">
         <h4 className="font-bold text-sm text-tw-navy p-3 border-b border-tw-line/70">
-          {en ? 'Points activity' : 'حركة النقاط'} ({txs.length})
+          {en ? 'Balance activity' : 'حركة الرصيد'} ({txs.length})
         </h4>
         {txs.length === 0 && (
           <p className="p-4 text-center text-xs font-bold text-tw-muted">{en ? 'No activity yet' : 'لا حركات بعد'}</p>
         )}
         {txs.map((x) => {
           const reversed = reversedIds.has(x.id);
-          const p = Number(x.points) || 0;
+          const delta = Number(x.deltaHalalas) || 0;
           const isAudit = x.type === 'audit';
-          // حركات audit (المرحلة 2): إجراء إداري بنقاط 0 — خارج حسابات الرصيد والفئة
+          // حركات audit: إجراء إداري بقيمة 0 — خارج حسابات الرصيد والفئة
           const label = isAudit
             ? (AUDIT_ACTION_LABEL[x.action]?.[en ? 'en' : 'ar'] || TYPE_LABEL.audit[en ? 'en' : 'ar'])
             : (TYPE_LABEL[x.type] ? TYPE_LABEL[x.type][en ? 'en' : 'ar'] : x.type);
@@ -632,7 +689,6 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-bold text-tw-navy">
                   {label}
-                  {x.rewardLabel ? ` — ${x.rewardLabel}` : ''}
                   {x.invoiceNo ? ` — ${x.invoiceNo}` : ''}
                   {reversed && <span className="text-tw-red mx-1.5">({en ? 'reversed' : 'معكوسة'})</span>}
                 </p>
@@ -644,12 +700,12 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
                 {x.reason && <p className="text-[10px] text-tw-muted font-semibold truncate">{x.reason}</p>}
                 <p className="text-[10px] text-tw-muted font-semibold">
                   {fmtDate(x.at, en)} · {x.byName || '—'}
-                  {!isAudit && <> · {en ? 'balance after:' : 'الرصيد بعدها:'} {(Number(x.balanceAfter) || 0).toLocaleString('en-US')}</>}
+                  {!isAudit && <> · {en ? 'balance after:' : 'الرصيد بعدها:'} {halalasToRiyalLabel(Number(x.balanceAfterHalalas) || 0)}</>}
                 </p>
               </div>
               {!isAudit && (
-                <span className={`text-xs font-extrabold flex-shrink-0 ${p >= 0 ? 'text-green-700' : 'text-tw-red'}`}>
-                  {p >= 0 ? '+' : ''}{p.toLocaleString('en-US')}
+                <span className={`text-xs font-extrabold flex-shrink-0 ${delta >= 0 ? 'text-green-700' : 'text-tw-red'}`}>
+                  {fmtDelta(delta)}
                 </span>
               )}
               {canReverse && (
@@ -673,8 +729,8 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         title={en ? 'Reverse this transaction?' : 'عكس هذه الحركة؟'}
         message={reverseTx
           ? (en
-              ? `A reverse entry of ${(-(Number(reverseTx.points) || 0)).toLocaleString('en-US')} points will be created. Nothing is deleted.`
-              : `ستُنشأ حركة عكسية بقيمة ${(-(Number(reverseTx.points) || 0)).toLocaleString('en-US')} نقطة. لا يُحذف أي سجل.`)
+              ? `A reverse entry of SAR ${halalasToRiyalLabel(-(Number(reverseTx.deltaHalalas) || 0))} will be created. Nothing is deleted.`
+              : `ستُنشأ حركة عكسية بقيمة ${halalasToRiyalLabel(-(Number(reverseTx.deltaHalalas) || 0))} ريال. لا يُحذف أي سجل.`)
           : ''}
         confirmLabel={en ? 'Reverse' : 'عكس الحركة'}
         onConfirm={async (reason) => {
@@ -687,8 +743,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         onClose={() => setReverseTx(null)}
       />
 
-      {/* تأكيد التعطيل/التفعيل — السبب اختياري (Batch 92.1: قابل للاسترجاع
-          ولا يمنح امتيازاً)، وحركة التدقيق تُنشأ دائماً */}
+      {/* تأكيد التعطيل/التفعيل — السبب اختياري (Batch 92.1)، وحركة التدقيق تُنشأ دائماً */}
       <LoyaltyConfirmSheet
         open={statusConfirm}
         variant={disabled ? 'redeem' : 'reverse'}
@@ -700,10 +755,10 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         message={disabled
           ? (en
               ? 'Earning and redemption will work again, and the public card will be available.'
-              : 'سيعود كسب النقاط والاستبدال للعمل، وستتاح البطاقة العامة من جديد.')
+              : 'سيعود كسب الرصيد والخصم للعمل، وستتاح البطاقة العامة من جديد.')
           : (en
               ? 'Earning and redemption will stop and the public card returns 404. All records stay intact — nothing is deleted.'
-              : 'سيتوقف كسب النقاط والاستبدال وتصبح البطاقة العامة غير متاحة. كل السجلات تبقى كما هي — لا يُحذف شيء.')}
+              : 'سيتوقف كسب الرصيد والخصم وتصبح البطاقة العامة غير متاحة. كل السجلات تبقى كما هي — لا يُحذف شيء.')}
         confirmLabel={disabled ? (en ? 'Re-enable' : 'إعادة التفعيل') : (en ? 'Disable' : 'تعطيل')}
         onConfirm={async (reason) => {
           await setLoyaltyMemberStatus(memberId, disabled ? 'active' : 'disabled', { reason, ...byMeta });
@@ -734,7 +789,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         onClose={() => setPhoneConfirm(null)}
       />
 
-      {/* المرحلة 5: تأكيد إخفاء الهوية — سبب إلزامي */}
+      {/* تأكيد إخفاء الهوية — سبب إلزامي */}
       <LoyaltyConfirmSheet
         open={anonConfirm}
         variant="reverse"
@@ -753,7 +808,7 @@ export default function LoyaltyMemberProfile({ memberId, store, lang, user, onBa
         onClose={() => setAnonConfirm(false)}
       />
 
-      {/* المرحلة 5: تأكيد الحذف الكامل — سبب إلزامي + كتابة رقم العضوية */}
+      {/* تأكيد الحذف الكامل — سبب إلزامي + كتابة رقم العضوية */}
       <LoyaltyConfirmSheet
         open={deleteConfirm}
         variant="reverse"

@@ -93,15 +93,15 @@ export default async function handler(req, res) {
         anonymizedAt: admin.firestore.FieldValue.serverTimestamp(),
         updatedAt: admin.firestore.FieldValue.serverTimestamp(),
       });
-      // حركة audit — سجل إضافي، النقاط 0 (مستثناة من كل الحسابات)
+      // حركة audit — سجل إضافي، القيمة 0 (مستثناة من كل الحسابات)
       const txRef = db.collection("loyaltyTransactions").doc();
       batch.set(txRef, {
         memberId,
         store: member.store,
         type: "audit",
         action: "anonymize",
-        points: 0,
-        balanceAfter: Number(member.pointsBalance) || 0,
+        deltaHalalas: 0,
+        balanceAfterHalalas: Number(member.balanceHalalas) || 0,
         oldValue: member.name || "",
         newValue: ANON_NAME,
         reason: String(reason).trim(),

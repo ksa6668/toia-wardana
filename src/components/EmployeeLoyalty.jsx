@@ -1,15 +1,17 @@
 // src/components/EmployeeLoyalty.jsx
 // ----------------------------------------------------------
-// شاشة الموظف — برنامج الولاء (المرحلة 1).
+// شاشة الموظف — برنامج الولاء (النسخة 3.0: رصيد بالريال).
 // صفحة واحدة تبدأ بحقل رقم الجوال:
 //   • البحث يوحّد صيغة الرقم ويبحث في المتجر الحالي فقط (branchId)
-//   • لا عضوية → نموذج إنشاء (اسم/جوال/مصدر/موافقة) ثم فاتورة ومبلغ
-//   • عضوية → بطاقة العضو + شبكة المكافآت + إضافة نقاط + استبدال
-//   • الاستبدال معطّل عند رصيد سالب مع رسالة السبب
-// ملاحظة: زر مسح QR مؤجل للمرحلة 2 — البحث بالجوال هو الوسيلة الوحيدة.
+//   • لا عضوية → نموذج إنشاء (اسم/جنس/لغة/مصدر/موافقة + فاتورة ومبلغ
+//     اختياريان — تسجيل مع شراء = معاملة واحدة كل شيء أو لا شيء)
+//   • عضوية → الرصيد بالريال + الفئة ونسبة الكسب + إضافة شراء
+//     (يعرض المكتسب قبل التأكيد) + خصم بمضاعفات ربع ريال
+//   • الرصيد المتاح يُخصم منه الترحيبية المعلّقة مع توضيح «متاحة بعد …»
+// كل الإدخالات بالريال وتُحوَّل هللات صحيحة قبل طبقة البيانات.
 // ----------------------------------------------------------
 import { useState, useEffect } from 'react';
-import { Search, Loader2, UserPlus, Star, Gift, ReceiptText, CheckCircle2, AlertTriangle, QrCode, MessageCircle } from 'lucide-react';
+import { Search, Loader2, UserPlus, Star, Wallet, ReceiptText, CheckCircle2, AlertTriangle, QrCode, MessageCircle } from 'lucide-react';
 import {
   getLoyaltySettings,
   findLoyaltyMemberByPhone,
@@ -17,14 +19,27 @@ import {
   createLoyaltyMember,
   getLoyaltyMember,
   getLoyaltyTransactions,
-  earnLoyaltyPoints,
-  redeemLoyaltyReward,
+  earnLoyaltyCredit,
+  redeemLoyaltyCredit,
   markLoyaltyWelcomeSent,
 } from '../firebase';
-import { effectiveTier, normalizePhone, storeLetter } from '../loyaltyMath';
+import {
+  effectiveTier,
+  tierName,
+  normalizePhone,
+  storeLetter,
+  riyalsToHalalas,
+  halalasToRiyalLabel,
+  availableBalanceHalalas,
+  isWelcomeOnHold,
+  welcomeAvailableAt,
+  isValidRedeemAmount,
+  computeEarnedHalalas,
+  toDateSafe,
+} from '../loyaltyMath';
 import {
   renderWelcomeMessage,
-  buildPointsMessage,
+  buildCreditMessage,
   buildWhatsappUrl,
   cardUrlFor,
   isLocalOrigin,
@@ -40,6 +55,14 @@ const TIER_STYLE = {
   gold:     { bg: '#FFF4D6', color: '#9A7000' },
   platinum: { bg: '#E9E4FA', color: '#5B3FA8' },
 };
+
+function fmtDateTime(v, en) {
+  const d = toDateSafe(v);
+  if (!d) return '—';
+  return d.toLocaleString(en ? 'en-GB' : 'ar-SA-u-nu-latn', {
+    year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+}
 
 export default function EmployeeLoyalty({ branchId, lang, user }) {
   const en = lang === 'en';
@@ -57,27 +80,33 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
 
   // نموذج التسجيل
   const [regName, setRegName] = useState('');
-  const [regGender, setRegGender] = useState(''); // المرحلة 5: إلزامي — male | female
+  const [regGender, setRegGender] = useState(''); // إلزامي — male | female
+  const [regLanguage, setRegLanguage] = useState(''); // النسخة 3.0: إلزامي — ar | en
   const [regSource, setRegSource] = useState('');
   const [regSourceOther, setRegSourceOther] = useState('');
   const [regConsent, setRegConsent] = useState(false);
+  // شراء عند التسجيل — اختياري (الفاتورة والمبلغ معاً أو لا شيء)
+  const [regInvoiceNo, setRegInvoiceNo] = useState('');
+  const [regAmount, setRegAmount] = useState(''); // بالريال
   const [regBusy, setRegBusy] = useState(false);
   const [regError, setRegError] = useState('');
 
-  // إضافة نقاط
+  // إضافة شراء
   const [invoiceNo, setInvoiceNo] = useState('');
-  const [amount, setAmount] = useState('');
+  const [amount, setAmount] = useState(''); // بالريال
   const [earnBusy, setEarnBusy] = useState(false);
   const [earnError, setEarnError] = useState('');
   const [earnMsg, setEarnMsg] = useState('');
 
-  // استبدال
-  const [confirmReward, setConfirmReward] = useState(null);
+  // خصم من الرصيد
+  const [redeemAmount, setRedeemAmount] = useState(''); // بالريال
+  const [redeemError, setRedeemError] = useState('');
+  const [confirmRedeem, setConfirmRedeem] = useState(null); // {halalas}
 
-  // المرحلة 2: مسح QR + إرسال واتساب
+  // مسح QR + إرسال واتساب
   const [showScan, setShowScan] = useState(false);
   const [waWarning, setWaWarning] = useState('');
-  // Batch 92: آخر عملية إضافة نقاط ناجحة — {points, balanceAfter} من نتيجة
+  // آخر إضافة رصيد ناجحة — {earnedHalalas, balanceAfterHalalas} من نتيجة
   // المعاملة نفسها (لا قراءة جديدة). زر الإشعار يظهر بعدها مباشرة فقط.
   const [lastEarn, setLastEarn] = useState(null);
 
@@ -101,8 +130,10 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     setTxs([]);
     setLastEarn(null);
     setSearchError('');
-    setRegName(''); setRegGender(''); setRegSource(''); setRegSourceOther(''); setRegConsent(false); setRegError('');
+    setRegName(''); setRegGender(''); setRegLanguage(''); setRegSource(''); setRegSourceOther('');
+    setRegConsent(false); setRegInvoiceNo(''); setRegAmount(''); setRegError('');
     setInvoiceNo(''); setAmount(''); setEarnError(''); setEarnMsg('');
+    setRedeemAmount(''); setRedeemError('');
   };
 
   // إعادة تحميل العضو + حركاته (تشمل الانتهاء الكسول)
@@ -147,8 +178,24 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
       setRegError(en ? 'Select the customer gender' : 'حدّد جنس العميل');
       return;
     }
+    if (regLanguage !== 'ar' && regLanguage !== 'en') {
+      setRegError(en ? 'Select the customer language' : 'حدّد لغة العميل');
+      return;
+    }
     if (regSource === 'other' && !regSourceOther.trim()) {
       setRegError(en ? 'Specify the source' : 'حدّد المصدر');
+      return;
+    }
+    // شراء عند التسجيل: التحقق يسري فقط إن أُدخل أحد الحقلين
+    const hasInvoice = !!regInvoiceNo.trim();
+    const amtHalalas = regAmount.trim() === '' ? null : riyalsToHalalas(regAmount);
+    const hasAmount = amtHalalas != null && amtHalalas > 0;
+    if (hasInvoice && !hasAmount) {
+      setRegError(en ? 'Enter the invoice amount' : 'أدخل مبلغ الفاتورة');
+      return;
+    }
+    if (hasAmount && !hasInvoice) {
+      setRegError(en ? 'Enter the invoice number' : 'أدخل رقم الفاتورة');
       return;
     }
     setRegBusy(true);
@@ -158,11 +205,19 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
         phone: phoneInput,
         name: regName,
         gender: regGender,
+        language: regLanguage,
         source: regSource,
         sourceOther: regSourceOther,
         marketingConsent: regConsent,
+        invoiceNo: hasInvoice ? regInvoiceNo : '',
+        amountHalalas: hasAmount ? amtHalalas : null,
         ...byMeta,
       });
+      if (created.earnedHalalas > 0) {
+        setEarnMsg(en
+          ? `Membership created — SAR ${halalasToRiyalLabel(created.earnedHalalas)} earned ✓`
+          : `أُنشئت العضوية — كسب ${halalasToRiyalLabel(created.earnedHalalas)} ريال ✓`);
+      }
       await reloadMember(created.id);
       setStage('member');
     } catch (err) {
@@ -176,36 +231,36 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     setEarnError('');
     setEarnMsg('');
     if (!invoiceNo.trim()) { setEarnError(en ? 'Invoice number is required' : 'رقم الفاتورة إلزامي'); return; }
-    const amt = Number(amount);
-    if (!amt || amt <= 0) { setEarnError(en ? 'Enter a valid amount' : 'أدخل مبلغاً صحيحاً'); return; }
+    const amtHalalas = riyalsToHalalas(amount);
+    if (!amtHalalas || amtHalalas <= 0) { setEarnError(en ? 'Enter a valid amount' : 'أدخل مبلغاً صحيحاً'); return; }
     setEarnBusy(true);
     try {
-      const res = await earnLoyaltyPoints({
+      const res = await earnLoyaltyCredit({
         store: branchId,
         memberId: member.id,
         invoiceNo,
-        amount: amt,
+        amountHalalas: amtHalalas,
         ...byMeta,
       });
       setInvoiceNo('');
       setAmount('');
       setEarnMsg(en
-        ? `+${res.points.toLocaleString('en-US')} points added ✓`
-        : `تمت إضافة ${res.points.toLocaleString('en-US')} نقطة ✓`);
+        ? `SAR ${halalasToRiyalLabel(res.earnedHalalas)} added ✓`
+        : `أُضيف ${halalasToRiyalLabel(res.earnedHalalas)} ريال إلى الرصيد ✓`);
       // قيم الإشعار من نتيجة المعاملة نفسها — دقيقة حتى مع عمليات لاحقة
-      setLastEarn({ points: res.points, balanceAfter: res.balanceAfter });
+      setLastEarn({ earnedHalalas: res.earnedHalalas, balanceAfterHalalas: res.balanceAfterHalalas });
       await reloadMember(member.id);
     } catch (err) {
       // duplicate-invoice تصل برسالتها العربية من طبقة البيانات
       setEarnError(err?.code === 'duplicate-invoice' && en
         ? 'Invoice number already used in this store'
-        : err?.message || (en ? 'Failed to add points' : 'تعذّرت إضافة النقاط'));
+        : err?.message || (en ? 'Failed to add credit' : 'تعذّرت إضافة الرصيد'));
     } finally {
       setEarnBusy(false);
     }
   };
 
-  // المرحلة 2: نتيجة مسح QR — الرمز يحمل رقم العضوية (مثل T-48271)
+  // نتيجة مسح QR — الرمز يحمل رقم العضوية (مثل T-48271)
   const handleScanResult = async (code) => {
     setShowScan(false);
     setSearchError('');
@@ -239,7 +294,8 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     }
   };
 
-  // المرحلة 2: إرسال البطاقة عبر واتساب (يدوي — يفتح wa.me بنص جاهز)
+  // إرسال البطاقة عبر واتساب (يدوي — يفتح wa.me بنص جاهز، عربي حالياً؛
+  // اختيار القالب بلغة العميل — المرحلة B)
   const handleSendWhatsapp = () => {
     setWaWarning('');
     const origin = window.location.origin;
@@ -251,12 +307,12 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
       return;
     }
     const tierInfo2 = settings ? effectiveTier(member, txs, settings) : null;
-    const text = renderWelcomeMessage(settings?.welcomeMessage, {
+    const text = renderWelcomeMessage(settings?.welcomeMessage?.ar, {
       name: member.name,
       storeName: STORE_NAMES[branchId] || branchId,
       memberNo: member.memberNo,
-      tier: tierInfo2?.tier?.name || 'عضو',
-      points: Number(member.pointsBalance) || 0,
+      tier: tierName(tierInfo2?.tier, 'ar') || 'عضو',
+      balance: halalasToRiyalLabel(Number(member.balanceHalalas) || 0),
       cardUrl: cardUrlFor(origin, member.cardToken),
     });
     const url = buildWhatsappUrl(member.phone, text);
@@ -273,8 +329,8 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     }
   };
 
-  // Batch 92: إشعار النقاط المعاملاتي — من قيم آخر عملية (lastEarn) حصراً
-  const handleSendPointsNotify = () => {
+  // إشعار الرصيد المعاملاتي — من قيم آخر عملية (lastEarn) حصراً
+  const handleSendCreditNotify = () => {
     if (!lastEarn || !member) return;
     setWaWarning('');
     const origin = window.location.origin;
@@ -284,14 +340,14 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
         : 'أنت على بيئة تطوير محلية — رابط البطاقة سيكون معطلاً. أرسل من التطبيق المنشور.');
       return;
     }
-    // Batch 92.2: القالب من إعدادات المتجر — فارغ/غير محمّل → الثابت تلقائياً
-    const text = buildPointsMessage({
+    // القالب من إعدادات المتجر (creditMessage) — فارغ/غير محمّل → الثابت تلقائياً
+    const text = buildCreditMessage({
       name: member.name,
-      points: lastEarn.points,
-      balance: lastEarn.balanceAfter,
+      earned: halalasToRiyalLabel(lastEarn.earnedHalalas),
+      balance: halalasToRiyalLabel(lastEarn.balanceAfterHalalas),
       cardUrl: cardUrlFor(origin, member.cardToken),
       storeName: STORE_NAMES[branchId] || branchId,
-    }, settings?.pointsMessage);
+    }, settings?.creditMessage);
     const url = buildWhatsappUrl(member.phone, text);
     if (!url) {
       setWaWarning(en ? 'Invalid phone number' : 'رقم الجوال غير صالح');
@@ -300,27 +356,65 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
     window.open(url, '_blank', 'noopener');
   };
 
-  const handleRedeem = async () => {
-    if (!confirmReward) return;
-    await redeemLoyaltyReward({
-      store: branchId,
-      memberId: member.id,
-      rewardId: confirmReward.id,
-      ...byMeta,
-    });
-    setEarnMsg(en
-      ? `Redeemed: ${confirmReward.label} ✓`
-      : `تم الاستبدال: ${confirmReward.label} ✓`);
-    await reloadMember(member.id);
-  };
-
-  const balance = Number(member?.pointsBalance) || 0;
+  // ---- الرصيد والمتاح (الترحيبية المعلّقة) ----
+  const balance = Number(member?.balanceHalalas) || 0;
   const negativeBalance = balance < 0;
+  const available = member && settings ? availableBalanceHalalas(member, settings) : 0;
+  const welcomeHeld = member && settings ? isWelcomeOnHold(member, settings) : false;
+  const welcomeAt = welcomeHeld ? welcomeAvailableAt(member, settings) : null;
   const tierInfo = member && settings ? effectiveTier(member, txs, settings) : null;
   const tierStyle = tierInfo?.tier ? (TIER_STYLE[tierInfo.tier.key] || TIER_STYLE.silver) : null;
   const activeSources = (settings?.sources || []).filter((s) => s.active !== false);
+  const ratePercent = Number(tierInfo?.tier?.ratePercent) || 0;
+  const redeemStep = Number(settings?.redeemStepHalalas) || 25;
+
+  // معاينة المكتسب قبل التأكيد — بنسبة فئة العميل الحالية
+  const amountHalalasPreview = amount.trim() === '' ? null : riyalsToHalalas(amount);
+  const earnPreview = amountHalalasPreview && amountHalalasPreview > 0 && settings
+    ? computeEarnedHalalas(amountHalalasPreview, ratePercent, settings)
+    : null;
+
+  const handleRedeemRequest = () => {
+    setRedeemError('');
+    const amtHalalas = riyalsToHalalas(redeemAmount);
+    if (!amtHalalas || amtHalalas <= 0) {
+      setRedeemError(en ? 'Enter a valid amount' : 'أدخل مبلغاً صحيحاً');
+      return;
+    }
+    if (!isValidRedeemAmount(amtHalalas, redeemStep)) {
+      setRedeemError(en
+        ? `Amount must be a multiple of SAR ${halalasToRiyalLabel(redeemStep)}`
+        : `المبلغ يجب أن يكون من مضاعفات ${halalasToRiyalLabel(redeemStep)} ريال`);
+      return;
+    }
+    if (amtHalalas > available) {
+      setRedeemError(en
+        ? `Available balance is SAR ${halalasToRiyalLabel(available)}`
+        : `الرصيد المتاح ${halalasToRiyalLabel(available)} ريال فقط`);
+      return;
+    }
+    setConfirmRedeem({ halalas: amtHalalas });
+  };
+
+  const handleRedeem = async () => {
+    if (!confirmRedeem) return;
+    await redeemLoyaltyCredit({
+      store: branchId,
+      memberId: member.id,
+      amountHalalas: confirmRedeem.halalas,
+      ...byMeta,
+    });
+    setRedeemAmount('');
+    setEarnMsg(en
+      ? `SAR ${halalasToRiyalLabel(confirmRedeem.halalas)} redeemed ✓`
+      : `تم خصم ${halalasToRiyalLabel(confirmRedeem.halalas)} ريال من الرصيد ✓`);
+    await reloadMember(member.id);
+  };
 
   const inputCls = 'w-full p-3 bg-tw-soft/40 border border-tw-line rounded-xl text-sm outline-none focus:border-tw-blue';
+  const chipCls = (active) => `px-4 py-1.5 rounded-full text-xs font-bold border transition-colors ${
+    active ? 'bg-tw-blue text-white border-tw-blue' : 'bg-tw-soft/40 text-tw-navy border-tw-line'
+  }`;
 
   return (
     <div
@@ -355,7 +449,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             {searchBusy ? <Loader2 size={16} className="animate-spin" /> : <Search size={16} />}
             {en ? 'Search' : 'بحث'}
           </button>
-          {/* المرحلة 2: مسح QR من بطاقة العميل — البحث بالجوال يبقى الأساس */}
+          {/* مسح QR من بطاقة العميل — البحث بالجوال يبقى الأساس */}
           <button
             type="button"
             onClick={() => setShowScan(true)}
@@ -398,7 +492,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             onChange={(e) => setRegName(e.target.value)}
             className={inputCls}
           />
-          {/* المرحلة 5: الجنس — إلزامي، خياران فقط، بنفس نمط أزرار المصدر */}
+          {/* الجنس — إلزامي، خياران فقط */}
           <div>
             <p className="text-xs font-bold text-tw-muted mb-1.5">{en ? 'Gender (required)' : 'الجنس (إلزامي)'}</p>
             <div className="flex gap-1.5">
@@ -406,17 +500,22 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
                 { v: 'male', label: en ? 'Male' : 'ذكر' },
                 { v: 'female', label: en ? 'Female' : 'أنثى' },
               ].map((g) => (
-                <button
-                  key={g.v}
-                  type="button"
-                  onClick={() => setRegGender(g.v)}
-                  className={`px-4 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                    regGender === g.v
-                      ? 'bg-tw-blue text-white border-tw-blue'
-                      : 'bg-tw-soft/40 text-tw-navy border-tw-line'
-                  }`}
-                >
+                <button key={g.v} type="button" onClick={() => setRegGender(g.v)} className={chipCls(regGender === g.v)}>
                   {g.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {/* النسخة 3.0: لغة العميل — إلزامية، بجانب الجنس */}
+          <div>
+            <p className="text-xs font-bold text-tw-muted mb-1.5">{en ? 'Language (required)' : 'اللغة (إلزامي)'}</p>
+            <div className="flex gap-1.5">
+              {[
+                { v: 'ar', label: 'عربي' },
+                { v: 'en', label: 'English' },
+              ].map((l) => (
+                <button key={l.v} type="button" onClick={() => setRegLanguage(l.v)} className={chipCls(regLanguage === l.v)}>
+                  {l.label}
                 </button>
               ))}
             </div>
@@ -426,16 +525,7 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             <p className="text-xs font-bold text-tw-muted mb-1.5">{en ? 'How did they hear about us?' : 'مصدر التعرف علينا'}</p>
             <div className="flex flex-wrap gap-1.5">
               {activeSources.map((s) => (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => setRegSource(s.id)}
-                  className={`px-3 py-1.5 rounded-full text-xs font-bold border transition-colors ${
-                    regSource === s.id
-                      ? 'bg-tw-blue text-white border-tw-blue'
-                      : 'bg-tw-soft/40 text-tw-navy border-tw-line'
-                  }`}
-                >
+                <button key={s.id} type="button" onClick={() => setRegSource(s.id)} className={chipCls(regSource === s.id)}>
                   {s.label}
                 </button>
               ))}
@@ -450,6 +540,30 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
               className={inputCls}
             />
           )}
+          {/* شراء عند التسجيل — اختياري: العضوية + الترحيبية + الشراء في معاملة واحدة */}
+          <div>
+            <p className="text-xs font-bold text-tw-muted mb-1.5">
+              {en ? 'First purchase (optional)' : 'شراء مع التسجيل (اختياري)'}
+            </p>
+            <div className="grid grid-cols-2 gap-2">
+              <input
+                type="text"
+                placeholder={en ? 'Invoice no. (optional)' : 'رقم الفاتورة (اختياري)'}
+                value={regInvoiceNo}
+                onChange={(e) => setRegInvoiceNo(toLatinDigits(e.target.value))}
+                className={inputCls}
+              />
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                placeholder={en ? 'Amount SAR (optional)' : 'المبلغ بالريال (اختياري)'}
+                value={regAmount}
+                onChange={(e) => setRegAmount(toLatinDigits(e.target.value))}
+                className={inputCls}
+              />
+            </div>
+          </div>
           <label className="flex items-center gap-2 text-xs font-bold text-tw-navy cursor-pointer">
             <input
               type="checkbox"
@@ -499,21 +613,31 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
                     className="px-2.5 py-1 rounded-full text-[11px] font-extrabold flex-shrink-0"
                     style={{ background: tierStyle.bg, color: tierStyle.color }}
                   >
-                    {tierInfo.tier.name}{tierInfo.manual ? ' ★' : ''}
+                    {tierName(tierInfo.tier, lang)}{tierInfo.manual ? ' ★' : ''}
                   </span>
                 )}
               </div>
               <div className="flex items-end justify-between gap-2 pt-1">
                 <div>
-                  <p className="text-[10px] opacity-80 font-semibold">{en ? 'Points balance' : 'رصيد النقاط'}</p>
+                  <p className="text-[10px] opacity-80 font-semibold">{en ? 'Balance (SAR)' : 'الرصيد (ريال)'}</p>
                   <p className={`text-3xl font-extrabold leading-none ${negativeBalance ? 'text-[#FFB4B4]' : ''}`}>
-                    {balance.toLocaleString('en-US')}
+                    {halalasToRiyalLabel(balance)}
                   </p>
                 </div>
-                <p className="text-[11px] opacity-80 font-semibold">
-                  {en ? 'Redemptions:' : 'الاستبدالات:'} {Number(member.redemptionsCount) || 0}
-                </p>
+                {ratePercent > 0 && (
+                  <p className="text-[11px] opacity-80 font-semibold" dir="ltr">
+                    {en ? `Earn rate ${ratePercent}%` : `نسبة الكسب ${ratePercent}%`}
+                  </p>
+                )}
               </div>
+              {/* الترحيبية المعلّقة — توضيح المتاح فعلياً */}
+              {welcomeHeld && (
+                <p className="text-[11px] font-bold text-[#BFE0FF]">
+                  {en
+                    ? `Available now: SAR ${halalasToRiyalLabel(available)} — welcome bonus (SAR ${halalasToRiyalLabel(settings?.welcomeBonusHalalas)}) available after ${fmtDateTime(welcomeAt, true)}`
+                    : `المتاح للاستخدام الآن: ${halalasToRiyalLabel(available)} ريال — الترحيبية (${halalasToRiyalLabel(settings?.welcomeBonusHalalas)} ريال) متاحة بعد ${fmtDateTime(welcomeAt, false)}`}
+                </p>
+              )}
             </div>
           </div>
 
@@ -533,21 +657,21 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             </div>
           )}
 
-          {/* Batch 92: إشعار النقاط — يظهر مباشرة بعد نجاح الإضافة فقط (ليس دائماً) */}
+          {/* إشعار الرصيد — يظهر مباشرة بعد نجاح الإضافة فقط (ليس دائماً) */}
           {lastEarn && member.status !== 'disabled' && (
             <button
               type="button"
-              onClick={handleSendPointsNotify}
+              onClick={handleSendCreditNotify}
               className="w-full py-2.5 rounded-xl bg-[#25D366]/15 border border-[#25D366]/40 text-[#128C4A] font-bold text-xs flex items-center justify-center gap-1.5 active:scale-[0.98] transition-transform"
             >
               <MessageCircle size={15} />
               {en
-                ? `Send points notification (+${Number(lastEarn.points).toLocaleString('en-US')})`
-                : `إرسال إشعار النقاط عبر واتساب (+${Number(lastEarn.points).toLocaleString('en-US')})`}
+                ? `Send credit notification (+SAR ${halalasToRiyalLabel(lastEarn.earnedHalalas)})`
+                : `إرسال إشعار الرصيد عبر واتساب (+${halalasToRiyalLabel(lastEarn.earnedHalalas)} ريال)`}
             </button>
           )}
 
-          {/* المرحلة 2: إرسال البطاقة عبر واتساب — بعد أول عملية شراء */}
+          {/* إرسال البطاقة عبر واتساب — بعد أول عملية شراء */}
           {member.lastPurchaseAt && member.status !== 'disabled' && (
             <div className="space-y-2">
               <button
@@ -569,11 +693,11 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
             </div>
           )}
 
-          {/* ===== إضافة نقاط ===== */}
+          {/* ===== إضافة شراء ===== */}
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-3">
             <div className="flex items-center gap-2">
               <ReceiptText size={18} className="text-tw-blue" />
-              <h3 className="font-bold text-sm text-tw-navy">{en ? 'Add points' : 'إضافة نقاط'}</h3>
+              <h3 className="font-bold text-sm text-tw-navy">{en ? 'Add purchase' : 'إضافة شراء'}</h3>
             </div>
             <div className="grid grid-cols-2 gap-2">
               <input
@@ -593,6 +717,14 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
                 className={inputCls}
               />
             </div>
+            {/* المكتسب قبل التأكيد — بنسبة فئة العميل الحالية */}
+            {earnPreview != null && earnPreview >= 0 && (
+              <p className="text-xs font-bold text-green-700 bg-green-50 border border-green-200 rounded-xl p-2.5">
+                {en
+                  ? `Will earn: SAR ${halalasToRiyalLabel(earnPreview)} (${ratePercent}%)`
+                  : `سيكسب: ${halalasToRiyalLabel(earnPreview)} ريال (نسبة ${ratePercent}%)`}
+              </p>
+            )}
             {earnError && <p className="text-xs font-bold text-tw-red">{earnError}</p>}
             <button
               type="button"
@@ -601,69 +733,82 @@ export default function EmployeeLoyalty({ branchId, lang, user }) {
               className="w-full py-3 rounded-xl bg-tw-blue text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {earnBusy && <Loader2 size={16} className="animate-spin" />}
-              {earnBusy ? (en ? 'Saving…' : 'جارٍ الحفظ…') : (en ? 'Add points' : 'إضافة النقاط')}
+              {earnBusy ? (en ? 'Saving…' : 'جارٍ الحفظ…') : (en ? 'Add credit' : 'إضافة الرصيد')}
             </button>
           </div>
 
-          {/* ===== شبكة المكافآت ===== */}
+          {/* ===== خصم من الرصيد ===== */}
           <div className="bg-white p-4 rounded-2xl shadow-sm border border-tw-line space-y-3">
             <div className="flex items-center gap-2">
-              <Gift size={18} className="text-tw-blue" />
-              <h3 className="font-bold text-sm text-tw-navy">{en ? 'Rewards' : 'المكافآت'}</h3>
+              <Wallet size={18} className="text-tw-blue" />
+              <h3 className="font-bold text-sm text-tw-navy">{en ? 'Redeem balance' : 'خصم من الرصيد'}</h3>
             </div>
-            {negativeBalance && (
+            {negativeBalance ? (
               <div className="bg-red-50 border border-red-200 rounded-xl p-3 flex items-center gap-2">
                 <AlertTriangle size={16} className="text-tw-red flex-shrink-0" />
                 <p className="text-xs font-bold text-tw-red">
                   {en
                     ? 'Balance is negative — redemption is disabled until the balance is settled.'
-                    : 'الرصيد سالب — الاستبدال معطّل حتى تسوية الرصيد.'}
+                    : 'الرصيد سالب — الخصم معطّل حتى تسوية الرصيد.'}
                 </p>
               </div>
-            )}
-            <div className="grid grid-cols-2 gap-2">
-              {(settings?.rewards || []).filter((r) => r.active !== false).map((r) => {
-                const available = !negativeBalance
-                  && balance >= Number(r.points)
-                  && member.status !== 'disabled';
-                return (
+            ) : (
+              <>
+                {/* الخصم بطلب العميل فقط — لا يُطبَّق تلقائياً */}
+                <p className="text-[11px] text-tw-muted font-semibold">
+                  {en
+                    ? `Available: SAR ${halalasToRiyalLabel(available)} — deducted only at the customer's request, in multiples of SAR ${halalasToRiyalLabel(redeemStep)}.`
+                    : `المتاح: ${halalasToRiyalLabel(available)} ريال — يُخصم بطلب العميل فقط، بمضاعفات ${halalasToRiyalLabel(redeemStep)} ريال.`}
+                </p>
+                <div className="flex gap-2">
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    min="0"
+                    step={redeemStep / 100}
+                    placeholder={en ? 'Amount (SAR)' : 'المبلغ (ريال)'}
+                    value={redeemAmount}
+                    onChange={(e) => setRedeemAmount(toLatinDigits(e.target.value))}
+                    className={inputCls}
+                  />
                   <button
-                    key={r.id}
                     type="button"
-                    disabled={!available}
-                    onClick={() => setConfirmReward(r)}
-                    className={`p-3 rounded-xl border text-center transition-transform ${
-                      available
-                        ? 'bg-tw-blue text-white border-tw-blue active:scale-95 shadow-sm'
-                        : 'bg-tw-soft/40 text-[#8A96AA] border-tw-line cursor-not-allowed'
-                    }`}
+                    onClick={() => setRedeemAmount(halalasToRiyalLabel(available).replace(/,/g, ''))}
+                    disabled={available <= 0}
+                    className="px-3 rounded-xl bg-white border border-tw-line text-tw-blue text-xs font-bold hover:bg-tw-soft disabled:opacity-50 flex-shrink-0"
                   >
-                    <p className="font-extrabold text-sm leading-tight">{r.label}</p>
-                    <p className={`text-[11px] font-bold mt-1 ${available ? 'opacity-90' : ''}`}>
-                      {Number(r.points).toLocaleString('en-US')} {en ? 'pts' : 'نقطة'}
-                    </p>
+                    {en ? 'Full balance' : 'الرصيد كاملًا'}
                   </button>
-                );
-              })}
-            </div>
+                </div>
+                {redeemError && <p className="text-xs font-bold text-tw-red">{redeemError}</p>}
+                <button
+                  type="button"
+                  onClick={handleRedeemRequest}
+                  disabled={member.status === 'disabled' || available <= 0}
+                  className="w-full py-3 rounded-xl bg-tw-navy text-white font-bold text-sm flex items-center justify-center gap-2 disabled:opacity-60"
+                >
+                  {en ? 'Redeem' : 'خصم من الرصيد'}
+                </button>
+              </>
+            )}
           </div>
         </>
       )}
 
-      {/* تأكيد الاستبدال */}
+      {/* تأكيد الخصم */}
       <LoyaltyConfirmSheet
-        open={!!confirmReward}
+        open={!!confirmRedeem}
         variant="redeem"
         lang={lang}
-        title={en ? 'Confirm redemption?' : 'تأكيد الاستبدال؟'}
-        message={confirmReward
+        title={en ? 'Confirm redemption?' : 'تأكيد الخصم؟'}
+        message={confirmRedeem
           ? (en
-              ? `${confirmReward.label}\n${Number(confirmReward.points).toLocaleString('en-US')} points will be deducted`
-              : `${confirmReward.label}\nسيتم خصم ${Number(confirmReward.points).toLocaleString('en-US')} نقطة من الرصيد`)
+              ? `SAR ${halalasToRiyalLabel(confirmRedeem.halalas)} will be deducted from the balance`
+              : `سيتم خصم ${halalasToRiyalLabel(confirmRedeem.halalas)} ريال من الرصيد`)
           : ''}
-        confirmLabel={en ? 'Redeem' : 'استبدال'}
+        confirmLabel={en ? 'Redeem' : 'خصم'}
         onConfirm={handleRedeem}
-        onClose={() => setConfirmReward(null)}
+        onClose={() => setConfirmRedeem(null)}
       />
 
       {/* شيت مسح QR — يُركَّب عند الفتح فقط؛ الكاميرا تتوقف حتماً عند unmount */}

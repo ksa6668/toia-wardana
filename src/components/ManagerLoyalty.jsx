@@ -8,7 +8,7 @@ import { useState } from 'react';
 import { Loader2, Search, Settings2, Users, ChevronLeft, BarChart3 } from 'lucide-react';
 import { getLoyaltyMembers } from '../firebase';
 import { useCachedQuery } from '../hooks/useCachedQuery';
-import { toEnglishDigits } from '../loyaltyMath';
+import { toEnglishDigits, halalasToRiyalLabel } from '../loyaltyMath';
 import { translateBranch } from '../i18n';
 import LoyaltyMemberProfile from './LoyaltyMemberProfile';
 import LoyaltySettings from './LoyaltySettings';
@@ -179,7 +179,7 @@ export default function ManagerLoyalty({ lang, user }) {
       {!loading && filtered.length > 0 && (
         <div className="bg-white border border-tw-line rounded-2xl divide-y divide-tw-line/70 overflow-hidden">
           {filtered.map((m) => {
-            const balance = Number(m.pointsBalance) || 0;
+            const balance = Number(m.balanceHalalas) || 0;
             return (
               <button
                 key={m.id}
@@ -208,7 +208,7 @@ export default function ManagerLoyalty({ lang, user }) {
                 <span className={`px-2.5 py-1 rounded-full text-[11px] font-extrabold flex-shrink-0 ${
                   balance < 0 ? 'bg-red-50 text-tw-red' : 'bg-tw-soft text-tw-navy'
                 }`}>
-                  {balance.toLocaleString('en-US')} {en ? 'pts' : 'نقطة'}
+                  {halalasToRiyalLabel(balance)} {en ? 'SAR' : 'ريال'}
                 </span>
                 <ChevronLeft size={16} className={`text-tw-muted flex-shrink-0 ${en ? 'rotate-180' : ''}`} />
               </button>

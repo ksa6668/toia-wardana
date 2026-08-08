@@ -1,11 +1,12 @@
 // src/components/ManagerLoyaltyStats.jsx
 // ----------------------------------------------------------
-// تبويب الإحصائيات داخل ولاء المدير (المرحلة 5).
+// تبويب الإحصائيات داخل ولاء المدير — النسخة 3.0 (رصيد بالريال).
 // البيانات: جلبتان لكل متجر (الأعضاء + كل الحركات) عبر useCachedQuery،
 // وكل التجميع محلي في loyaltyStats — لا استعلامات متعددة.
 // الرسوم: أشرطة CSS بلا أي مكتبة (نمط أشرطة التقدم القائم في التطبيق).
 // حركات audit مستثناة من كل الأرقام، والمعطّلون/مخفيو الهوية خارج
 // العد الأساسي مع مفتاح إظهارهم.
+// الالتزام القائم = مجموع الأرصدة الموجبة مباشرة — بلا معامل تحويل.
 // ----------------------------------------------------------
 import { useState } from 'react';
 import { Download, Users2, Wallet, Repeat2, ReceiptText, UserRound, ChevronLeft, AlertTriangle, RefreshCw } from 'lucide-react';
@@ -18,21 +19,23 @@ import { useCachedQuery } from '../hooks/useCachedQuery';
 import {
   periodRange,
   countedMembers,
-  outstandingLiabilitySAR,
+  outstandingLiability,
   newMembersCount,
   returnRate,
   purchaseAverages,
   sourcesRanking,
   tierDistribution,
   genderDistribution,
-  monthlyPoints,
+  languageDistribution,
+  monthlyCredit,
   idleMembers,
-  nearRewardMembers,
+  nearUpgradeMembers,
   topSpenders,
-  pointsByEmployee,
+  creditByEmployee,
+  registrationsByEmployee,
   toCsvString,
 } from '../loyaltyStats';
-import { toDateSafe } from '../loyaltyMath';
+import { toDateSafe, halalasToRiyalLabel, tierName } from '../loyaltyMath';
 import { toLatinDigits } from '../utils/digits';
 
 const PERIODS = [
@@ -47,7 +50,8 @@ const TIER_NAMES = { silver: 'فضية', gold: 'ذهبية', platinum: 'بلات
 const TIER_NAMES_EN = { silver: 'Silver', gold: 'Gold', platinum: 'Platinum', none: 'No tier' };
 
 const fmt = (n) => Number(n || 0).toLocaleString('en-US');
-const fmt1 = (n) => Number(n || 0).toLocaleString('en-US', { maximumFractionDigits: 1 });
+// عرض الهللات بالريال — نقطة الرسم الوحيدة للتحويل
+const fmtSAR = (h) => halalasToRiyalLabel(h);
 
 function fmtDate(v, en) {
   const d = toDateSafe(v);
@@ -65,15 +69,15 @@ function downloadCsv(filename, rows) {
   URL.revokeObjectURL(a.href);
 }
 
-// شريط أفقي بسيط (الرسم بلا مكتبة)
-function Bar({ label, value, max, suffix, color = 'var(--color-tw-blue, #005BFF)', extra }) {
+// شريط أفقي بسيط (الرسم بلا مكتبة) — display يتقدم على fmt(value) للعرض الريالي
+function Bar({ label, value, max, suffix, display, color = 'var(--color-tw-blue, #005BFF)', extra }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
     <div className="space-y-0.5">
       <div className="flex items-center justify-between text-[11px] font-bold text-tw-navy">
         <span>{label}</span>
         <span className="text-tw-muted">
-          {fmt(value)}{suffix || ''} {extra}
+          {display ?? fmt(value)}{suffix || ''} {extra}
         </span>
       </div>
       <div className="h-2 bg-tw-soft rounded-full overflow-hidden">
@@ -212,18 +216,20 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
   const range = periodRange(period);
   // فلترة الحركات بالمتجر تمت في الاستعلام — هنا الفترة والتجميع فقط
   const counted = countedMembers(members, opts);
-  const liability = outstandingLiabilitySAR(members, settings, opts);
+  const liability = outstandingLiability(members, opts);
   const newCount = newMembersCount(members, range, opts);
   const rr = returnRate(txs, range);
   const avgs = purchaseAverages(txs, range);
   const sources = sourcesRanking(members, settings, range, opts);
   const tiers = tierDistribution(members, txs, settings, new Date(), opts);
   const genders = genderDistribution(members, opts);
-  const monthly = monthlyPoints(txs, range).slice(-12);
+  const languages = languageDistribution(members, opts);
+  const monthly = monthlyCredit(txs, range).slice(-12);
   const idle = idleMembers(members, Number(idleDays) || 90, new Date(), opts);
-  const near = nearRewardMembers(members, settings, opts);
+  const near = nearUpgradeMembers(members, txs, settings, new Date(), opts);
   const top = topSpenders(members, txs, range, 20, opts);
-  const byEmployee = pointsByEmployee(txs, range);
+  const byEmployee = creditByEmployee(txs, range);
+  const regsByEmployee = registrationsByEmployee(members, range, opts);
 
   const sourceMax = Math.max(1, ...sources.map((s) => s.count));
   const tierEntries = ['silver', 'gold', 'platinum', 'none'].filter((k) => tiers[k] !== undefined);
@@ -234,7 +240,13 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
     { key: 'unregistered', label: en ? 'Unregistered' : 'غير مسجّل', v: genders.unregistered },
   ];
   const genderMax = Math.max(1, ...genderRows.map((g) => g.v));
-  const monthlyMax = Math.max(1, ...monthly.flatMap((m) => [m.granted, m.redeemed, m.expired]));
+  const languageRows = [
+    { key: 'ar', label: en ? 'Arabic' : 'عربي', v: languages.ar },
+    { key: 'en', label: en ? 'English' : 'إنجليزي', v: languages.en },
+    { key: 'unregistered', label: en ? 'Unregistered' : 'غير مسجّل', v: languages.unregistered },
+  ];
+  const languageMax = Math.max(1, ...languageRows.map((l) => l.v));
+  const monthlyMax = Math.max(1, ...monthly.flatMap((m) => [m.grantedHalalas, m.redeemedHalalas, m.expiredHalalas]));
 
   const deltaBadge = (d) => {
     if (d === null || d === 0) return null;
@@ -278,21 +290,22 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
           label={en ? 'Total members' : 'إجمالي الأعضاء'}
           value={fmt(counted.length)}
           sub={`${en ? 'New in period:' : 'الجدد في الفترة:'} ${fmt(newCount)}`} />
+        {/* الالتزام القائم = مجموع الأرصدة الموجبة مباشرة (بلا معامل تحويل) */}
         <StatCard icon={Wallet}
           label={en ? 'Outstanding liability' : 'الالتزام القائم'}
-          value={`${fmt1(liability.sar)} ${en ? 'SAR' : 'ريال'}`}
-          sub={`${fmt(liability.points)} ${en ? 'pts × ' : 'نقطة × '}${liability.pointValue.toFixed(4)}`} />
+          value={`${fmtSAR(liability.halalas)} ${en ? 'SAR' : 'ريال'}`}
+          sub={en ? 'Sum of positive balances' : 'مجموع الأرصدة الموجبة مباشرة'} />
         <StatCard icon={Repeat2}
           label={en ? 'Return rate' : 'نسبة العودة'}
           value={`${rr.pct}%`}
           sub={`${fmt(rr.returners)} / ${fmt(rr.buyers)} ${en ? 'buyers' : 'من المشترين'}`} />
         <StatCard icon={ReceiptText}
           label={en ? 'Avg invoice' : 'متوسط الفاتورة'}
-          value={`${fmt1(avgs.avgInvoice)} ${en ? 'SAR' : 'ريال'}`}
+          value={`${fmtSAR(avgs.avgInvoiceHalalas)} ${en ? 'SAR' : 'ريال'}`}
           sub={`${fmt(avgs.invoices)} ${en ? 'invoices' : 'فاتورة'}`} />
         <StatCard icon={UserRound}
           label={en ? 'Avg member spend' : 'متوسط إنفاق العضو'}
-          value={`${fmt1(avgs.avgMemberSpend)} ${en ? 'SAR' : 'ريال'}`}
+          value={`${fmtSAR(avgs.avgMemberSpendHalalas)} ${en ? 'SAR' : 'ريال'}`}
           sub={`${fmt(avgs.buyers)} ${en ? 'buyers in period' : 'عضو اشترى في الفترة'}`} />
       </div>
 
@@ -325,17 +338,29 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
         ))}
       </div>
 
-      {/* النقاط شهرياً */}
+      {/* توزيع اللغة (النسخة 3.0) */}
       <div className={sectionCls}>
-        {headRow(en ? 'Points per month' : 'النقاط شهرياً')}
+        {headRow(en ? 'Language distribution' : 'توزيع اللغة')}
+        {languageRows.map((l) => (
+          <Bar key={l.key} label={l.label} value={l.v} max={languageMax}
+               color={l.key === 'unregistered' ? '#B9C2CF' : undefined} />
+        ))}
+      </div>
+
+      {/* الرصيد شهرياً — بالريال */}
+      <div className={sectionCls}>
+        {headRow(en ? 'Credit per month (SAR)' : 'الرصيد شهرياً (ريال)')}
         {monthly.length === 0
           ? <p className="text-xs text-tw-muted font-bold text-center py-2">{en ? 'No data' : 'لا بيانات'}</p>
           : monthly.map((m) => (
               <div key={m.month} className="space-y-1 pb-1.5 border-b border-tw-line/50 last:border-b-0">
                 <p className="text-[11px] font-extrabold text-tw-navy" dir="ltr" style={{ textAlign: en ? 'left' : 'right' }}>{m.month}</p>
-                <Bar label={en ? 'Granted' : 'ممنوحة'} value={m.granted} max={monthlyMax} color="#22A06B" />
-                <Bar label={en ? 'Redeemed' : 'مستبدلة'} value={m.redeemed} max={monthlyMax} color="#E8930C" />
-                <Bar label={en ? 'Expired' : 'منتهية'} value={m.expired} max={monthlyMax} color="#E5484D" />
+                <Bar label={en ? 'Granted' : 'ممنوح'} value={m.grantedHalalas} max={monthlyMax}
+                     display={fmtSAR(m.grantedHalalas)} color="#22A06B" />
+                <Bar label={en ? 'Redeemed' : 'مستبدل'} value={m.redeemedHalalas} max={monthlyMax}
+                     display={fmtSAR(m.redeemedHalalas)} color="#E8930C" />
+                <Bar label={en ? 'Expired' : 'منتهٍ'} value={m.expiredHalalas} max={monthlyMax}
+                     display={fmtSAR(m.expiredHalalas)} color="#E5484D" />
               </div>
             ))}
       </div>
@@ -346,8 +371,8 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
           en ? `Idle customers (${idle.length})` : `العملاء الخاملون (${idle.length})`,
           () => downloadCsv(`idle-${store}.csv`, [
             // بلا رقم جوال — رقم العضوية هو المميز (Batch 91.1)
-            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Last purchase' : 'آخر شراء', en ? 'Balance' : 'الرصيد'],
-            ...idle.map((m) => [m.name, m.memberNo, fmtDate(m.lastPurchaseAt, true), m.pointsBalance]),
+            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Last purchase' : 'آخر شراء', en ? 'Balance (SAR)' : 'الرصيد (ريال)'],
+            ...idle.map((m) => [m.name, m.memberNo, fmtDate(m.lastPurchaseAt, true), fmtSAR(m.balanceHalalas)]),
           ])
         )}
         <label className="flex items-center gap-2 text-[11px] font-bold text-tw-muted">
@@ -371,20 +396,22 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
         )}
       </div>
 
-      {/* القريبون من مكافأة */}
+      {/* القريبون من الترقية — 80–99% من عتبة الفئة التالية */}
       <div className={sectionCls}>
         {headRow(
-          en ? `Near a reward 80–99% (${near.length})` : `القريبون من مكافأة 80–99% (${near.length})`,
-          () => downloadCsv(`near-reward-${store}.csv`, [
+          en ? `Near upgrade 80–99% (${near.length})` : `القريبون من الترقية 80–99% (${near.length})`,
+          () => downloadCsv(`near-upgrade-${store}.csv`, [
             // بلا رقم جوال — رقم العضوية هو المميز (Batch 91.1)
-            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Balance' : 'الرصيد', en ? 'Next reward' : 'المكافأة التالية', '%'],
-            ...near.map((m) => [m.name, m.memberNo, m.pointsBalance, m.nextRewardLabel, m.progressPct]),
+            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Earned (SAR)' : 'المكتسب (ريال)', en ? 'Next tier' : 'الفئة التالية', en ? 'Remaining (SAR)' : 'المتبقي (ريال)', '%'],
+            ...near.map((m) => [m.name, m.memberNo, fmtSAR(m.earnedHalalas), tierName({ name: m.nextTierName }, lang), fmtSAR(m.remainingHalalas), m.progressPct]),
           ])
         )}
         {near.slice(0, 10).map((m) => (
           <MemberRow key={m.id} m={m} en={en} onOpen={onOpenMember}>
             <span className="flex flex-col items-end gap-1 flex-shrink-0" style={{ minWidth: 90 }}>
-              <span className="text-[10px] font-bold text-tw-muted truncate">{m.nextRewardLabel}</span>
+              <span className="text-[10px] font-bold text-tw-muted truncate">
+                {tierName({ name: m.nextTierName }, lang)}
+              </span>
               <span className="w-full h-1.5 bg-tw-soft rounded-full overflow-hidden">
                 <span className="block h-full rounded-full bg-tw-blue" style={{ width: `${m.progressPct}%`, background: 'var(--color-tw-blue, #005BFF)' }} />
               </span>
@@ -400,8 +427,8 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
         {headRow(
           en ? 'Top 20 spenders (period)' : 'أعلى 20 عميلاً إنفاقاً (الفترة)',
           () => downloadCsv(`top-spenders-${store}.csv`, [
-            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Amount' : 'المبلغ', en ? 'Invoices' : 'الفواتير'],
-            ...top.map((m) => [m.name, m.memberNo, m.spendAmount, m.spendInvoices]),
+            [en ? 'Name' : 'الاسم', en ? 'Member no' : 'رقم العضوية', en ? 'Amount (SAR)' : 'المبلغ (ريال)', en ? 'Invoices' : 'الفواتير'],
+            ...top.map((m) => [m.name, m.memberNo, fmtSAR(m.spendHalalas), m.spendInvoices]),
           ])
         )}
         {top.length === 0 && <p className="text-xs text-tw-muted font-bold text-center py-1">{en ? 'No purchases in period' : 'لا مشتريات في الفترة'}</p>}
@@ -411,7 +438,7 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
             <div className="flex-1 min-w-0">
               <MemberRow m={m} en={en} onOpen={onOpenMember}>
                 <span className="text-[11px] font-bold text-tw-navy flex-shrink-0">
-                  {fmt(m.spendAmount)} {en ? 'SAR' : 'ريال'}
+                  {fmtSAR(m.spendHalalas)} {en ? 'SAR' : 'ريال'}
                 </span>
                 <span className="text-[10px] font-bold text-tw-muted flex-shrink-0">({fmt(m.spendInvoices)})</span>
               </MemberRow>
@@ -420,21 +447,39 @@ export default function ManagerLoyaltyStats({ store, lang, onOpenMember }) {
         ))}
       </div>
 
-      {/* النقاط الممنوحة لكل موظف */}
+      {/* الرصيد الممنوح لكل موظف */}
       <div className={sectionCls}>
         {headRow(
-          en ? 'Points granted per employee (period)' : 'النقاط الممنوحة لكل موظف (الفترة)',
-          () => downloadCsv(`points-by-employee-${store}.csv`, [
-            [en ? 'Employee' : 'الموظف', en ? 'Points' : 'النقاط', en ? 'Invoices' : 'الفواتير', en ? 'Amount' : 'المبلغ'],
-            ...byEmployee.map((r) => [r.name || r.uid, r.points, r.invoices, r.amount]),
+          en ? 'Credit granted per employee (period)' : 'الرصيد الممنوح لكل موظف (الفترة)',
+          () => downloadCsv(`credit-by-employee-${store}.csv`, [
+            [en ? 'Employee' : 'الموظف', en ? 'Credit (SAR)' : 'الرصيد (ريال)', en ? 'Invoices' : 'الفواتير', en ? 'Amount (SAR)' : 'المبلغ (ريال)'],
+            ...byEmployee.map((r) => [r.name || r.uid, fmtSAR(r.earnedHalalas), r.invoices, fmtSAR(r.amountHalalas)]),
           ])
         )}
         {byEmployee.length === 0 && <p className="text-xs text-tw-muted font-bold text-center py-1">{en ? 'No data' : 'لا بيانات'}</p>}
         {byEmployee.map((r) => (
           <div key={r.uid} className="flex items-center gap-2 text-[11px] font-bold border-b border-tw-line/40 last:border-b-0 py-1">
             <span className="text-tw-navy truncate flex-1">{r.name || (en ? 'Unknown' : 'غير معروف')}</span>
-            <span className="text-tw-navy flex-shrink-0">{fmt(r.points)} {en ? 'pts' : 'نقطة'}</span>
+            <span className="text-tw-navy flex-shrink-0">{fmtSAR(r.earnedHalalas)} {en ? 'SAR' : 'ريال'}</span>
             <span className="text-tw-muted flex-shrink-0">({fmt(r.invoices)} {en ? 'inv' : 'فاتورة'})</span>
+          </div>
+        ))}
+      </div>
+
+      {/* عدد التسجيلات لكل موظف (حماية من التلاعب) */}
+      <div className={sectionCls}>
+        {headRow(
+          en ? 'Registrations per employee (period)' : 'عدد التسجيلات لكل موظف (الفترة)',
+          () => downloadCsv(`registrations-by-employee-${store}.csv`, [
+            [en ? 'Employee' : 'الموظف', en ? 'Registrations' : 'التسجيلات'],
+            ...regsByEmployee.map((r) => [r.name || r.uid, r.count]),
+          ])
+        )}
+        {regsByEmployee.length === 0 && <p className="text-xs text-tw-muted font-bold text-center py-1">{en ? 'No data' : 'لا بيانات'}</p>}
+        {regsByEmployee.map((r) => (
+          <div key={r.uid} className="flex items-center gap-2 text-[11px] font-bold border-b border-tw-line/40 last:border-b-0 py-1">
+            <span className="text-tw-navy truncate flex-1">{r.name || (en ? 'Unknown' : 'غير معروف')}</span>
+            <span className="text-tw-navy flex-shrink-0">{fmt(r.count)} {en ? 'member(s)' : 'عضو'}</span>
           </div>
         ))}
       </div>
