@@ -1,13 +1,15 @@
 // src/loyaltyShare.js
 // ====================================================================
-// برنامج الولاء — منطق المشاركة النقي (المرحلة 2). بلا Firebase وبلا DOM،
+// برنامج الولاء — منطق المشاركة النقي. بلا Firebase وبلا DOM،
 // حتى يستورده كلٌّ من التطبيق و api/card.js (سيرفرless) والاختبارات.
 //
-// يغطي:
-//   • LOYALTY_DEFAULT_SETTINGS (انتقل من firebaseLoyalty — يُعاد تصديره هناك)
-//   • بناء payload البطاقة العامة بقائمة حقول مسموحة صراحة (whitelist)
+// النسخة 3.0 — نظام رصيد بالريال (هللات صحيحة):
+//   • LOYALTY_DEFAULT_SETTINGS بالبنية الجديدة (فئات بنسب كسب، بلا مكافآت)
+//   • بناء payload البطاقة العامة بقائمة حقول مسموحة صراحة (whitelist) —
+//     language ممرَّر عمداً استعداداً للمرحلة B، وgender لا يظهر أبداً
 //   • تقنيع رقم الجوال
-//   • قالب رسالة واتساب الترحيبية واستبدال المتغيرات
+//   • قوالب رسائل واتساب (ترحيبية {ar,en} / تنبيه انتهاء {ar,en} /
+//     إشعار الرصيد — نص عربي واحد الآن، يصير {ar,en} في المرحلة B)
 //   • رابط wa.me (بدون + وبدون أصفار بادئة) ورابط البطاقة
 // ====================================================================
 // الامتداد .js صريح — هذه الوحدة يستوردها api/card.js وتعمل تحت Node ESM
@@ -16,52 +18,55 @@ import {
   normalizePhone,
   toDateSafe,
   effectiveTier,
-  isPointsExpired,
+  isBalanceExpired,
 } from "./loyaltyMath.js";
 
 // ---------- أسماء المتاجر (للبطاقة والرسائل — عربية دائماً) ----------
 export const STORE_NAMES = { toia: "تويا", wardana: "وردانة" };
 
-// ---------- قالب إشعار النقاط الافتراضي (Batch 92 → قابل للتعديل في 92.2) ----------
+// ---------- قالب إشعار الرصيد الافتراضي (بديل إشعار النقاط — Batch 92/92.2) ----------
 // رسالة معاملاتية بحتة — بلا محتوى تسويقي، لا تخضع لـ marketingConsent
 // ولا لأي حد يومي ولا تُسجَّل في أي مجموعة. بلا «اليوم» عمداً: صياغة
 // صحيحة للإرسال الفوري وإعادة الإرسال معاً.
-// يُعرَّف قبل LOYALTY_DEFAULT_SETTINGS لأنه قيمتها الافتراضية لحقل pointsMessage.
-export const POINTS_NOTIFY_TEMPLATE =
+// قابل للتعديل من الإعدادات (creditMessage) — نص عربي واحد الآن،
+// ويصير {ar,en} في المرحلة B مثل بقية الرسائل.
+export const CREDIT_NOTIFY_TEMPLATE =
   "مرحبًا {name} 🌸\n" +
-  "أُضيفت لك {points} نقطة على مشترياتك.\n" +
-  "رصيدك الآن: {balance} نقطة.\n\n" +
+  "أُضيف إلى رصيدك {earned} ريال من مشترياتك.\n" +
+  "رصيدك الآن: {balance} ريال.\n\n" +
   "بطاقتك: {cardUrl}\n\n" +
   "نسعد بخدمتك — {storeName}";
 
-// المتغيرات المتاحة لرسالة النقاط تحديداً — {memberNo} و{tier} يستبدلهما
-// المُستبدِل عموماً لكن رسالة النقاط لا تمرر قيمتيهما (فراغ صامت)،
+// المتغيرات المتاحة لرسالة إشعار الرصيد تحديداً — {memberNo} و{tier}
+// يستبدلهما المُستبدِل عموماً لكن هذه الرسالة لا تمرر قيمتيهما (فراغ صامت)،
 // لذلك يُعدّان «غير معروفين» في تحذير محرر هذا الحقل.
-export const POINTS_MESSAGE_VARS = ["name", "points", "balance", "cardUrl", "storeName"];
+export const CREDIT_MESSAGE_VARS = ["name", "earned", "balance", "cardUrl", "storeName"];
 
-// ---------- الإعدادات الافتراضية (وثيقة المنطق 2.1 + قالب المرحلة 2) ----------
+// المتغيرات المتاحة للرسالة الترحيبية ولتنبيه الانتهاء (سطر المساعدة في الإعدادات)
+export const WELCOME_MESSAGE_VARS = ["name", "storeName", "memberNo", "tier", "balance", "cardUrl"];
+export const EXPIRY_MESSAGE_VARS = ["name", "storeName", "balance", "expiryDate", "cardUrl"];
+
+// ---------- الإعدادات الافتراضية (الوثيقة المرجعية 3.0) ----------
 export const LOYALTY_DEFAULT_SETTINGS = {
   enabled: true,
-  pointsPerRiyal: 5,
-  vatRegistered: false,
-  pointsBasis: "gross", // "gross" | "net"
-  vatRate: 0.15,
-  expiryMonths: 18,
-  tierWindowMonths: 24,
-  largeTransactionAlert: 1000,
+  // الفئات: عتبة مكتسب (هللات) + نسبة كسب مئوية — بلا max، أعلى عتبة مبلوغة تفوز
   tiers: [
-    { key: "silver", name: "فضية", min: 1, max: 7500 },
-    { key: "gold", name: "ذهبية", min: 7501, max: 20000 },
-    { key: "platinum", name: "بلاتينية", min: 20001, max: null },
+    { key: "silver", name: { ar: "فضية", en: "Silver" }, minEarnedHalalas: 0, ratePercent: 2.5 },
+    { key: "gold", name: { ar: "ذهبية", en: "Gold" }, minEarnedHalalas: 5000, ratePercent: 2.75 },
+    { key: "platinum", name: { ar: "بلاتينية", en: "Platinum" }, minEarnedHalalas: 10000, ratePercent: 3 },
   ],
-  rewards: [
-    { id: "r50", label: "باقة 50 ريال", value: 50, points: 7500, active: true },
-    { id: "r75", label: "باقة 75 ريال", value: 75, points: 11250, active: true },
-    { id: "r100", label: "باقة 100 ريال", value: 100, points: 15000, active: true },
-    { id: "r150", label: "باقة 150 ريال", value: 150, points: 22500, active: true },
-    { id: "r200", label: "باقة 200 ريال", value: 200, points: 30000, active: true },
-    { id: "r300", label: "باقة 300 ريال", value: 300, points: 45000, active: true },
-  ],
+  tierWindowMonths: 24,
+  expiryMonths: 12,
+  expiryWarningDays: 30,
+  welcomeBonusEnabled: true,
+  welcomeBonusHalalas: 500, // 5 ريالات
+  welcomeBonusDelayHours: 24,
+  earnRoundingHalalas: 25, // تقريب الكسب لأقرب ربع ريال
+  redeemStepHalalas: 25, // خطوة الاستبدال ربع ريال
+  vatRegistered: false,
+  amountBasis: "gross", // "gross" | "net"
+  vatRate: 0.15,
+  largeTransactionAlertRiyals: 1000,
   // مصادر التعرف — التعطيل بحقل active بدل الحذف
   sources: [
     { id: "maps", label: "قوقل ماب", active: true },
@@ -72,16 +77,38 @@ export const LOYALTY_DEFAULT_SETTINGS = {
     { id: "walkin", label: "مررت بالمحل", active: true },
     { id: "other", label: "أخرى", active: true },
   ],
-  // المتغيرات المدعومة: {name} {storeName} {memberNo} {tier} {points} {cardUrl}
-  welcomeMessage:
-    "مرحبًا {name} 🌹\n" +
-    "تم تسجيلك في برنامج ولاء {storeName}.\n" +
-    "رقم عضويتك: {memberNo}\n" +
-    "رصيدك الحالي: {points} نقطة\n\n" +
-    "بطاقتك الرقمية:\n{cardUrl}\n\n" +
-    "اعرض الرمز عند الدفع لتجميع نقاطك واستبدال مكافآتك.",
-  // Batch 92.2: قالب إشعار النقاط — يحرَّر من شاشة الإعدادات كالترحيبي
-  pointsMessage: POINTS_NOTIFY_TEMPLATE,
+  // الرسالة الترحيبية — حقلان (عربي/إنجليزي). المتغيرات: WELCOME_MESSAGE_VARS
+  welcomeMessage: {
+    ar:
+      "مرحبًا {name} 🌹\n" +
+      "تم تسجيلك في برنامج ولاء {storeName}.\n" +
+      "رقم عضويتك: {memberNo}\n" +
+      "رصيدك الحالي: {balance} ريال\n\n" +
+      "بطاقتك الرقمية:\n{cardUrl}\n\n" +
+      "اعرض الرمز عند الدفع لتجميع رصيدك واستخدامه من مشترياتك.",
+    en:
+      "Hello {name} 🌹\n" +
+      "You are now a member of the {storeName} loyalty program.\n" +
+      "Membership no: {memberNo}\n" +
+      "Your balance: SAR {balance}\n\n" +
+      "Your digital card:\n{cardUrl}\n\n" +
+      "Show the code at checkout to earn and redeem your balance.",
+  },
+  // تنبيه قرب انتهاء الرصيد — حقلان (عربي/إنجليزي). المتغيرات: EXPIRY_MESSAGE_VARS
+  expiryWarningMessage: {
+    ar:
+      "مرحبًا {name} 🌸\n" +
+      "رصيدك {balance} ريال في {storeName} سينتهي بتاريخ {expiryDate}.\n" +
+      "نسعد بزيارتك لاستخدامه قبل الانتهاء.",
+    en:
+      "Hello {name} 🌸\n" +
+      "Your SAR {balance} balance at {storeName} expires on {expiryDate}.\n" +
+      "We would love to see you before it expires.",
+  },
+  // إشعار الرصيد بعد الشراء — قابل للتعديل، عربي واحد الآن (المرحلة B: ثنائي)
+  creditMessage: CREDIT_NOTIFY_TEMPLATE,
+  // قنوات التواصل — تُعرض في صفحة البطاقة (المرحلة B) وتُدار من الإعدادات الآن
+  contacts: { whatsapp: "", instagram: "", tiktok: "" },
 };
 
 // ---------- تقنيع الجوال ----------
@@ -107,45 +134,33 @@ function fmtDateSaudi(v) {
 // ---------- payload البطاقة العامة ----------
 // القائمة البيضاء الوحيدة المسموح بها في استجابة /api/card —
 // أي حقل خارجها يفشل اختبار vitest المخصص.
+// language ممرَّر عمداً (تحتاجه صفحة البطاقة ثنائية اللغة في المرحلة B) —
+// أما gender فلا يظهر أبداً بأي شكل.
 export const CARD_PAYLOAD_ALLOWED_KEYS = [
   "store",
   "storeName",
   "name",
   "memberNo",
   "tier",
-  "pointsBalance",
-  "redemptionsCount",
+  "language",
+  "balanceHalalas",
   "joinedAt",
-  "pointsExpireAt",
-  "rewards",
-  "nextReward",
+  "balanceExpiresAt",
   "phoneMasked",
   "expiryMonths",
 ];
 
 /**
  * يبني استجابة /api/card من مستند العضو + حركاته + الإعدادات.
- * لا يعيد إطلاقاً: memberId، cardToken، الجوال كاملاً، سجل المشتريات،
- * أرقام الفواتير، أي حركة، أي حقل إداري.
- * النقاط المنتهية (كسولاً) تُعرض 0 دون أي كتابة — العرض فقط.
+ * لا يعيد إطلاقاً: memberId، cardToken، الجوال كاملاً، الجنس، سجل
+ * المشتريات، أرقام الفواتير، أي حركة، أي حقل إداري.
+ * الرصيد المنتهي (كسولاً) يُعرض 0 دون أي كتابة — العرض فقط.
  */
 export function buildCardPayload(member, transactions, settings, now = new Date()) {
   const s = { ...LOYALTY_DEFAULT_SETTINGS, ...(settings || {}) };
-  const expiredNow = isPointsExpired(member, now);
-  const balance = expiredNow ? 0 : Number(member.pointsBalance) || 0;
+  const expiredNow = isBalanceExpired(member, now);
+  const balance = expiredNow ? 0 : Number(member.balanceHalalas) || 0;
   const { tier } = effectiveTier(member, transactions, s, now);
-
-  const activeRewards = (s.rewards || []).filter((r) => r.active !== false);
-  const rewards = activeRewards.map((r) => ({
-    id: r.id,
-    label: r.label,
-    points: Number(r.points) || 0,
-    unlocked: balance >= (Number(r.points) || 0) && balance > 0,
-  }));
-  // المكافأة التالية: أرخص مكافأة لم يبلغها الرصيد بعد
-  const next = activeRewards
-    .filter((r) => (Number(r.points) || 0) > balance)
-    .sort((a, b) => (Number(a.points) || 0) - (Number(b.points) || 0))[0] || null;
 
   return {
     store: member.store,
@@ -153,27 +168,25 @@ export function buildCardPayload(member, transactions, settings, now = new Date(
     name: member.name || "",
     memberNo: member.memberNo || "",
     tier: tier ? { key: tier.key, name: tier.name } : null,
-    pointsBalance: balance,
-    redemptionsCount: Number(member.redemptionsCount) || 0,
+    language: member.language === "en" ? "en" : "ar",
+    balanceHalalas: balance,
     joinedAt: fmtDateSaudi(member.joinedAt),
-    pointsExpireAt: expiredNow ? null : fmtDateSaudi(member.pointsExpireAt),
-    rewards,
-    nextReward: next ? { label: next.label, points: Number(next.points) || 0 } : null,
+    balanceExpiresAt: expiredNow ? null : fmtDateSaudi(member.balanceExpiresAt),
     phoneMasked: maskPhone(member.phone),
-    // مدة انتهاء النقاط (شهور) — من إعدادات المتجر، لنص الشروط في البطاقة
+    // مدة انتهاء الرصيد (شهور) — من إعدادات المتجر، لنص الشروط في البطاقة
     expiryMonths: Number(s.expiryMonths) || 0,
   };
 }
 
-// ---------- رسالة واتساب ----------
+// ---------- رسائل واتساب ----------
 /**
- * استبدال متغيرات القالب: {name} {storeName} {memberNo} {tier} {points} {cardUrl}
+ * استبدال متغيرات القالب: {name} {storeName} {memberNo} {tier} {balance}
+ * {earned} {expiryDate} {cardUrl}
  * قالب بلا متغيرات (نصوص محفوظة قديمة) يُترك كما هو.
  * متغير بلا قيمة → يُستبدل بنص فارغ.
  */
 export function renderWelcomeMessage(template, vars = {}) {
-  // balance أُضيف لإشعار النقاط (Batch 92) — القالب الترحيبي لا يحويه فلا يتأثر
-  const known = ["name", "storeName", "memberNo", "tier", "points", "cardUrl", "balance"];
+  const known = ["name", "storeName", "memberNo", "tier", "balance", "earned", "expiryDate", "cardUrl"];
   let out = String(template || "");
   for (const key of known) {
     const value = vars[key] == null ? "" : String(vars[key]);
@@ -182,27 +195,26 @@ export function renderWelcomeMessage(template, vars = {}) {
   return out;
 }
 
-// ---------- إشعار النقاط المعاملاتي (Batch 92 / 92.2) ----------
+// ---------- إشعار الرصيد المعاملاتي (خلف Batch 92 / 92.2) ----------
 /**
- * نص إشعار النقاط — نفس آلية الرسالة الترحيبية (renderWelcomeMessage).
- * {points} و{balance} تأتيان من الحركة نفسها (points/balanceAfter) لا من
- * قراءة جديدة — حتى تكون إعادة الإرسال دقيقة تاريخياً.
+ * نص إشعار الرصيد بعد الشراء — نفس آلية الرسالة الترحيبية.
+ * {earned} و{balance} تأتيان من الحركة نفسها (deltaHalalas/balanceAfterHalalas
+ * بصيغة عرض بالريال) لا من قراءة جديدة — حتى تكون إعادة الإرسال دقيقة تاريخياً.
  *
- * Batch 92.2: template اختياري (من loyaltySettings.pointsMessage) —
+ * template اختياري (من loyaltySettings.creditMessage) —
  * إن كان غير ممرر أو فارغاً بعد trim يُستخدم القالب الثابت.
- * الاستدعاء بلا وسيط ثانٍ = السلوك السابق حرفياً (توافق رجعي كامل).
  */
-export function buildPointsMessage(vars = {}, template) {
-  const effective = String(template || "").trim() ? template : POINTS_NOTIFY_TEMPLATE;
+export function buildCreditMessage(vars = {}, template) {
+  const effective = String(template || "").trim() ? template : CREDIT_NOTIFY_TEMPLATE;
   return renderWelcomeMessage(effective, vars);
 }
 
 /**
- * Batch 92.2: يكشف المتغيرات {...} غير المعروفة في قالب — لتحذير غير مانع
+ * يكشف المتغيرات {...} غير المعروفة في قالب — لتحذير غير مانع
  * في محرر الإعدادات. allowed هي قائمة المسموح لهذا الحقل تحديداً.
  * يرجع مصفوفة أسماء فريدة (بلا أقواس)، فارغة إن كان القالب نظيفاً.
  */
-export function findUnknownVars(template, allowed = POINTS_MESSAGE_VARS) {
+export function findUnknownVars(template, allowed = CREDIT_MESSAGE_VARS) {
   const found = new Set();
   const allowedSet = new Set(allowed);
   const re = /\{([^{}\s]+)\}/g;

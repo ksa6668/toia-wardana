@@ -3,15 +3,18 @@
 // برنامج الولاء — المنطق الحسابي النقي (بلا Firebase، بلا DOM).
 // على غرار madaMath.js: كل الدوال هنا قابلة للاختبار بـ vitest مباشرة.
 //
-// يغطي:
-//   • توحيد صيغة رقم الجوال السعودي → +9665XXXXXXXX
-//   • حساب نقاط الشراء (gross / net مع الضريبة)
-//   • نقاط الفئة (تُحسب عند القراءة من حركات earn ضمن نافذة الشهور،
-//     ناقصاً ما عُكس منها — الاستبدال والانتهاء لا يؤثران)
-//   • الفئة الفعلية (الترقية اليدوية السارية تتقدم على المحسوبة)
-//   • تاريخ انتهاء النقاط (lastPurchaseAt + expiryMonths)
-//   • معرّف مستند الفاتورة {store}_{invoiceNo} (ضمان عدم التكرار الذرّي)
-//   • توليد رقم العضوية والتوكن العشوائي
+// النسخة 3.0 — نظام رصيد بالريال بدل النقاط:
+//   • التخزين بالهللات كأعداد صحيحة حصراً — ممنوع تمثيل الريالات بعدد
+//     عشري في أي منطق أو مستند؛ القسمة على 100 تحدث عند نقطة الرسم فقط
+//     (halalasToRiyalLabel).
+//   • الكسب: نسبة مئوية من مبلغ الفاتورة حسب فئة العميل، بتقريب لأقرب
+//     ربع ريال (earnRoundingHalalas).
+//   • الفئة تُحسب عند القراءة من مجموع deltaHalalas لحركات earn ضمن
+//     نافذة الشهور، ناقصاً ما عُكس — welcome/redeem/expire/audit لا
+//     تدخل هذا المجموع إطلاقاً.
+//   • المكافأة الترحيبية معلّقة welcomeBonusDelayHours ساعة — الرصيد
+//     المتاح للاستبدال يخصمها أثناء فترة الانتظار (بحد أدنى صفر).
+//   • انتهاء الرصيد: balanceExpiresAt = lastPurchaseAt + expiryMonths.
 // ====================================================================
 
 // ---------- أرقام عربية → إنجليزية ----------
@@ -49,21 +52,54 @@ export function normalizePhone(input) {
   return `+966${s}`;
 }
 
-// ---------- حساب النقاط ----------
+// ---------- تحويل العملة (هللات صحيحة ↔ عرض بالريال) ----------
 /**
- * المبلغ المحتسب حسب أساس النقاط:
- *   net  → المبلغ ÷ (1 + vatRate)   (منشأة مسجلة بالضريبة)
- *   gross → المبلغ كما هو
+ * إدخال الواجهة بالريال (نص، قد يحمل أرقاماً عربية وكسوراً) → هللات صحيحة.
+ * يرجع null لقيمة غير صالحة. هذه نقطة الدخول الوحيدة لأي مبلغ من الواجهة.
  */
-export function countedAmount(amount, { pointsBasis = 'gross', vatRate = 0.15 } = {}) {
-  const a = Number(amount) || 0;
-  return pointsBasis === 'net' ? a / (1 + (Number(vatRate) || 0)) : a;
+export function riyalsToHalalas(input) {
+  const n = Number(toEnglishDigits(input));
+  if (!Number.isFinite(n)) return null;
+  return Math.round(n * 100);
 }
 
-/** النقاط = round(المبلغ المحتسب × pointsPerRiyal) */
-export function computeEarnPoints(amount, settings = {}) {
-  const perRiyal = Number(settings.pointsPerRiyal) || 0;
-  return Math.round(countedAmount(amount, settings) * perRiyal);
+/**
+ * هللات → نص عرض بالريال ("375" هللة → "3.75"، ‏"400" → "4").
+ * للعرض فقط — لا يدخل ناتجها في أي حساب.
+ */
+export function halalasToRiyalLabel(halalas) {
+  const h = Math.round(Number(halalas) || 0);
+  const sign = h < 0 ? '-' : '';
+  const abs = Math.abs(h);
+  const whole = Math.floor(abs / 100);
+  const frac = abs % 100;
+  if (frac === 0) return sign + whole.toLocaleString('en-US');
+  return `${sign}${whole.toLocaleString('en-US')}.${String(frac).padStart(2, '0')}`;
+}
+
+// ---------- حساب الكسب ----------
+/**
+ * المبلغ المحتسب (بالهللات) حسب أساس الاحتساب:
+ *   net  → المبلغ ÷ (1 + vatRate)   (منشأة مسجلة بالضريبة)
+ *   gross → المبلغ كما هو
+ * الناتج وسيط كسري يُقرَّب فوراً في computeEarnedHalalas.
+ */
+export function countedAmountHalalas(amountHalalas, { amountBasis = 'gross', vatRate = 0.15 } = {}) {
+  const a = Number(amountHalalas) || 0;
+  return amountBasis === 'net' ? a / (1 + (Number(vatRate) || 0)) : a;
+}
+
+/**
+ * الكسب بالهللات = تقريب (المبلغ المحتسب × النسبة ÷ 100) لأقرب مضاعف
+ * earnRoundingHalalas (افتراضياً 25 هللة = ربع ريال).
+ * النسبة تأتي من فئة العميل لحظة العملية وتُحفظ في الحركة — لا يُعاد حسابها.
+ */
+export function computeEarnedHalalas(amountHalalas, ratePercent, settings = {}) {
+  const counted = countedAmountHalalas(amountHalalas, settings);
+  const rate = Number(ratePercent) || 0;
+  const raw = (counted * rate) / 100;
+  const step = Math.max(1, Math.round(Number(settings.earnRoundingHalalas) || 1));
+  return Math.round(raw / step) * step;
 }
 
 // ---------- التواريخ ----------
@@ -103,27 +139,69 @@ export function addMonths(date, months) {
   return res;
 }
 
-/** تاريخ انتهاء النقاط = lastPurchaseAt + expiryMonths */
-export function computeExpiryAt(lastPurchaseAt, expiryMonths) {
-  return addMonths(lastPurchaseAt, expiryMonths);
+/** إضافة ساعات (لفترة انتظار الترحيبية) */
+export function addHours(date, hours) {
+  const d = toDateSafe(date);
+  if (!d) return null;
+  return new Date(d.getTime() + (Number(hours) || 0) * 3600 * 1000);
 }
 
-/** هل تنطبق تصفية الانتهاء الكسول؟ (الآن > pointsExpireAt والرصيد موجب) */
-export function isPointsExpired(member, now = new Date()) {
+/** تاريخ انتهاء الرصيد = lastPurchaseAt + expiryMonths (وللترحيبية: joinedAt + expiryMonths) */
+export function computeExpiryAt(from, expiryMonths) {
+  return addMonths(from, expiryMonths);
+}
+
+/** هل تنطبق تصفية الانتهاء الكسول؟ (الآن > balanceExpiresAt والرصيد موجب) */
+export function isBalanceExpired(member, now = new Date()) {
   if (!member) return false;
-  const expireAt = toDateSafe(member.pointsExpireAt);
+  const expireAt = toDateSafe(member.balanceExpiresAt);
   if (!expireAt) return false;
-  return now.getTime() > expireAt.getTime() && (Number(member.pointsBalance) || 0) > 0;
+  return now.getTime() > expireAt.getTime() && (Number(member.balanceHalalas) || 0) > 0;
 }
 
-// ---------- نقاط الفئة والفئات ----------
+// ---------- المكافأة الترحيبية المعلّقة ----------
+/** متى تصبح الترحيبية متاحة للاستبدال؟ (welcomeBonusAt + delayHours) أو null */
+export function welcomeAvailableAt(member, settings = {}) {
+  const at = toDateSafe(member?.welcomeBonusAt);
+  if (!at) return null;
+  return addHours(at, Number(settings.welcomeBonusDelayHours) || 0);
+}
+
+/** هل الترحيبية ما تزال في فترة الانتظار؟ */
+export function isWelcomeOnHold(member, settings = {}, now = new Date()) {
+  const availableAt = welcomeAvailableAt(member, settings);
+  return !!availableAt && now.getTime() < availableAt.getTime();
+}
+
 /**
- * مجموع نقاط حركات earn خلال آخر windowMonths شهراً، مستبعداً الحركات المعكوسة.
- * الحركات المعكوسة تُشتق من حركات reverse عبر reversesTxId (سجل إضافي فقط —
- * لا يُعدَّل مستند الحركة الأصلية في مكانه).
- * الاستبدال (redeem) والانتهاء (expire) لا يؤثران على نقاط الفئة.
+ * الرصيد المتاح للاستبدال = balanceHalalas ناقص الترحيبية ما دامت معلّقة —
+ * مثبّت عند صفر كحد أدنى: لا رصيد متاح سالب في أي حالة.
  */
-export function tierPointsInWindow(transactions, windowMonths, now = new Date()) {
+export function availableBalanceHalalas(member, settings = {}, now = new Date()) {
+  const balance = Number(member?.balanceHalalas) || 0;
+  const held = isWelcomeOnHold(member, settings, now)
+    ? Number(settings.welcomeBonusHalalas) || 0
+    : 0;
+  return Math.max(0, balance - held);
+}
+
+// ---------- الاستبدال ----------
+/** صلاحية مبلغ الخصم: عدد صحيح موجب من مضاعفات redeemStepHalalas */
+export function isValidRedeemAmount(amountHalalas, stepHalalas) {
+  const a = Number(amountHalalas);
+  const s = Math.max(1, Math.round(Number(stepHalalas) || 1));
+  return Number.isInteger(a) && a > 0 && a % s === 0;
+}
+
+// ---------- المكتسب في النافذة والفئات ----------
+/**
+ * مجموع deltaHalalas لحركات type="earn" خلال آخر windowMonths شهراً،
+ * مستبعداً الحركات المعكوسة (تُشتق من حركات reverse عبر reversesTxId —
+ * سجل إضافي فقط، لا يُعدَّل مستند الحركة الأصلية في مكانه).
+ * استثناءات صريحة: welcome و redeem و expire و audit لا تدخل هذا
+ * المجموع إطلاقاً (الشرط يمر فقط على type === "earn").
+ */
+export function earnedHalalasInWindow(transactions, windowMonths, now = new Date()) {
   const txs = Array.isArray(transactions) ? transactions : [];
   const reversed = new Set(
     txs.filter((t) => t.type === 'reverse' && t.reversesTxId).map((t) => t.reversesTxId)
@@ -137,38 +215,59 @@ export function tierPointsInWindow(transactions, windowMonths, now = new Date())
     if (!at) continue;
     if (windowStart && at.getTime() < windowStart.getTime()) continue;
     if (at.getTime() > now.getTime()) continue;
-    sum += Number(t.points) || 0;
+    sum += Number(t.deltaHalalas) || 0;
   }
   return sum;
 }
 
 // أنواع الحركات التي تدخل في حساب الرصيد. حركات "audit" (سجل التدقيق —
-// تعطيل/تفعيل/تعديل بيانات، بنقاط 0) مستثناة صراحةً من أي حساب للرصيد
-// أو لنقاط الفئة، حتى لو حملت قيمة نقاط بالخطأ.
-export const BALANCE_TX_TYPES = new Set(["earn", "redeem", "adjust", "reverse", "expire"]);
+// تعطيل/تفعيل/تعديل بيانات، بقيمة 0) مستثناة صراحةً من أي حساب للرصيد
+// أو للمكتسب، حتى لو حملت قيمة بالخطأ.
+export const BALANCE_TX_TYPES = new Set(['earn', 'welcome', 'redeem', 'adjust', 'reverse', 'expire']);
 
 /**
  * إعادة اشتقاق الرصيد من سجل الحركات (للتحقق/التدقيق):
- * مجموع points لكل الأنواع الرصيدية — audit مستثناة دائماً.
+ * مجموع deltaHalalas لكل الأنواع الرصيدية — audit مستثناة دائماً.
  */
 export function deriveBalance(transactions) {
   const txs = Array.isArray(transactions) ? transactions : [];
   return txs.reduce(
-    (sum, t) => (BALANCE_TX_TYPES.has(t.type) ? sum + (Number(t.points) || 0) : sum),
+    (sum, t) => (BALANCE_TX_TYPES.has(t.type) ? sum + (Number(t.deltaHalalas) || 0) : sum),
     0
   );
 }
 
-/** إيجاد الفئة المطابقة لعدد النقاط من مصفوفة tiers ({key,name,min,max|null}) */
-export function tierForPoints(points, tiers) {
-  const p = Number(points) || 0;
-  const list = Array.isArray(tiers) ? tiers : [];
-  for (const t of list) {
-    const min = Number(t.min) || 0;
-    const max = t.max == null ? Infinity : Number(t.max);
-    if (p >= min && p <= max) return t;
+/** الفئات مرتبة تصاعدياً بعتبة minEarnedHalalas */
+export function sortedTiers(tiers) {
+  return (Array.isArray(tiers) ? [...tiers] : []).sort(
+    (a, b) => (Number(a.minEarnedHalalas) || 0) - (Number(b.minEarnedHalalas) || 0)
+  );
+}
+
+/**
+ * الفئة المطابقة للمكتسب: أعلى فئة بلغ عتبتها minEarnedHalalas.
+ * الفضية بعتبة 0 — كل عضو فضي على الأقل. يرجع null فقط لقائمة فئات فارغة.
+ */
+export function tierForEarned(earnedHalalas, tiers) {
+  const e = Number(earnedHalalas) || 0;
+  let match = null;
+  for (const t of sortedTiers(tiers)) {
+    if (e >= (Number(t.minEarnedHalalas) || 0)) match = t;
   }
-  return null; // أقل من حد أول فئة (مثلاً 0 نقاط)
+  return match;
+}
+
+/**
+ * الفئة التالية والمتبقي للترقية (بالهللات).
+ * يرجع { nextTier, remainingHalalas } أو null إن كان في أعلى فئة.
+ */
+export function nextTierInfo(earnedHalalas, tiers) {
+  const e = Number(earnedHalalas) || 0;
+  for (const t of sortedTiers(tiers)) {
+    const min = Number(t.minEarnedHalalas) || 0;
+    if (min > e) return { nextTier: t, remainingHalalas: min - e };
+  }
+  return null;
 }
 
 /** هل الترقية اليدوية سارية الآن؟ (بلا until = دائمة حتى الإلغاء) */
@@ -180,17 +279,32 @@ export function isManualTierActive(manualTier, now = new Date()) {
 
 /**
  * الفئة الفعلية للعضو: الترقية اليدوية السارية تتقدم على المحسوبة آلياً.
- * ترجع { tier: {key,name,...}|null, manual: boolean, tierPoints: number }
+ * يرجع { tier, manual, earnedHalalas, nextTier, remainingToNextHalalas }
+ * — المتبقي للترقية يُحسب دائماً من المكتسب المحسوب (لا من اليدوية).
  */
 export function effectiveTier(member, transactions, settings = {}, now = new Date()) {
   const tiers = settings.tiers || [];
-  const tierPoints = tierPointsInWindow(transactions, settings.tierWindowMonths, now);
-  const computed = tierForPoints(tierPoints, tiers);
+  const earnedHalalas = earnedHalalasInWindow(transactions, settings.tierWindowMonths, now);
+  const computed = tierForEarned(earnedHalalas, tiers);
+  const next = nextTierInfo(earnedHalalas, tiers);
+  const base = {
+    earnedHalalas,
+    nextTier: next?.nextTier || null,
+    remainingToNextHalalas: next?.remainingHalalas ?? null,
+  };
   if (member && isManualTierActive(member.manualTier, now)) {
     const manual = tiers.find((t) => t.key === member.manualTier.tier);
-    if (manual) return { tier: manual, manual: true, tierPoints };
+    if (manual) return { tier: manual, manual: true, ...base };
   }
-  return { tier: computed, manual: false, tierPoints };
+  return { tier: computed, manual: false, ...base };
+}
+
+/** اسم الفئة بلغة العرض — name صار {ar,en} (توافق مع نص قديم احتياطاً) */
+export function tierName(tier, lang = 'ar') {
+  if (!tier) return '';
+  const n = tier.name;
+  if (n && typeof n === 'object') return n[lang] || n.ar || n.en || '';
+  return String(n || '');
 }
 
 // ---------- معرّف مستند الفاتورة ----------

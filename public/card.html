@@ -92,36 +92,6 @@
       padding: 20px 16px 4px;
     }
 
-    /* ===== شبكة المكافآت 2×3 ===== */
-    .rewards { padding: 16px 16px 4px; }
-    .rewards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-    .reward { text-align: center; }
-    .reward .badge {
-      width: 58px; height: 58px; margin: 0 auto 5px; border-radius: 50%;
-      display: grid; place-items: center;
-      border: 2px solid var(--line); background: #fff;
-    }
-    /* شعار الشارة يُرسم بتقنية mask: صورة الشعار قناع، ولون العنصر هو لون
-       الهوية var(--primary) — يحل مشكلة العاجي #EEE7DF غير المقروء على الفاتح،
-       وmask-size: contain يكافئ object-fit: contain (لا انضغاط للنسب الطولية).
-       mask-image يُحقن inline من JS (رابط شعار المتجر) — اللونغهاند هنا حتى
-       لا يلغيه أي شورتهاند. */
-    .reward .badge .blogo {
-      width: 44px; height: 44px;
-      background-color: var(--primary);
-      -webkit-mask-repeat: no-repeat; -webkit-mask-position: center; -webkit-mask-size: contain;
-      mask-repeat: no-repeat; mask-position: center; mask-size: contain;
-    }
-    .reward .rlabel { font-size: 10.5px; font-weight: 700; color: var(--muted); line-height: 1.3; }
-    /* مقفلة: خلفية رمادية فاتحة وشعار رمادي متوسط صريح — الشكل مقروء بوضوح
-       والحالة تبقى «غير متاحة» بتمايز إضاءة لا لون (خلفية رمادية مقابل بيضاء،
-       حلقة فاتحة مقابل داكنة، شعار رمادي مقابل مشبع داكن) */
-    .reward.locked .badge { background: #E4E8EE; border-color: #C7CEDA; }
-    .reward.locked .badge .blogo { background-color: #64748B; opacity: 0.9; }
-    /* متاحة: الخلفية الفاتحة كما هي + حلقة رفيعة بلون الهوية، والشعار بلون الهوية */
-    .reward.unlocked .badge { border-color: var(--primary); }
-    .reward.unlocked .rlabel { color: var(--primary); font-weight: 800; }
-
     /* ===== QR ===== */
     .qr-sec { text-align: center; padding: 14px 16px 20px; }
     .qr-box {
@@ -189,37 +159,35 @@
         return;
       }
 
-      function fmtNum(n) { return Number(n || 0).toLocaleString('en-US'); }
+      // هللات → نص بالريال (375 → "3.75"، ‏400 → "4") — عرض فقط
+      function fmtSAR(halalas) {
+        var h = Math.round(Number(halalas) || 0);
+        var sign = h < 0 ? '-' : '';
+        var abs = Math.abs(h);
+        var whole = Math.floor(abs / 100);
+        var frac = abs % 100;
+        if (!frac) return sign + whole.toLocaleString('en-US');
+        return sign + whole.toLocaleString('en-US') + '.' + String(frac < 10 ? '0' + frac : frac);
+      }
 
       function render(d) {
         if (d.store === 'wardana') document.documentElement.classList.add('store-wardana');
         document.title = 'بطاقة الولاء — ' + d.storeName;
         var logo = d.store === 'wardana' ? '/logo-wardana.svg' : '/logo-toia.svg';
         var tierCls = d.tier ? 'tier-' + esc(d.tier.key) : '';
-        var tierName = d.tier ? d.tier.name : 'عضو';
-
-        // شبكة المكافآت 2×3 — dir=rtl: العنصر الأول في الصف يظهر يميناً
-        // الصف الأول: 50 ← 75 ← 100 / الصف الثاني: 150 ← 200 ← 300
-        // شعار الشارة عبر mask-image (يتلوّن بلون الهوية من CSS) — لا <img> هنا
-        var maskStyle = '-webkit-mask-image:url(' + logo + ');mask-image:url(' + logo + ')';
-        var rewardsHtml = (d.rewards || []).slice(0, 6).map(function (r) {
-          return (
-            '<div class="reward ' + (r.unlocked ? 'unlocked' : 'locked') + '">' +
-            '<div class="badge"><div class="blogo" style="' + maskStyle + '"></div></div>' +
-            '<div class="rlabel">' + esc(r.label) + '</div>' +
-            '</div>'
-          );
-        }).join('');
+        // النسخة 3.0: اسم الفئة صار {ar,en} — العرض عربي هنا (المرحلة B: بلغة العميل)
+        var tierName = d.tier
+          ? (d.tier.name && typeof d.tier.name === 'object' ? (d.tier.name.ar || d.tier.name.en || 'عضو') : d.tier.name)
+          : 'عضو';
 
         var html =
           '<div class="card">' +
             '<div class="card-top">' +
-              '<div class="top-balance"><div class="num">' + fmtNum(d.pointsBalance) + '</div><div class="lbl">رصيد النقاط</div></div>' +
+              '<div class="top-balance"><div class="num">' + fmtSAR(d.balanceHalalas) + '</div><div class="lbl">الرصيد (ريال)</div></div>' +
               '<div class="top-tier"><span class="tier-chip ' + tierCls + '">' + esc(tierName) + '</span></div>' +
               '<div class="top-store"><span class="sname">' + esc(d.storeName) + '</span><img src="' + logo + '" alt="' + esc(d.storeName) + '" /></div>' +
             '</div>' +
             '<div class="member-name">' + esc(d.name) + '</div>' +
-            '<div class="rewards"><div class="rewards-grid">' + rewardsHtml + '</div></div>' +
             '<div class="qr-sec">' +
               '<div class="qr-box" id="qr"></div>' +
               '<div class="member-no">' + esc(d.memberNo) + '</div>' +
@@ -230,16 +198,13 @@
             '<h3>تفاصيل العضوية</h3>' +
             '<div class="drow"><span class="k">الجوال</span><span class="v" dir="ltr">' + esc(d.phoneMasked) + '</span></div>' +
             '<div class="drow"><span class="k">تاريخ الانضمام</span><span class="v" dir="ltr">' + esc(d.joinedAt || '—') + '</span></div>' +
-            '<div class="drow"><span class="k">المكافأة التالية</span><span class="v">' +
-              (d.nextReward ? esc(d.nextReward.label) + ' (' + fmtNum(d.nextReward.points) + ' نقطة)' : 'كل المكافآت متاحة 🎉') +
-            '</span></div>' +
-            '<div class="drow"><span class="k">انتهاء النقاط</span><span class="v" dir="ltr">' + esc(d.pointsExpireAt || '—') + '</span></div>' +
+            '<div class="drow"><span class="k">انتهاء الرصيد</span><span class="v" dir="ltr">' + esc(d.balanceExpiresAt || '—') + '</span></div>' +
             '<p class="terms">' +
               // expiryMonths من loyaltySettings عبر /api/card — لا رقم ثابت هنا
-              'تُحتسب النقاط على مشترياتك من ' + esc(d.storeName) + ' وتنتهي تلقائياً بعد ' +
+              'يُحتسب رصيدك بالريال على مشترياتك من ' + esc(d.storeName) + ' وينتهي تلقائياً بعد ' +
               esc(d.expiryMonths != null ? d.expiryMonths : '—') + ' شهراً من آخر عملية شراء. ' +
-              'استبدال المكافآت يتم داخل الفرع أو بالتواصل معنا على الواتساب بإبراز البطاقة أو برقم الجوال. ' +
-              'البرنامج خاضع للشروط والأحكام وقد تتغير المكافآت حسب سياسة المتجر.' +
+              'استخدام الرصيد يتم داخل الفرع بطلبك عند الدفع بإبراز البطاقة أو برقم الجوال. ' +
+              'البرنامج خاضع للشروط والأحكام وقد تتغير النسب حسب سياسة المتجر.' +
               '<br/>للاستفسار: تفضّل بزيارة ' + esc(d.storeName) + ' أو تواصل عبر قنوات المتجر الرسمية.' +
             '</p>' +
           '</div>' +

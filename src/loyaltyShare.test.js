@@ -1,10 +1,11 @@
 // src/loyaltyShare.test.js
 // ====================================================================
-// اختبارات vitest للمرحلة 2 (loyaltyShare.js):
-//   • payload البطاقة: عدم تسريب أي حقل خارج القائمة البيضاء
-//     (memberId / cardToken / الجوال الكامل / السجلات) — يفشل إن ظهر حقل غريب
+// اختبارات vitest لمنطق المشاركة (loyaltyShare.js) — النسخة 3.0:
+//   • payload البطاقة: عدم تسريب أي حقل خارج القائمة البيضاء —
+//     language ممرَّر عمداً (المرحلة B)، وgender لا يظهر أبداً
+//   • الإعدادات الافتراضية الجديدة (بلا مكافآت وبلا نقاط)
 //   • تقنيع الجوال
-//   • نص واتساب الترحيبي واستبدال المتغيرات
+//   • رسائل واتساب: الترحيبية {ar,en} وإشعار الرصيد القابل للتعديل
 //   • رابط wa.me: الرقم بلا + وبلا أصفار بادئة (966501234567)
 // ====================================================================
 import { describe, it, expect } from 'vitest';
@@ -14,10 +15,10 @@ import {
   buildCardPayload,
   maskPhone,
   renderWelcomeMessage,
-  buildPointsMessage,
+  buildCreditMessage,
   findUnknownVars,
-  POINTS_NOTIFY_TEMPLATE,
-  POINTS_MESSAGE_VARS,
+  CREDIT_NOTIFY_TEMPLATE,
+  CREDIT_MESSAGE_VARS,
   buildWhatsappUrl,
   cardUrlFor,
   isLocalOrigin,
@@ -35,12 +36,13 @@ const FULL_MEMBER = {
   source: 'maps',
   sourceOther: '',
   marketingConsent: true,
-  gender: 'male', // المرحلة 5 — يجب ألا يتسرب إلى البطاقة العامة إطلاقاً
+  gender: 'male',    // يجب ألا يتسرب إلى البطاقة العامة إطلاقاً
+  language: 'ar',    // ممرَّر عمداً ضمن القائمة البيضاء (المرحلة B)
   joinedAt: new Date(2026, 0, 15),
-  pointsBalance: 6250,
-  redemptionsCount: 3,
+  balanceHalalas: 875,
   lastPurchaseAt: new Date(2026, 6, 1),
-  pointsExpireAt: new Date(2028, 0, 1),
+  balanceExpiresAt: new Date(2027, 6, 1),
+  welcomeBonusAt: new Date(2026, 0, 15),
   manualTier: null,
   status: 'active',
   createdBy: 'uid-employee-1',
@@ -50,7 +52,8 @@ const FULL_MEMBER = {
 };
 
 const TXS = [
-  { id: 't1', type: 'earn', points: 6250, amount: 1250, invoiceNo: 'INV-77', at: new Date(2026, 6, 1) },
+  { id: 't1', type: 'earn', deltaHalalas: 375, amountHalalas: 15000, invoiceNo: 'INV-77', at: new Date(2026, 6, 1) },
+  { id: 'w1', type: 'welcome', deltaHalalas: 500, at: new Date(2026, 0, 15) },
 ];
 
 const NOW = new Date(2026, 7, 5);
@@ -65,6 +68,20 @@ describe('payload البطاقة — القائمة البيضاء (معيار �
     }
   });
 
+  it('language ممرَّر عمداً ضمن القائمة البيضاء (استعداداً للمرحلة B) — ليس تسريباً', () => {
+    expect(CARD_PAYLOAD_ALLOWED_KEYS).toContain('language');
+    expect(payload.language).toBe('ar');
+    // عضو إنجليزي → en، وقيمة مجهولة/مفقودة → ar افتراضياً
+    expect(buildCardPayload({ ...FULL_MEMBER, language: 'en' }, TXS, LOYALTY_DEFAULT_SETTINGS, NOW).language).toBe('en');
+    expect(buildCardPayload({ ...FULL_MEMBER, language: undefined }, TXS, LOYALTY_DEFAULT_SETTINGS, NOW).language).toBe('ar');
+  });
+
+  it('gender لا يظهر أبداً — لا كحقل ولا كقيمة في أي مكان من الاستجابة', () => {
+    expect(payload).not.toHaveProperty('gender');
+    expect(CARD_PAYLOAD_ALLOWED_KEYS).not.toContain('gender');
+    expect(JSON.stringify(payload)).not.toContain('gender');
+  });
+
   it('لا يعيد إطلاقاً memberId ولا cardToken ولا الجوال الكامل ولا الحقول الإدارية', () => {
     expect(payload).not.toHaveProperty('id');
     expect(payload).not.toHaveProperty('memberId');
@@ -73,9 +90,6 @@ describe('payload البطاقة — القائمة البيضاء (معيار �
     expect(payload).not.toHaveProperty('createdBy');
     expect(payload).not.toHaveProperty('statusReason');
     expect(payload).not.toHaveProperty('marketingConsent');
-    expect(payload).not.toHaveProperty('gender'); // المرحلة 5: الجنس لا يظهر إطلاقاً
-    expect(CARD_PAYLOAD_ALLOWED_KEYS).not.toContain('gender');
-    expect(JSON.stringify(payload)).not.toContain('gender');
     // ولا تتسرب القيم نفسها في أي مكان بالمحتوى المتسلسل
     const json = JSON.stringify(payload);
     expect(json).not.toContain('abc123docid');
@@ -90,46 +104,65 @@ describe('payload البطاقة — القائمة البيضاء (معيار �
     expect(payload.storeName).toBe(STORE_NAMES.toia);
     expect(payload.name).toBe('أحمد الحربي');
     expect(payload.memberNo).toBe('T-48271');
-    expect(payload.pointsBalance).toBe(6250);
-    expect(payload.redemptionsCount).toBe(3);
+    expect(payload.balanceHalalas).toBe(875);
     expect(payload.joinedAt).toBe('2026-01-15');
-    expect(payload.tier?.key).toBe('silver'); // 6250 نقطة فئة
+    // المكتسب 375 هللة < عتبة الذهبية 5000 → فضية، والترحيبية لا تدخل الحساب
+    expect(payload.tier?.key).toBe('silver');
+    expect(payload.tier?.name?.ar).toBe('فضية');
     expect(payload.phoneMasked).toBe('05******67');
   });
 
   it('expiryMonths ضمن القائمة البيضاء ويُقرأ من إعدادات المتجر (لنص الشروط)', () => {
     expect(CARD_PAYLOAD_ALLOWED_KEYS).toContain('expiryMonths');
-    expect(payload.expiryMonths).toBe(18); // الافتراضي
-    const custom = buildCardPayload(FULL_MEMBER, TXS, { ...LOYALTY_DEFAULT_SETTINGS, expiryMonths: 12 }, NOW);
-    expect(custom.expiryMonths).toBe(12); // تغيير الإعداد ينعكس مباشرة
+    expect(payload.expiryMonths).toBe(12); // الافتراضي الجديد
+    const custom = buildCardPayload(FULL_MEMBER, TXS, { ...LOYALTY_DEFAULT_SETTINGS, expiryMonths: 6 }, NOW);
+    expect(custom.expiryMonths).toBe(6); // تغيير الإعداد ينعكس مباشرة
   });
 
-  it('المكافآت: 6250 لا تفتح r50 (7500) — والمكافأة التالية هي r50', () => {
-    expect(payload.rewards).toHaveLength(6);
-    expect(payload.rewards.every((r) => r.unlocked === false)).toBe(true);
-    expect(payload.nextReward).toEqual({ label: 'باقة 50 ريال', points: 7500 });
-    // كل عنصر مكافأة يحمل الحقول الأربعة فقط
-    for (const r of payload.rewards) {
-      expect(Object.keys(r).sort()).toEqual(['id', 'label', 'points', 'unlocked']);
-    }
-  });
-
-  it('رصيد يفتح بعض المكافآت: unlocked صحيحة وnextReward هي الأولى غير المبلوغة', () => {
-    const rich = buildCardPayload({ ...FULL_MEMBER, pointsBalance: 12000 }, TXS, LOYALTY_DEFAULT_SETTINGS, NOW);
-    expect(rich.rewards.find((r) => r.id === 'r50').unlocked).toBe(true);
-    expect(rich.rewards.find((r) => r.id === 'r75').unlocked).toBe(true);
-    expect(rich.rewards.find((r) => r.id === 'r100').unlocked).toBe(false);
-    expect(rich.nextReward.points).toBe(15000);
-  });
-
-  it('نقاط منتهية (كسولاً) → تُعرض 0 بلا أي كتابة', () => {
+  it('رصيد منتهٍ (كسولاً) → يُعرض 0 بلا أي كتابة', () => {
     const expired = buildCardPayload(
-      { ...FULL_MEMBER, pointsExpireAt: new Date(2026, 0, 1), pointsBalance: 5000 },
+      { ...FULL_MEMBER, balanceExpiresAt: new Date(2026, 0, 1), balanceHalalas: 5000 },
       TXS, LOYALTY_DEFAULT_SETTINGS, NOW
     );
-    expect(expired.pointsBalance).toBe(0);
-    expect(expired.pointsExpireAt).toBe(null);
-    expect(expired.rewards.every((r) => !r.unlocked)).toBe(true);
+    expect(expired.balanceHalalas).toBe(0);
+    expect(expired.balanceExpiresAt).toBe(null);
+  });
+});
+
+describe('الإعدادات الافتراضية 3.0 — بلا نقاط وبلا مكافآت', () => {
+  it('لا أثر لبنية النقاط القديمة', () => {
+    expect(LOYALTY_DEFAULT_SETTINGS).not.toHaveProperty('rewards');
+    expect(LOYALTY_DEFAULT_SETTINGS).not.toHaveProperty('pointsPerRiyal');
+    expect(LOYALTY_DEFAULT_SETTINGS).not.toHaveProperty('pointsBasis');
+    expect(LOYALTY_DEFAULT_SETTINGS).not.toHaveProperty('pointsMessage');
+  });
+
+  it('الفئات الثلاث بالعتبات والنسب الافتراضية', () => {
+    const [s, g, p] = LOYALTY_DEFAULT_SETTINGS.tiers;
+    expect([s.key, g.key, p.key]).toEqual(['silver', 'gold', 'platinum']);
+    expect([s.minEarnedHalalas, g.minEarnedHalalas, p.minEarnedHalalas]).toEqual([0, 5000, 10000]);
+    expect([s.ratePercent, g.ratePercent, p.ratePercent]).toEqual([2.5, 2.75, 3]);
+    expect(s.name).toEqual({ ar: 'فضية', en: 'Silver' });
+  });
+
+  it('قيم الرصيد والترحيبية والتقريب', () => {
+    expect(LOYALTY_DEFAULT_SETTINGS.expiryMonths).toBe(12);
+    expect(LOYALTY_DEFAULT_SETTINGS.expiryWarningDays).toBe(30);
+    expect(LOYALTY_DEFAULT_SETTINGS.welcomeBonusHalalas).toBe(500);
+    expect(LOYALTY_DEFAULT_SETTINGS.welcomeBonusDelayHours).toBe(24);
+    expect(LOYALTY_DEFAULT_SETTINGS.earnRoundingHalalas).toBe(25);
+    expect(LOYALTY_DEFAULT_SETTINGS.redeemStepHalalas).toBe(25);
+    expect(LOYALTY_DEFAULT_SETTINGS.largeTransactionAlertRiyals).toBe(1000);
+    expect(LOYALTY_DEFAULT_SETTINGS.tierWindowMonths).toBe(24);
+  });
+
+  it('الرسائل ثنائية ({ar,en}) وإشعار الرصيد عربي واحد الآن', () => {
+    expect(typeof LOYALTY_DEFAULT_SETTINGS.welcomeMessage.ar).toBe('string');
+    expect(typeof LOYALTY_DEFAULT_SETTINGS.welcomeMessage.en).toBe('string');
+    expect(typeof LOYALTY_DEFAULT_SETTINGS.expiryWarningMessage.ar).toBe('string');
+    expect(typeof LOYALTY_DEFAULT_SETTINGS.expiryWarningMessage.en).toBe('string');
+    expect(LOYALTY_DEFAULT_SETTINGS.creditMessage).toBe(CREDIT_NOTIFY_TEMPLATE);
+    expect(LOYALTY_DEFAULT_SETTINGS.contacts).toEqual({ whatsapp: '', instagram: '', tiktok: '' });
   });
 });
 
@@ -145,24 +178,33 @@ describe('تقنيع الجوال', () => {
   });
 });
 
-describe('رسالة واتساب الترحيبية', () => {
+describe('رسالة واتساب الترحيبية — الرصيد بالريال', () => {
   const vars = {
     name: 'أحمد',
     storeName: 'تويا',
     memberNo: 'T-48271',
     tier: 'ذهبية',
-    points: 6250,
+    balance: '8.75',
     cardUrl: 'https://toia.example/c/XyZ9AbCd',
   };
 
   it('يستبدل كل المتغيرات المدعومة', () => {
-    const out = renderWelcomeMessage(LOYALTY_DEFAULT_SETTINGS.welcomeMessage, vars);
+    const out = renderWelcomeMessage(LOYALTY_DEFAULT_SETTINGS.welcomeMessage.ar, vars);
     expect(out).toContain('مرحبًا أحمد');
     expect(out).toContain('برنامج ولاء تويا');
     expect(out).toContain('T-48271');
-    expect(out).toContain('6250 نقطة');
+    expect(out).toContain('8.75 ريال');
     expect(out).toContain('https://toia.example/c/XyZ9AbCd');
-    expect(out).not.toMatch(/\{(name|storeName|memberNo|tier|points|cardUrl)\}/);
+    expect(out).not.toMatch(/\{(name|storeName|memberNo|tier|balance|cardUrl)\}/);
+  });
+
+  it('القالب الإنجليزي يعمل بنفس المتغيرات', () => {
+    const out = renderWelcomeMessage(LOYALTY_DEFAULT_SETTINGS.welcomeMessage.en, {
+      ...vars, name: 'Ahmed', storeName: 'Toia',
+    });
+    expect(out).toContain('Hello Ahmed');
+    expect(out).toContain('SAR 8.75');
+    expect(out).not.toMatch(/\{[a-zA-Z]+\}/);
   });
 
   it('قالب قديم بلا متغيرات يُترك كما هو', () => {
@@ -173,84 +215,71 @@ describe('رسالة واتساب الترحيبية', () => {
   it('متغير بلا قيمة → نص فارغ (لا يبقى {placeholder})', () => {
     expect(renderWelcomeMessage('مرحبا {name}', {})).toBe('مرحبا ');
   });
+
+  it('قالب تنبيه الانتهاء يستبدل {expiryDate}', () => {
+    const out = renderWelcomeMessage(LOYALTY_DEFAULT_SETTINGS.expiryWarningMessage.ar, {
+      name: 'سارة', storeName: 'وردانة', balance: '12', expiryDate: '2027-01-15',
+    });
+    expect(out).toContain('سينتهي بتاريخ 2027-01-15');
+    expect(out).not.toMatch(/\{[a-zA-Z]+\}/);
+  });
 });
 
-describe('إشعار النقاط المعاملاتي (Batch 92)', () => {
+describe('إشعار الرصيد المعاملاتي (خلف Batch 92 — بصيغة الريال)', () => {
   const vars = {
     name: 'أحمد',
-    points: 500,          // من الحركة نفسها (tx.points)
-    balance: 6250,        // من الحركة نفسها (tx.balanceAfter)
+    earned: '3.75',       // من الحركة نفسها (deltaHalalas بصيغة عرض)
+    balance: '12.50',     // من الحركة نفسها (balanceAfterHalalas بصيغة عرض)
     cardUrl: 'https://toia.example/c/AbC123',
     storeName: 'وردانة',
   };
 
   it('يستبدل الخمسة كلها بالقيم الحرفية من الحركة ولا يترك أي placeholder', () => {
-    const msg = buildPointsMessage(vars);
+    const msg = buildCreditMessage(vars);
     expect(msg).toContain('مرحبًا أحمد 🌸');
-    expect(msg).toContain('أُضيفت لك 500 نقطة على مشترياتك.');
-    expect(msg).toContain('رصيدك الآن: 6250 نقطة.');
+    expect(msg).toContain('أُضيف إلى رصيدك 3.75 ريال من مشترياتك.');
+    expect(msg).toContain('رصيدك الآن: 12.50 ريال.');
     expect(msg).toContain('بطاقتك: https://toia.example/c/AbC123');
     expect(msg).toContain('نسعد بخدمتك — وردانة');
     expect(msg).not.toMatch(/\{[a-zA-Z]+\}/);
-    expect(msg).not.toContain('اليوم'); // حُذفت عمداً — قالب واحد للفوري وإعادة الإرسال
   });
 
   it('الرسالة كاملة عبر wa.me: فك الترميز يعيد النص بأسطره والرقم بلا +', () => {
-    const msg = buildPointsMessage(vars);
+    const msg = buildCreditMessage(vars);
     const url = buildWhatsappUrl('+966501234567', msg);
     expect(url.startsWith('https://wa.me/966501234567?text=')).toBe(true);
     expect(decodeURIComponent(url.split('?text=')[1])).toBe(msg);
     expect(url).not.toContain('+');
   });
 
-  it('إضافة balance للمتغيرات لا تكسر القالب الترحيبي القديم', () => {
-    // قالب ترحيبي بلا {balance} — يبقى حرفياً كما هو
-    const out = renderWelcomeMessage(LOYALTY_DEFAULT_SETTINGS.welcomeMessage, {
-      name: 'أحمد', storeName: 'تويا', memberNo: 'T-1', tier: 'فضية', points: 10, cardUrl: 'x',
-    });
-    expect(out).not.toContain('{balance}');
-    expect(out).toContain('رصيدك الحالي: 10 نقطة');
-  });
-
-  it('قالب محفوظ قديم بلا متغيرات يبقى حرفياً (حماية رجعية قائمة)', () => {
-    const legacy = 'أهلاً بك في برنامج الولاء!';
-    expect(renderWelcomeMessage(legacy, vars)).toBe(legacy);
-  });
-
-  // ===== Batch 92.2: القالب قابل للتعديل من الإعدادات =====
-
-  it('قالب مخصص من الإعدادات يتقدم على الثابت', () => {
-    const custom = 'شكراً {name}! +{points} نقطة، رصيدك {balance}. — {storeName}';
-    const msg = buildPointsMessage(vars, custom);
-    expect(msg).toBe('شكراً أحمد! +500 نقطة، رصيدك 6250. — وردانة');
+  it('قالب مخصص من الإعدادات يتقدم على الثابت (الميزة ملك المدير)', () => {
+    const custom = 'شكراً {name}! +{earned} ريال، رصيدك {balance}. — {storeName}';
+    const msg = buildCreditMessage(vars, custom);
+    expect(msg).toBe('شكراً أحمد! +3.75 ريال، رصيدك 12.50. — وردانة');
     expect(msg).not.toContain('بطاقتك'); // نص القالب الثابت لم يُستخدم
   });
 
-  it('فارغ / مسافات / غير ممرر → السقوط على القالب الثابت (توافق رجعي)', () => {
-    const fromConstant = buildPointsMessage(vars);
-    expect(buildPointsMessage(vars, '')).toBe(fromConstant);
-    expect(buildPointsMessage(vars, '   \n  ')).toBe(fromConstant);
-    expect(buildPointsMessage(vars, undefined)).toBe(fromConstant);
+  it('فارغ / مسافات / غير ممرر → السقوط على القالب الثابت', () => {
+    const fromConstant = buildCreditMessage(vars);
+    expect(buildCreditMessage(vars, '')).toBe(fromConstant);
+    expect(buildCreditMessage(vars, '   \n  ')).toBe(fromConstant);
+    expect(buildCreditMessage(vars, undefined)).toBe(fromConstant);
     expect(fromConstant).toContain('نسعد بخدمتك — وردانة');
   });
 
-  it('الافتراضيات: pointsMessage في الإعدادات يساوي القالب الثابت', () => {
-    expect(LOYALTY_DEFAULT_SETTINGS.pointsMessage).toBe(POINTS_NOTIFY_TEMPLATE);
-  });
-
   it('findUnknownVars: يكشف الغريب ويتجاهل الخمسة المسموحة', () => {
-    expect(findUnknownVars(POINTS_NOTIFY_TEMPLATE)).toEqual([]);
-    expect(findUnknownVars('مرحبا {name} {foo} و{bar} و{points}')).toEqual(['foo', 'bar']);
+    expect(findUnknownVars(CREDIT_NOTIFY_TEMPLATE)).toEqual([]);
+    expect(findUnknownVars('مرحبا {name} {foo} و{bar} و{earned}')).toEqual(['foo', 'bar']);
     expect(findUnknownVars('نص بلا أقواس إطلاقاً')).toEqual([]);
     expect(findUnknownVars('')).toEqual([]);
-    // {memberNo} و{tier} معروفان للمُستبدِل لكن رسالة النقاط لا تمرر
+    // {memberNo} و{tier} معروفان للمُستبدِل لكن رسالة الرصيد لا تمرر
     // قيمتيهما (فراغ صامت) — يُعدّان غير معروفين في هذا السياق تحديداً
     expect(findUnknownVars('عضويتك {memberNo} فئة {tier}')).toEqual(['memberNo', 'tier']);
-    expect(POINTS_MESSAGE_VARS).toEqual(['name', 'points', 'balance', 'cardUrl', 'storeName']);
+    expect(CREDIT_MESSAGE_VARS).toEqual(['name', 'earned', 'balance', 'cardUrl', 'storeName']);
   });
 });
 
-describe('رابط wa.me — الرقم بلا + وبلا أصفار بادئة (شرط المرحلة 2)', () => {
+describe('رابط wa.me — الرقم بلا + وبلا أصفار بادئة', () => {
   it('+9665... → 966501234567 في الرابط', () => {
     const url = buildWhatsappUrl('+966501234567', 'مرحبا');
     expect(url.startsWith('https://wa.me/966501234567?text=')).toBe(true);

@@ -1,16 +1,17 @@
 // src/loyaltyStats.js
 // ====================================================================
-// برنامج الولاء — تجميعات صفحة الإحصائيات (المرحلة 5).
+// برنامج الولاء — تجميعات صفحة الإحصائيات (النسخة 3.0: رصيد بالهللات).
 // وحدة نقية بلا Firebase وبلا DOM — كل الدوال قابلة للاختبار بـ vitest.
 //
 // مبادئ إلزامية:
+//   • كل المبالغ هللات صحيحة — التحويل للريال عند نقطة الرسم فقط.
 //   • حركات type:"audit" مستثناة من كل الحسابات (رصيد/فئة/متوسطات/عدادات)
 //     — عبر BALANCE_TX_TYPES من loyaltyMath.
 //   • الأعضاء المعطّلون (status=disabled) ومخفيو الهوية (anonymized)
 //     خارج العد الأساسي، مع خيار includeHidden لإظهارهم.
 //   • حركات earn المعكوسة (لها reverse بـ reversesTxId) مستثناة من
 //     المبالغ والمتوسطات والعدادات.
-//   • قيمة النقطة ديناميكية من الإعدادات — لا رقم ثابت.
+//   • الالتزام القائم = مجموع الأرصدة الموجبة مباشرة — لا معامل تحويل.
 // ====================================================================
 import { BALANCE_TX_TYPES, addMonths, toDateSafe, effectiveTier } from "./loyaltyMath.js";
 
@@ -57,7 +58,7 @@ export function countedMembers(members, { includeHidden = false } = {}) {
   return list.filter((m) => m.status !== "disabled" && !m.anonymized);
 }
 
-/** الحركات الرصيدية فقط — audit مستثناة دائماً مهما حملت من نقاط */
+/** الحركات الرصيدية فقط — audit مستثناة دائماً مهما حملت من قيم */
 export function balanceTxs(transactions) {
   return (Array.isArray(transactions) ? transactions : []).filter((t) =>
     BALANCE_TX_TYPES.has(t.type)
@@ -81,28 +82,18 @@ export function nonReversedEarns(transactions, range = null) {
   );
 }
 
-// ---------- قيمة النقطة والالتزام القائم ----------
+// ---------- الالتزام القائم ----------
 /**
- * قيمة النقطة بالريال — ديناميكية من الإعدادات:
- * value ÷ points لأصغر مكافأة نشطة (بالنقاط). 0 إن لا مكافآت نشطة.
+ * الالتزام القائم بالهللات = مجموع الأرصدة الموجبة للأعضاء المحسوبين
+ * مباشرة — الرصيد نفسه هو الالتزام، لا معامل تحويل (النسخة 3.0).
  */
-export function pointValueSAR(settings) {
-  const active = (settings?.rewards || []).filter(
-    (r) => r.active !== false && Number(r.points) > 0
-  );
-  if (!active.length) return 0;
-  const smallest = active.reduce((a, b) => (Number(a.points) <= Number(b.points) ? a : b));
-  return (Number(smallest.value) || 0) / Number(smallest.points);
-}
-
-/** الالتزام القائم بالريال = مجموع الأرصدة الموجبة للأعضاء المحسوبين × قيمة النقطة */
-export function outstandingLiabilitySAR(members, settings, opts = {}) {
-  const pv = pointValueSAR(settings);
-  const totalPoints = countedMembers(members, opts).reduce(
-    (sum, m) => sum + Math.max(0, Number(m.pointsBalance) || 0),
+export function outstandingLiability(members, opts = {}) {
+  const counted = countedMembers(members, opts);
+  const halalas = counted.reduce(
+    (sum, m) => sum + Math.max(0, Number(m.balanceHalalas) || 0),
     0
   );
-  return { points: totalPoints, sar: totalPoints * pv, pointValue: pv };
+  return { halalas, membersCount: counted.length };
 }
 
 // ---------- بطاقات المؤشرات ----------
@@ -127,21 +118,21 @@ export function returnRate(transactions, range) {
 }
 
 /**
- * المؤشران معتمدان كبطاقتين منفصلتين (قرار المرحلة 5):
- *   avgInvoice     = «متوسط الفاتورة»: مجموع مبالغ earn غير المعكوسة ÷ عدد الحركات
- *   avgMemberSpend = «متوسط إنفاق العضو»: المجموع ÷ عدد الأعضاء الذين
- *                    لهم حركة شراء واحدة على الأقل في الفترة
+ * المؤشران معتمدان كبطاقتين منفصلتين (قرار المرحلة 5) — بالهللات:
+ *   avgInvoiceHalalas     = «متوسط الفاتورة»: مجموع مبالغ earn غير المعكوسة ÷ عدد الحركات
+ *   avgMemberSpendHalalas = «متوسط إنفاق العضو»: المجموع ÷ عدد الأعضاء الذين
+ *                           لهم حركة شراء واحدة على الأقل في الفترة
  */
 export function purchaseAverages(transactions, range) {
   const earns = nonReversedEarns(transactions, range);
-  const total = earns.reduce((s, t) => s + (Number(t.amount) || 0), 0);
+  const total = earns.reduce((s, t) => s + (Number(t.amountHalalas) || 0), 0);
   const buyers = new Set(earns.map((t) => t.memberId)).size;
   return {
-    totalAmount: total,
+    totalHalalas: total,
     invoices: earns.length,
     buyers,
-    avgInvoice: earns.length ? total / earns.length : 0,
-    avgMemberSpend: buyers ? total / buyers : 0,
+    avgInvoiceHalalas: earns.length ? total / earns.length : 0,
+    avgMemberSpendHalalas: buyers ? total / buyers : 0,
   };
 }
 
@@ -175,14 +166,19 @@ export function sourcesRanking(members, settings, range, opts = {}) {
 }
 
 // ---------- التوزيعات ----------
-/** توزيع الفئات — الفئة تُحسب لكل عضو من حركاته (نافذة الفئة من الإعدادات) */
-export function tierDistribution(members, transactions, settings, now = new Date(), opts = {}) {
+/** تجميع الحركات الرصيدية لكل عضو — أساس حسابات الفئة لكل القوائم */
+function txsByMember(transactions) {
   const byMember = new Map();
   for (const t of balanceTxs(transactions)) {
     if (!byMember.has(t.memberId)) byMember.set(t.memberId, []);
     byMember.get(t.memberId).push(t);
   }
-  // reverse تُقرأ من نفس قائمة العضو — أضفها (ليست ضمن balanceTxs؟ بلى ضمنها)
+  return byMember;
+}
+
+/** توزيع الفئات — الفئة تُحسب لكل عضو من حركاته (نافذة الفئة من الإعدادات) */
+export function tierDistribution(members, transactions, settings, now = new Date(), opts = {}) {
+  const byMember = txsByMember(transactions);
   const result = { none: 0 };
   for (const tr of settings?.tiers || []) result[tr.key] = 0;
   for (const m of countedMembers(members, opts)) {
@@ -204,10 +200,21 @@ export function genderDistribution(members, opts = {}) {
   return out;
 }
 
-// ---------- النقاط شهرياً: ممنوحة / مستبدلة / منتهية ----------
-export function monthlyPoints(transactions, range) {
+/** توزيع اللغة (النسخة 3.0) — بلا الحقل: شريحة «غير مسجّل» */
+export function languageDistribution(members, opts = {}) {
+  const out = { ar: 0, en: 0, unregistered: 0 };
+  for (const m of countedMembers(members, opts)) {
+    if (m.language === "ar") out.ar++;
+    else if (m.language === "en") out.en++;
+    else out.unregistered++;
+  }
+  return out;
+}
+
+// ---------- الرصيد شهرياً: ممنوح / مستبدل / منتهٍ (هللات) ----------
+export function monthlyCredit(transactions, range) {
   const rev = reversedIds(transactions);
-  const buckets = new Map(); // 'YYYY-MM' → {granted, redeemed, expired}
+  const buckets = new Map(); // 'YYYY-MM' → {grantedHalalas, redeemedHalalas, expiredHalalas}
   for (const t of balanceTxs(transactions)) {
     if (t.id && rev.has(t.id)) continue;          // المعكوسة خارج الحساب
     if (t.type === "reverse") continue;            // حركة التصحيح نفسها ليست منحاً ولا استبدالاً
@@ -215,12 +222,15 @@ export function monthlyPoints(transactions, range) {
     const d = toDateSafe(t.at);
     if (!d) continue;
     const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    if (!buckets.has(key)) buckets.set(key, { month: key, granted: 0, redeemed: 0, expired: 0 });
+    if (!buckets.has(key)) {
+      buckets.set(key, { month: key, grantedHalalas: 0, redeemedHalalas: 0, expiredHalalas: 0 });
+    }
     const b = buckets.get(key);
-    const p = Number(t.points) || 0;
-    if (t.type === "earn") b.granted += p;
-    else if (t.type === "redeem") b.redeemed += -p;
-    else if (t.type === "expire") b.expired += -p;
+    const delta = Number(t.deltaHalalas) || 0;
+    // الترحيبية ضمن «ممنوح» (قرار المرحلة A)
+    if (t.type === "earn" || t.type === "welcome") b.grantedHalalas += delta;
+    else if (t.type === "redeem") b.redeemedHalalas += -delta;
+    else if (t.type === "expire") b.expiredHalalas += -delta;
     // adjust: تسوية إدارية — خارج الأعمدة الثلاثة عمداً
   }
   return [...buckets.values()].sort((a, b) => a.month.localeCompare(b.month));
@@ -243,65 +253,100 @@ export function idleMembers(members, idleDays = 90, now = new Date(), opts = {})
 }
 
 /**
- * القريبون من مكافأة: رصيدهم 80–99% من عتبة المكافأة التالية
- * (أصغر مكافأة نشطة لم يبلغها الرصيد بعد).
+ * القريبون من الترقية: مكتسبهم في النافذة 80–99% من عتبة الفئة التالية
+ * (النسخة 3.0 — بديل «القريبون من مكافأة»). يحتاج حركات المتجر لحساب
+ * المكتسب لكل عضو.
  */
-export function nearRewardMembers(members, settings, opts = {}) {
-  const active = (settings?.rewards || [])
-    .filter((r) => r.active !== false && Number(r.points) > 0)
-    .sort((a, b) => Number(a.points) - Number(b.points));
-  if (!active.length) return [];
+export function nearUpgradeMembers(members, transactions, settings, now = new Date(), opts = {}) {
+  const byMember = txsByMember(transactions);
   const out = [];
   for (const m of countedMembers(members, opts)) {
-    const balance = Number(m.pointsBalance) || 0;
-    if (balance <= 0) continue;
-    const next = active.find((r) => Number(r.points) > balance);
-    if (!next) continue; // بلغ كل العتبات
-    const ratio = balance / Number(next.points);
+    const eff = effectiveTier(m, byMember.get(m.id) || [], settings || {}, now);
+    if (!eff.nextTier) continue; // في أعلى فئة
+    const threshold = Number(eff.nextTier.minEarnedHalalas) || 0;
+    if (threshold <= 0) continue;
+    const ratio = eff.earnedHalalas / threshold;
     if (ratio >= 0.8 && ratio < 1) {
-      out.push({ ...m, nextRewardLabel: next.label, nextRewardPoints: Number(next.points), progressPct: Math.round(ratio * 100) });
+      out.push({
+        ...m,
+        earnedHalalas: eff.earnedHalalas,
+        nextTierKey: eff.nextTier.key,
+        nextTierName: eff.nextTier.name,
+        nextTierMinHalalas: threshold,
+        remainingHalalas: eff.remainingToNextHalalas,
+        progressPct: Math.round(ratio * 100),
+      });
     }
   }
   return out.sort((a, b) => b.progressPct - a.progressPct);
 }
 
-/** أعلى المنفقين (earn غير معكوسة داخل الفترة) */
+/** أعلى المنفقين (earn غير معكوسة داخل الفترة) — بالهللات */
 export function topSpenders(members, transactions, range, limit = 20, opts = {}) {
   const counted = new Map(countedMembers(members, opts).map((m) => [m.id, m]));
-  const agg = new Map(); // memberId → {amount, invoices}
+  const agg = new Map(); // memberId → {halalas, invoices}
   for (const t of nonReversedEarns(transactions, range)) {
     if (!counted.has(t.memberId)) continue;
-    if (!agg.has(t.memberId)) agg.set(t.memberId, { amount: 0, invoices: 0 });
+    if (!agg.has(t.memberId)) agg.set(t.memberId, { halalas: 0, invoices: 0 });
     const a = agg.get(t.memberId);
-    a.amount += Number(t.amount) || 0;
+    a.halalas += Number(t.amountHalalas) || 0;
     a.invoices += 1;
   }
   return [...agg.entries()]
-    .map(([id, a]) => ({ ...counted.get(id), spendAmount: a.amount, spendInvoices: a.invoices }))
-    .sort((a, b) => b.spendAmount - a.spendAmount)
+    .map(([id, a]) => ({ ...counted.get(id), spendHalalas: a.halalas, spendInvoices: a.invoices }))
+    .sort((a, b) => b.spendHalalas - a.spendHalalas)
     .slice(0, limit);
 }
 
 /**
- * النقاط الممنوحة لكل موظف — التجميع على byUid، والاسم المعروض هو
+ * الرصيد الممنوح لكل موظف — التجميع على byUid، والاسم المعروض هو
  * آخر byName مسجَّل لذلك الـ uid (الأحدث بتاريخ الحركة) حتى لا يظهر
  * الموظف باسم قديم بعد تغيير مسمّاه (قرار المرحلة 5).
  */
-export function pointsByEmployee(transactions, range) {
-  const agg = new Map(); // uid → {points, invoices, amount, name, lastAt}
+export function creditByEmployee(transactions, range) {
+  const agg = new Map(); // uid → {earnedHalalas, invoices, amountHalalas, name, lastAt}
   for (const t of nonReversedEarns(transactions, range)) {
     const uid = t.byUid || "unknown";
-    if (!agg.has(uid)) agg.set(uid, { uid, points: 0, invoices: 0, amount: 0, name: "", lastAt: -1 });
+    if (!agg.has(uid)) {
+      agg.set(uid, { uid, earnedHalalas: 0, invoices: 0, amountHalalas: 0, name: "", lastAt: -1 });
+    }
     const a = agg.get(uid);
-    a.points += Number(t.points) || 0;
+    a.earnedHalalas += Number(t.deltaHalalas) || 0;
     a.invoices += 1;
-    a.amount += Number(t.amount) || 0;
+    a.amountHalalas += Number(t.amountHalalas) || 0;
     const at = toDateSafe(t.at)?.getTime() ?? 0;
     if (at >= a.lastAt) { a.lastAt = at; a.name = t.byName || a.name; }
   }
   return [...agg.values()]
-    .map((r) => ({ uid: r.uid, points: r.points, invoices: r.invoices, amount: r.amount, name: r.name }))
-    .sort((a, b) => b.points - a.points);
+    .map((r) => ({
+      uid: r.uid,
+      earnedHalalas: r.earnedHalalas,
+      invoices: r.invoices,
+      amountHalalas: r.amountHalalas,
+      name: r.name,
+    }))
+    .sort((a, b) => b.earnedHalalas - a.earnedHalalas);
+}
+
+/**
+ * عدد التسجيلات لكل موظف (النسخة 3.0 — حماية من التلاعب):
+ * الأعضاء المنضمون داخل الفترة مجمّعين على createdBy، والاسم آخر
+ * createdByName بتاريخ الانضمام.
+ */
+export function registrationsByEmployee(members, range, opts = {}) {
+  const agg = new Map(); // uid → {count, name, lastAt}
+  for (const m of countedMembers(members, opts)) {
+    if (!inRange(m.joinedAt, range)) continue;
+    const uid = m.createdBy || "unknown";
+    if (!agg.has(uid)) agg.set(uid, { uid, count: 0, name: "", lastAt: -1 });
+    const a = agg.get(uid);
+    a.count += 1;
+    const at = toDateSafe(m.joinedAt)?.getTime() ?? 0;
+    if (at >= a.lastAt) { a.lastAt = at; a.name = m.createdByName || a.name; }
+  }
+  return [...agg.values()]
+    .map((r) => ({ uid: r.uid, count: r.count, name: r.name }))
+    .sort((a, b) => b.count - a.count);
 }
 
 // ---------- CSV ----------
